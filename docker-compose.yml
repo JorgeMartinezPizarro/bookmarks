@@ -1,0 +1,16 @@
+services:
+  bookmarks:
+    image: jorgemartinezpizarro/bookmarks:latest
+    restart: always
+    ports:
+      - ${BOOKMARKS_PORT}:3000
+    volumes:
+      - ${BOOKMARKS_DATA_FOLDER}:/app/volume/data
+      - ${BOOKMARKS_MUSIC_FOLDER}:/app/volume/media/audio
+    environment:
+      - BOOKMARKS_PASSWORD=${BOOKMARKS_PASSWORD}
+      - NODE_ENV=development
+      - BOOKMARKS_DATA_FOLDER=/app/volume/data
+      - BOOKMARKS_MUSIC_FOLDER=/app/volume/media/audio
+      - BOOKMARKS_PORT=3000
+      - NEXT_PUBLIC_URL=files.ideniox.com
