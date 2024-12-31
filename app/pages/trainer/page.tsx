@@ -1,42 +1,132 @@
 'use client'
 
 import { errorMessage } from '@/app/helpers';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 
 const TrainerComponent = () => {
-  
-	const [question, setQuestion] = useState<string>("")
-    const [answer, setAnswer]     = useState<string>("")
+	const [question, setQuestion] = useState<string>("");
+	const [answer, setAnswer] = useState<string>("");
+	const [loading, setLoading] = useState<boolean>(false);
+	const [history, setHistory] = useState<{ question: string; answer: string }[]>([]);
 
-    const handleChange = (event: any) => {
-        setQuestion(event.target.value);
-    };
+	const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+		setQuestion(event.target.value);
+	};
 
-    const handleSubmit = (event: any) => {
-        fetch(`/home/api/ask?question=${question}`)
-            .then(res=>res.text())
-            .then(res=>setAnswer(res))
-            .catch(error => setAnswer(errorMessage(error)))
-    }
+	const handleSubmit = () => {
+		if (!question.trim()) {
+			setAnswer("Por favor, escribe una pregunta antes de enviarla.");
+			return;
+		}
+		setLoading(true);
+		fetch(`/bookmarks/api/ask?question=${encodeURIComponent(question)}`)
+			.then((res) => res.text())
+			.then((res) => {
+				setAnswer(res);
+				setHistory((prevHistory) => [...prevHistory, { question, answer: res }]);
+				setLoading(false);
+			})
+			.catch((error) => {
+				const errorMsg = errorMessage(error);
+				setAnswer(errorMsg);
+				setHistory((prevHistory) => [...prevHistory, { question, answer: errorMsg }]);
+				setLoading(false);
+			});
+	};
 
-    useEffect(() => {
-        
-    }, [])
-    
-  return <>
-	    <textarea 
-            style={{width: "100%", height:"300px"}}
-            value={question}
-            onChange={handleChange}
-            placeholder='Hola, en que puedo ayudarte?'
-        />
-        <hr/>
-        <button onClick={handleSubmit}>Submit the question</button>
-        <hr/>
-        <p>{answer}</p>
-        <hr/>
-        <div>HINT: Reading the question before send it is highly recommended.</div>
-  </>  
-}
+	const handleReset = () => {
+		setQuestion("");
+		setAnswer("");
+		setHistory([]);
+	};
+
+	const exportHistory = () => {
+		const content = history
+			.map((entry, index) => `Interacción ${index + 1}:\nPregunta: ${entry.question}\nRespuesta: ${entry.answer}\n`)
+			.join("\n");
+		const blob = new Blob([content], { type: "text/plain" });
+		const link = document.createElement("a");
+		link.href = URL.createObjectURL(blob);
+		link.download = "historial-sesion.txt";
+		link.click();
+	};
+
+	return (
+		<div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
+			<h1>Entrenador GPT</h1>
+			<textarea
+				style={{
+					width: "100%",
+					height: "200px",
+					padding: "10px",
+					fontSize: "16px",
+					border: "1px solid #ccc",
+					borderRadius: "5px",
+				}}
+				value={question}
+				onChange={handleChange}
+				placeholder="Hola, ¿en qué puedo ayudarte?"
+			/>
+			<div style={{ marginTop: "20px" }}>
+				<button
+					onClick={handleSubmit}
+					style={{
+						backgroundColor: "#007BFF",
+						color: "#fff",
+						padding: "10px 20px",
+						border: "none",
+						borderRadius: "5px",
+						cursor: "pointer",
+					}}
+				>
+					Enviar Pregunta
+				</button>
+				<button
+					onClick={handleReset}
+					style={{
+						backgroundColor: "#DC3545",
+						color: "#fff",
+						padding: "10px 20px",
+						marginLeft: "10px",
+						border: "none",
+						borderRadius: "5px",
+						cursor: "pointer",
+					}}
+				>
+					Resetear
+				</button>
+				<button
+					onClick={exportHistory}
+					style={{
+						backgroundColor: "#28A745",
+						color: "#fff",
+						padding: "10px 20px",
+						marginLeft: "10px",
+						border: "none",
+						borderRadius: "5px",
+						cursor: "pointer",
+					}}
+				>
+					Exportar Historial
+				</button>
+			</div>
+			<div style={{ marginTop: "20px" }}>
+				{loading ? <p>Obteniendo respuesta...</p> : <p>{answer}</p>}
+			</div>
+			<div style={{ marginTop: "20px", borderTop: "1px solid #ccc", paddingTop: "10px" }}>
+				<h3>Historial</h3>
+				<ul>
+					{history.map((entry, index) => (
+						<li key={index} style={{ marginBottom: "10px" }}>
+							<strong>Pregunta:</strong> {entry.question}
+							<br />
+							<strong>Respuesta:</strong> {entry.answer}
+						</li>
+					))}
+				</ul>
+			</div>
+		</div>
+	);
+};
 
 export default TrainerComponent;

@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { Button, Tooltip } from "@mui/material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
@@ -11,9 +13,10 @@ let lastEventTime = ''
 const Monitor = () => {
 
 	const [values, setValues] = useState<any>({banned: [], resources: [], cron: [], docker: []})
+	const [copied, setCopied] = React.useState(false);
 
 	const requestDocker = () => {
-		fetch(process.env.NEXT_PUBLIC_NEXTCLOUD_URL+'/reports/docker.txt?x=' + new Date().toString())
+		fetch('/reports/docker.txt?x=' + new Date().toString())
 			.then(a => a.text())
 			.then(e => {
 				setValues((newValues: any) => {
@@ -37,7 +40,7 @@ const Monitor = () => {
 	}
 
 	const requestResources = useCallback(() => {
-        fetch(process.env.NEXT_PUBLIC_NEXTCLOUD_URL+'/reports/computer.txt?x=' + new Date().toString())
+        fetch('/reports/computer.txt?x=' + new Date().toString())
 			.then(a => a.text())
 			.then(e => {
 				setValues((newValues: any) => {
@@ -85,7 +88,7 @@ const Monitor = () => {
 	}
 
 	const requestCron = useCallback(() => {
-		fetch(process.env.NEXT_PUBLIC_NEXTCLOUD_URL+'/reports/cron.txt?x=' + new Date().toString())
+		fetch('/reports/cron.txt?x=' + new Date().toString())
 			.then(a => a.text())
 			.then(e => {
 				setValues((newValues: any) => {
@@ -107,7 +110,7 @@ const Monitor = () => {
 	
 
 	const requestAccess = useCallback(() => {
-        fetch(process.env.NEXT_PUBLIC_NEXTCLOUD_URL+'/reports/access.txt?x=' + new Date().toString())
+        fetch('/reports/access.txt?x=' + new Date().toString())
 			.then(a => a.text())
 			.then(e => {
 				setValues((newValues: any) => {
@@ -145,7 +148,7 @@ const Monitor = () => {
 	}, [setValues])
 
 	const requestBannedIPs = () => {
-	fetch(process.env.NEXT_PUBLIC_NEXTCLOUD_URL+'/reports/banned_ips_table.txt?x=' + new Date().toString())
+	fetch('/reports/banned_ips_table.txt?x=' + new Date().toString())
 		.then(a => a.text())
                 .then(e => {
                         setValues((newValues: any) => {
@@ -204,10 +207,42 @@ const Monitor = () => {
 
 	const w = values.banned.map((b: string[]) => b[1].trim()).slice(1)
 
+	const bannedIps = values.banned.map((a: string[]) => a[1]?.trim())
+	
+	const script = values.list ? values.list
+		.filter((value: string[]) => 
+			!bannedIps.includes(value[0])
+		)
+		.map((value: string[]) => 
+			`iptables -A INPUT -s ${value[0]} -j DROP`
+		)
+		.join(" && ") : ""
+
+	const handleCopy = () => {
+		navigator.clipboard.writeText(script).then(() => {
+			setCopied(true);
+			setTimeout(() => setCopied(false), 2000); // Reset tooltip after 2 seconds
+		});
+	};
+
+	const button = <Tooltip title={copied ? "Copied!" : "Copy to clipboard"} arrow>
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={handleCopy}
+		disabled={script===""}
+        startIcon={<ContentCopyIcon />}
+      >
+        Copy
+      </Button>
+	</Tooltip>
+
 	const parseValues = (array = [], suffix="") => {
 		const x = array.filter((a: string[]) => a !== undefined && a.join && a.join("").trim() !== "" && !w.includes(a[0]?.trim()))
 		return <table key={JSON.stringify(array)+suffix}>
 			<tbody>
+				{suffix === "b" && x.length > 0 && <tr><td colSpan={3}>{button}</td></tr>}
+				{suffix === "b" && x.length === 0 && <tr><td colSpan={3}>No attackers found!</td></tr>}
 				{x.map((a: string[], i) => <tr key={i} title={
 					(a && a.length > 1 && a[1].includes && a[1].includes("❗​")) ? ("Failed access attempts " + a[1].replace("❗​", "")) : undefined
 				}>
@@ -222,11 +257,7 @@ const Monitor = () => {
 		</table>
 	}
 
-	const script = values.list && values.list.map((value: string[]) => 
-		`iptables -A INPUT -s ${value[0]} -j DROP`
-	)
-
-	console.log(script && script.join(" && "))
+	
 
 	return (
     <div className="my-frame">
@@ -288,8 +319,10 @@ const Monitor = () => {
 		  display: 'inline-block',
         }}
         title="Failed access attempts"
-      >{parseValues(values.list)}</div>
-		</div>
+      >
+	  {parseValues(values.list, "b")}
+	</div>
+	</div>
 		
     </div>
   );
