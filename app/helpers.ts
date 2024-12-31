@@ -1,35 +1,19 @@
+import { CellValues } from "./pages/games/types";
 
-import NodeID3 from 'node-id3';
-import path from 'path';
-import { MetadataRequest } from './types';
-
-export function errorMessage(error: Error | any): string {
-    let message: string
+export function errorMessage(error: Error | any, traceLength: number = 5): string {
+    let message: string;
     if (error instanceof Error) {
-        message = error.stack || ""
-        console.error("An Error ocurred.")
-        console.error("==================")
-        console.error(message.split("\n"))
+        message = error.stack || "";
+        console.error("An Error occurred.");
+        console.error("==================");
+        console.error(message.split("\n").slice(0, traceLength));
+    } else {
+        message = String(error);
     }
-    else message = String(error)
-    return message;
+    return message.split("\n").slice(0, traceLength).join("\n");
 }
-
-export const setMetadata = (values: MetadataRequest) => {
-    return new Promise((resolve, reject) => {
-      
-      const inputFilePath = path.join(process.cwd(), "volume", "media", "audio", values.filename);
-      
-      // Write tags to an MP3 file
-      NodeID3.write(values.metadata, inputFilePath, (err) => {
-        if (err) {
-          console.error("Error updating MP3 metadata")
-          console.error(errorMessage(err));
-          reject(err)
-        } else {
-          resolve(true)
-          console.log("MP3 metadata updated successfully for file " + values.filename);
-        }
-      })
-    })
-  }
+export default function getTimeMicro() {
+    var hrTime = process.hrtime()
+    const a = hrTime[0] * 1000000 + hrTime[1] / 1000
+    return Math.round(a)
+}

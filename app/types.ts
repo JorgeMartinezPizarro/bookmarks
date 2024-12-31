@@ -39,8 +39,7 @@ export type BookmarksProps = {
     handleEdit: (link: Link, category: string, index: number) => void; 
     handleRemove: (category: string, index: number) => void;
     setUpdate: (object: Object) => void
-    bookmarks: Bookmarks;
-    category: string | undefined;
+    page: StartPage;
 }
 
 export type AudioPlayerProps = {
@@ -56,13 +55,11 @@ export type Bookmark = {
 }
 
 export type EditBookmarksProps = {
-    bookmark: Bookmark;
+    page: StartPage;
     handleAdd: (link: Link, category: string) => void,
     handleEdit: (link: Link, category: string, index: number) => void; 
     handleRemove: (category: string, index: number) => void;
     setUpdate: (object: Object) => void
-    onClose: () => void;
-    folderOnly: boolean;
 }
 
 export type MetadataKey = "title" | "artist" | "album" | "genre"
@@ -90,6 +87,8 @@ export interface HealthCheckResult {
   
   export interface HealthCheckProps {
     urls: string[]
+    message: string;
+    error: string;
     reload: () => void;
     loading: boolean;
     setUpdate: (object: Object) => void

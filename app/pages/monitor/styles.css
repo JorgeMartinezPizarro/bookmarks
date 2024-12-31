@@ -1,0 +1,111 @@
+#access, #cron, #docker, #resources, #banned {
+  font-family: monospace;
+  unicode-bidi: isolate;	
+  
+  
+  max-height: 100%;
+  overflow: auto;
+  color: silver;
+  font-size: 16.1px;
+  padding: 4px;
+  margin: 2px;
+  background: black;
+  transition: width 0.5s linear;
+}
+
+.my-frame {
+  height: 100%;
+}
+
+#access tr td, #cron tr td, #docker tr td, #resources tr td, #banned tr td{
+  padding: 2px;
+}
+
+
+.container .block {
+  display: inline-block;
+}
+
+table tr, table tr td {
+  padding: 8px!important;
+}
+
+#resources {
+  overflow: auto;
+}
+#resources table {
+  width: calc(100% - 16px);        
+    max-width: 100%;    
+}
+#resources table tr {
+  padding: 9px;
+  width: 100%;
+}
+#resources table tr td {
+  padding: 8px;
+  border-bottom: 1px solid #535333;
+  
+}
+#resources table tr td:nth-child(1) {
+  border-right: 1px solid #535333;
+}
+
+
+#docker {
+  overflow: auto;
+}
+
+#banned table, #cron table, #access table {
+  width: 100%;
+}
+
+#banned table tr td, #cron table tr td, #access table tr td {
+  border-bottom: 1px solid #535333;
+  line-height: 15px;
+}
+table {
+  opacity: 0.8;
+}
+
+table:hover {
+  opacity: 1;
+  background: black;
+  color: white;
+  box-shadow: 0 0 4px 4px rgba(255, 255, 255, 0.3);
+}
+
+#access table tr td:nth-child(1),
+#cron table tr td:nth-child(1),
+#banned table tr td:nth-child(1) {
+  border-right: 1pt solid #535333;
+}
+
+#banned table tr td:nth-child(2) {
+  border-right: 1pt solid #535333;
+}
+
+#docker table {
+  width: 100%;
+}
+#docker table tr td {
+  border-bottom: 1px solid #535333;
+  line-height: 15px;
+}
+
+#docker table tr td:nth-child(1),
+#docker table tr td:nth-child(2),
+#docker table tr td:nth-child(3) {
+  border-right: 1pt solid #535333;
+}
+#access::-webkit-scrollbar,
+#docker::-webkit-scrollbar,
+#banned::-webkit-scrollbar,
+#resources::-webkit-scrollbar,
+#cron::-webkit-scrollbar,
+.container::-webkit-scrollbar {
+  
+    display: none; 
+}
+#report {
+  overflow: hidden;
+}

@@ -1,15 +1,12 @@
-import type { Metadata } from "next";
+'use client' 
+
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import theme from './theme'; 
 
 const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "Home",
-  description: "Jorge's Home",
-};
-
-
 
 export default function RootLayout({
   children,
@@ -18,8 +15,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+      </head>
       <body className={inter.className}>
+      <ThemeProvider theme={theme}>
+          <CssBaseline />
           {children}
+        </ThemeProvider>
       </body>
     </html>
   );

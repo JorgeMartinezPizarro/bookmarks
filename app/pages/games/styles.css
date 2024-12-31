@@ -1,0 +1,47 @@
+.box {
+    display: grid;
+    grid-template-columns: repeat(6, 0.01fr);
+    text-align: center;
+    width: min(90%, 410px);
+    margin: 0;
+    padding: 0;
+    
+}
+.box {
+    opacity: 1;
+}
+.box.loading {
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+.box button {
+    box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
+    height: 48px;
+    width: 64px;
+    padding: 4px;
+    border-radius: 8px;
+    margin: 2px;
+    font-size: 14px;
+    transition: opacity 0.3s ease-in-out, background-color 0.6s ease-in-out;
+}
+.box button.MuiButton-colorSecondary {
+    color: black; 
+    background: black;
+}
+.box button.MuiButton-colorPrimary {
+    background: green;
+    color: white;
+}
+.box button.danger {
+    background: #b37;
+    border: 1px solid #de1331;
+}
+.box .cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.box button:hover {
+    opacity: 0.2;
+    border: 1px solid yellow;
+}

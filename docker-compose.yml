@@ -3,14 +3,9 @@ services:
     image: jorgemartinezpizarro/bookmarks:latest
     restart: always
     ports:
-      - ${BOOKMARKS_PORT}:3000
-    volumes:
-      - ${BOOKMARKS_DATA_FOLDER}:/app/volume/data
-      - ${BOOKMARKS_MUSIC_FOLDER}:/app/volume/media/audio
+      - ${PORT}:3000
     environment:
-      - BOOKMARKS_PASSWORD=${BOOKMARKS_PASSWORD}
-      - NODE_ENV=development
-      - BOOKMARKS_DATA_FOLDER=/app/volume/data
-      - BOOKMARKS_MUSIC_FOLDER=/app/volume/media/audio
-      - BOOKMARKS_PORT=3000
-      - NEXT_PUBLIC_URL=files.ideniox.com
+      - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
+      - NEXT_PUBLIC_NEXTCLOUD_URL=${NEXT_PUBLIC_NEXTCLOUD_URL}
+      - PORT=${PORT}
+    

@@ -1,6 +1,7 @@
 html, body {
-  height: 100%;
-  width: 100%;
+  background: #222!important;
+  height: calc(100% - 4px);
+  width: calc(100% - 4px);
   margin: 0;
   padding: 0;
 }
