@@ -1,7 +1,10 @@
 html, body {
   background: #555!important;
-  height: calc(100% - 4px);
-  width: calc(100% - 4px);
+  height: calc(100% - 0px);
+  width: calc(100% - 0px);
   margin: 0;
   padding: 0;
+}
+img.favorite {
+  filter: brightness(0) invert(1);
 }
