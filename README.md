@@ -12,7 +12,7 @@ It provides:
 
 This is a [next.js](https://nextjs.org/) project created with [create-next-app](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
-It requires `node@18.17` and `npm@10.8.2` to run, or `docker@26.0.1`.
+Created and tested using `node@22.12`, `npm@11.0.0` and `docker@26.0.1`.
 
 ## SETUP
 
@@ -24,6 +24,8 @@ Select your preferred method:
 
 #### NPM
 
+Run the UI using node:
+
 ```bash
 git clone git@github.com:JorgeMartinezPizarro/bookmarks.git
 copy .env bookmarks/.env
@@ -34,11 +36,12 @@ npm run start
 
 #### DOCKER
 
+Run both the UI and stockfish dockerized:
+
 ```bash
 git clone git@github.com:JorgeMartinezPizarro/bookmarks.git
 copy .env bookmarks/.env
 cd bookmarks
-docker compose down --remove-orphans
 docker compose up -d
 ```
 
@@ -46,7 +49,23 @@ Navigate to [http://localhost:3000](http://localhost:3000) to start using the ap
 
 ## BUILD
 
+To build the dockerized UI:
+
 ```bash
 docker build -t jorgemartinezpizarro/bookmarks:latest . 
 docker push jorgemartinezpizarro/bookmarks:latest
 ```
+
+To build the Stockfish container:
+```bash
+docker build -t jorgemartinezpizarro/stockfish:latest . 
+docker push jorgemartinezpizarro/stockfish:latest
+```
+
+Change the strings `jorgemartinezpizarro/stockfish` and `jorgemartinezpizarro/bookmarks` to you own hub docker namespace.
+
+## NOTE
+
+It is required to link the app with a nextcloud valid URL, otherwise the app will not work. 
+
+Alternatively you can just comment out the middleware.ts 

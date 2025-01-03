@@ -2,7 +2,6 @@
     display: grid;
     grid-template-columns: repeat(6, 0.01fr);
     text-align: center;
-    width: min(90%, 410px);
     margin: 0;
     padding: 0;
     

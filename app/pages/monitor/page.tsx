@@ -121,7 +121,7 @@ const Monitor = () => {
 
 					const access = [
 						["############", "Last 48h"],
-						...x[1].split("\n").map(a => a.split(" 2024-").map(a => a.replace("T", " at "))),
+						...x[1].split("\n").map(a => a.split(" 20").map(a => a.replace("24-", "").replace("25-", "").replace("T", " at "))),
 						["############", "Attempts"],
 						...x[2].split("\n").map(a => {
 							const x = a.split(" ").filter(a => a !== "")

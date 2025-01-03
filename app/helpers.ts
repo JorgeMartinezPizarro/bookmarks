@@ -1,6 +1,6 @@
 import { CellValues } from "./pages/games/types";
 
-export function errorMessage(error: Error | any, traceLength: number = 5): string {
+export function errorMessage(error: Error | any, traceLength: number = 15): string {
     let message: string;
     if (error instanceof Error) {
         message = error.stack || "";

@@ -9,14 +9,19 @@ import { randomArrayCellValues } from "./helpers";
 const GamesComponent = () => {
 
   const [start, setStart] = useState(Date.now())
-    
+  const [scores, setScores] = useState(true)  
   const [loading, setLoading] = useState(false)
   const [isRight, setIsRight] = useState(true)
   const [last, setLast] = useState<CellValues|undefined>(undefined)
   const [numbers, setNumbers] = useState<CellValues[]>([])
   const [score, setScore] = useState<number>(0)
   const [time, setTime] = useState<number>(Date.now())
+  const [topScores, setTopScores] = useState<any>([])
   
+  const currentScore = time - start === 0 ?
+    0 : 
+    Math.round(score ** 2 * 1500 / (time - start))
+
   const Cell = (props: CellProps) => {
     
     const isCrossed = props?.values.b
@@ -49,6 +54,14 @@ const GamesComponent = () => {
     )
     
     if (!clickIsRight) {
+      fetch("/bookmarks/api/form", {
+        method: "POST",
+        body: JSON.stringify({ 
+          form: 1, // form to save the progress
+          score: currentScore,
+          steps: score,
+        }),
+      }).then(a => a.json()).then(a => loadScores())
       setIsRight(false)
       setLast(undefined)
       return
@@ -82,6 +95,18 @@ const GamesComponent = () => {
     newNumbers.slice(16, 20).reverse()
   ]
 
+  const loadScores = useCallback(() => {
+    fetch("/bookmarks/api/form?formId=1").then(a => a.json()).then(a => {
+      const topScores = a.ocs.data.submissions.map((e: any) => {
+        return {
+          score: e.answers[0].text,
+          steps: e.answers[1].text,
+          name: e.answers[2].text
+        }
+      })
+      setTopScores(topScores)
+    })
+  }, [setTopScores])
   const newGame = useCallback(() => {
     setLoading(true)
     setIsRight(true)
@@ -97,6 +122,9 @@ const GamesComponent = () => {
 
   useEffect(() => {
     // Start load game on component mount
+    
+
+    loadScores()
     const startGameSoon = setTimeout(() => newGame(), 25)
     return () => {
       // Clear load action on component unmount
@@ -104,22 +132,21 @@ const GamesComponent = () => {
     }
   }, [])
 
-  const currentScore = time - start === 0 ?
-    0 : 
-    Math.round(score ** 2 * 1500 / (time - start))
+  
 
-  console.log(Math.log(time - start) / 10)
-  return (<Box
-    sx={{
-      display: "flex", // Activar Flexbox
-      justifyContent: "center", // Centrado horizontal
-      alignItems: "center", // Centrado vertical
-      height: "100vh", // Altura completa del contenedor
-      width: "100%", // Ancho completo del contenedor
-      margin: "0",
-      padding: "0"
+  return (<>
+  <Button onClick={() => setScores(!scores)}>{!scores ? "Play" : "Scores"}</Button>
+  <Box
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      
+      textAlign: "center",
     }}
   >
+    {scores && <>
     {/* Render The Game Board */}
     {numbers.length === 20 && <Box
       className={"box" + (loading ? " loading" : "")}
@@ -156,7 +183,17 @@ const GamesComponent = () => {
       {/* Bottom rows */}
       {bottom.map(number => <Square key={number.values.i + "-bot"} values={number.values} handleClick={handleClick} />)}
     </Box>}
-  </Box>);
+    </>}
+    {!scores && topScores && <table border={2}>{topScores
+      .sort((a: any, b: any) => b.score - a.score)
+      .slice(0, 12)
+      .map((a: any, i: number) => <tr style={{padding: ""}}>
+        <td style={{padding: "6px"}}>{i+1}</td>
+        <td style={{padding: "6px"}}>{a.name}</td>
+        <td  style={{padding: "6px"}}>{a.score}</td>
+      </tr>)
+    }</table>}
+  </Box></>);
 }
 
 export default GamesComponent

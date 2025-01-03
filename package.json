@@ -20,6 +20,8 @@
     "@types/utf8": "^3.0.3",
     "axios": "^1.7.5",
     "cheerio": "^1.0.0",
+    "chess.js": "^1.0.0-beta.8",
+    "chessboardjsx": "^2.4.7",
     "cookie": "^1.0.1",
     "crypto-js": "^4.2.0",
     "fluent-ffmpeg": "^2.1.3",

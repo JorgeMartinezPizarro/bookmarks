@@ -8,4 +8,7 @@ services:
       - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
       - NEXT_PUBLIC_NEXTCLOUD_URL=${NEXT_PUBLIC_NEXTCLOUD_URL}
       - PORT=${PORT}
-    
+  stockfish:
+    image: jorgemartinezpizarro/stockfish:latest
+    ports:
+      - 1007:8080

@@ -1,0 +1,12 @@
+a.item span {
+    color: silver;
+    transition: color 200ms ease;
+}
+a.item:hover span {
+    color: yellow;
+}
+.item svg {
+    filter: brightness(0) invert(1);
+    color: black;
+}
+
