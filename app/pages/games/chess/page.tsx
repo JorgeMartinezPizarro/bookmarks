@@ -145,7 +145,7 @@ const ChessGame: React.FC = () => {
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      minHeight: "100vh",
+      minHeight: "calc(100vh - 40px)",
       textAlign: "center",
     }}>
       

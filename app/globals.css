@@ -1,5 +1,5 @@
 html, body {
-  background: #555!important;
+  background: #222!important;
   height: calc(100% - 0px);
   width: calc(100% - 0px);
   margin: 0;
@@ -7,4 +7,7 @@ html, body {
 }
 img.favorite {
   filter: brightness(0) invert(1);
+}
+h4, table tr td, table tr th, span, p {
+  color: white!important;
 }

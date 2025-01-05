@@ -18,9 +18,11 @@ const GamesComponent = () => {
   const [time, setTime] = useState<number>(Date.now())
   const [topScores, setTopScores] = useState<any>([])
   
+  const factorial = (n: number): number => n ? Array.from({ length: n }, (_, i) => i + 1).reduce((a, b) => a * b, 1) : 1;
+
   const currentScore = time - start === 0 ?
     0 : 
-    Math.round(score ** 2 * 1500 / (time - start))
+    Math.round(score**3 * 1000 / (time - start))
 
   const Cell = (props: CellProps) => {
     
@@ -45,7 +47,7 @@ const GamesComponent = () => {
       </Box>
   }
 
-  const handleClick = useCallback((cell: CellValues): void => {
+  const handleClick = useCallback((cell: CellValues): boolean => {
     
     const clickIsRight = !cell.values.b && isRight && (
         last === undefined ||
@@ -64,7 +66,7 @@ const GamesComponent = () => {
       }).then(a => a.json()).then(a => loadScores())
       setIsRight(false)
       setLast(undefined)
-      return
+      return true
     }
     
     const newNumbers = [...numbers].map(r => {
@@ -84,6 +86,8 @@ const GamesComponent = () => {
     setNumbers(newNumbers)
     setScore(score+1)
     setLast({...cell})
+
+    return false
     
   }, [last, score, numbers, setIsRight, setNumbers, setLast, setScore])
 
@@ -142,8 +146,9 @@ const GamesComponent = () => {
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      minHeight: "100vh",
+      minHeight: "calc(100vh - 40px)",
       textAlign: "center",
+      width: "100%"
     }}
   >
     {scores && <>
@@ -155,8 +160,8 @@ const GamesComponent = () => {
       <Box><Button className={isRight ? undefined : "danger"} onClick={newGame}>Reset</Button></Box>
       <Box><Button className={isRight ? undefined : "danger"} disabled>Score</Button></Box>
       <Box><Button className={isRight ? undefined : "danger"} disabled>{currentScore}</Button></Box>
-      <Box><Button className={isRight ? undefined : "danger"} disabled></Button></Box>
-      <Box><Button className={isRight ? undefined : "danger"} disabled></Button></Box>
+      <Box><Button className={isRight ? undefined : "danger"} disabled>Steps</Button></Box>
+      <Box><Button className={isRight ? undefined : "danger"} disabled>{score}</Button></Box>
       <Box>{isRight ?
           <Button disabled>{}</Button> :
           <Button disabled className="danger">💀</Button>          
