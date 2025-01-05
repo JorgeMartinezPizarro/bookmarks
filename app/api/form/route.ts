@@ -5,7 +5,7 @@ import { errorMessage } from "@/app/helpers";
 export async function POST(request: Request): Promise<Response> {
   try {
     const params = await request.json();
-    const { form, score, steps } = params;
+    const { form, score, steps, elo, time } = params;
 
     const apiKey = process.env.NEXTCLOUD_API_KEY;
     const username = process.env.NEXTCLOUD_USERNAME;
@@ -39,6 +39,25 @@ export async function POST(request: Request): Promise<Response> {
     // Devuelve la información del usuario como JSON
     const userInfo = await responseX.json();
     
+    let body;
+    
+    if (form === 1) 
+      body = { 
+        answers: {
+          1: [score],
+          4: [steps],
+          5: [userInfo?.ocs?.data?.id]
+        }
+      } 
+    else if (form === 2) 
+      body = {
+        answers: {
+          6: [elo],
+          7: [time],
+          8: [userInfo?.ocs?.data?.id],
+        }
+      }
+
     // Guardar resultados en el formulario de Nextcloud
     const response = await fetch(`${process.env.NEXT_PUBLIC_NEXTCLOUD_URL}/ocs/v2.php/apps/forms/api/v3/forms/${form}/submissions`, {
       method: "POST",
@@ -48,11 +67,7 @@ export async function POST(request: Request): Promise<Response> {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify({ answers: {
-        1: [score],
-        4: [steps],
-        5: [userInfo?.ocs?.data?.id]
-      } }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -97,7 +112,7 @@ export async function GET(request: Request): Promise<Response> {
 
     // Convertir la respuesta a JSON
     const data = await response.json();
-
+    
     // Devolver las respuestas al cliente
     return Response.json(data, { status: 200 })
    

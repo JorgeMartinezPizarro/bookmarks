@@ -17,7 +17,7 @@ export async function POST(req: Request): Promise<Response> {
   try {
     // Parseamos los datos del cuerpo de la solicitud
     const params = await req.json();
-    const { fen } = params;
+    const { fen, elo } = params;
 
     if (!fen) {
       return Response.json({ error: "FEN position is required" }, { status: 400 });
@@ -30,14 +30,15 @@ export async function POST(req: Request): Promise<Response> {
     if (validateFEN !== "") {
       throw new Error("FEN inválido: " + cleanFEN + ", error: " + validateFEN);
     }
-    const elo = 1800
     // Formato UCI correcto
     const payload = `uci
 setoption name UCI_LimitStrength value true
 setoption name UCI_Elo value ${elo}
+setoption name Hash value 8000
+setoption name Threads value 8
 isready
 position fen ${cleanFEN}
-go movetime 3000
+go movetime 400
 `.trim();
 
     console.log("Payload limpio enviado a Stockfish:", JSON.stringify(payload));

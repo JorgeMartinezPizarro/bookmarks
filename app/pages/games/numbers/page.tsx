@@ -135,14 +135,14 @@ const GamesComponent = () => {
   
 
   return (<>
-  <Button onClick={() => setScores(!scores)}>{!scores ? "Play" : "Scores"}</Button>
+  <Button variant="contained" onClick={() => setScores(!scores)}>{!scores ? "Play" : "Scores"}</Button>
   <Box
     style={{
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      
+      minHeight: "100vh",
       textAlign: "center",
     }}
   >
@@ -184,15 +184,34 @@ const GamesComponent = () => {
       {bottom.map(number => <Square key={number.values.i + "-bot"} values={number.values} handleClick={handleClick} />)}
     </Box>}
     </>}
-    {!scores && topScores && <table border={2}>{topScores
-      .sort((a: any, b: any) => b.score - a.score)
-      .slice(0, 12)
-      .map((a: any, i: number) => <tr style={{padding: ""}}>
-        <td style={{padding: "6px"}}>{i+1}</td>
-        <td style={{padding: "6px"}}>{a.name}</td>
-        <td  style={{padding: "6px"}}>{a.score}</td>
-      </tr>)
-    }</table>}
+    {!scores && topScores && <h4>Highest scores</h4>}
+    {!scores && topScores && <table style={{width: "70%" }} border={2}>
+      <tr><th>Pos</th><th>User</th><th>Score</th><th>Steps</th></tr>
+      {topScores
+        .sort((a: any, b: any) => b.score - a.score)
+        .slice(0, 10)
+        .map((a: any, i: number) => <tr style={{padding: ""}}>
+          <td style={{padding: "6px"}}>{i+1}</td>
+          <td style={{padding: "6px"}}>{a.name}</td>
+          <td  style={{padding: "6px"}}>{a.score}</td>
+          <td  style={{padding: "6px"}}>{a.steps}</td>
+        </tr>)
+      }
+    </table>}
+    {!scores && topScores && <h4>Longer games</h4>}
+    {!scores && topScores && <table style={{marginBottom: "24px", width: "70%" }} border={2}>
+      <tr><th>Pos</th><th>User</th><th>Score</th><th>Steps</th></tr>
+      {topScores
+        .sort((a: any, b: any) => b.steps - a.steps)
+        .slice(0, 10)
+        .map((a: any, i: number) => <tr style={{padding: ""}}>
+          <td style={{padding: "6px"}}>{i+1}</td>
+          <td style={{padding: "6px"}}>{a.name}</td>
+          <td  style={{padding: "6px"}}>{a.score}</td>
+          <td  style={{padding: "6px"}}>{a.steps}</td>
+        </tr>)
+      }
+    </table>}
   </Box></>);
 }
 

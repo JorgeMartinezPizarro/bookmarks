@@ -58,11 +58,19 @@ docker push jorgemartinezpizarro/bookmarks:latest
 
 To build the Stockfish container:
 ```bash
+cd tools/chess
 docker build -t jorgemartinezpizarro/stockfish:latest . 
 docker push jorgemartinezpizarro/stockfish:latest
 ```
 
-Change the strings `jorgemartinezpizarro/stockfish` and `jorgemartinezpizarro/bookmarks` to you own hub docker namespace.
+To build the Wordlist container:
+```bash
+cd tools/words
+docker build -t jorgemartinezpizarro/wordlist:latest . 
+docker push jorgemartinezpizarro/wordlist:latest
+```
+
+Change the strings `jorgemartinezpizarro/NAME` to you own hub docker namespace.
 
 ## NOTE
 

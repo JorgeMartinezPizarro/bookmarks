@@ -2,9 +2,6 @@
     display: grid;
     grid-template-columns: repeat(6, 0.01fr);
     text-align: center;
-    margin: 0;
-    padding: 0;
-    
 }
 .box {
     opacity: 1;
