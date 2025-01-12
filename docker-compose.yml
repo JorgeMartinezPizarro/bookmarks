@@ -12,3 +12,7 @@ services:
     image: jorgemartinezpizarro/stockfish:latest
     ports:
       - 1007:8080
+  gpt:
+    image: jorgemartinezpizarro/gpt:latest
+    ports:
+      - 1008:5000

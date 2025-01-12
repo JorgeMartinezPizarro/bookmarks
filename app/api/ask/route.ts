@@ -7,27 +7,26 @@ export async function GET(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const question = url.searchParams.get('question');
 
+    const nextcloudUserInfoEndpoint = `${process.env.NEXT_PUBLIC_NEXTCLOUD_URL}/gpt/gpt`;
+
     if (!question) {
       return Response.json({ error: "No question provided" }, { status: 400 });
     }
 
+    console.error(nextcloudUserInfoEndpoint)
+
     // Construct request body for OpenAI API
     const body = {
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: question,
-        }
-      ],
-      temperature: 1
-    };
+      "messages": [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": question}
+      ]
+    }
 
     // Fetch response from OpenAI
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(nextcloudUserInfoEndpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPEN_AI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
@@ -35,9 +34,11 @@ export async function GET(request: Request): Promise<Response> {
 
     // Handle OpenAI API errors
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.text();
       return Response.json({ error }, { status: response.status });
     }
+
+    console.log(body)
 
     // Parse and return response
     const answer = await response.json();

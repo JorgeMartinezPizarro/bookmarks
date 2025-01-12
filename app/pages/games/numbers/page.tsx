@@ -60,8 +60,11 @@ const GamesComponent = () => {
         method: "POST",
         body: JSON.stringify({ 
           form: 1, // form to save the progress
-          score: currentScore,
-          steps: score,
+          answers: {
+            1: [currentScore],
+            4: [score],
+          },
+          user: 5
         }),
       }).then(a => a.json()).then(a => loadScores())
       setIsRight(false)

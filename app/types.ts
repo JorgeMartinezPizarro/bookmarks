@@ -83,13 +83,21 @@ export type MetadataResponse = {
 export interface HealthCheckResult {
     url: string;
     status: number;
-  }
+}
   
-  export interface HealthCheckProps {
+export interface HealthCheckProps {
     urls: string[]
     message: string;
     error: string;
     reload: () => void;
     loading: boolean;
     setUpdate: (object: Object) => void
-  }
+}
+
+export type Cell = [string, string]; // [type, color]
+export type Board = Cell[][];
+
+export interface Piece {
+  shape: number[][];
+  color: string;
+}

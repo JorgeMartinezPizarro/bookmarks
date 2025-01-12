@@ -98,9 +98,12 @@ const ChessGame: React.FC = () => {
           fetch("/bookmarks/api/form", {
             method: "POST",
             body: JSON.stringify({ 
-              form: 1, // form to save the progress
-              elo,
-              time: 25000, // TODO: use actual time
+              form: 2, // form to save the progress
+              answers: {
+                6: [elo],
+                7: [25000], // TODO: use actual time
+              },
+              user: 8
             }),
           }).then(a => a.json()).then(a => loadScores())
         }
