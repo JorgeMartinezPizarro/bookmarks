@@ -2,11 +2,12 @@
 
 import { Box, Button, Stack, Typography } from "@mui/material";
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import "./style.css"
 
 type Cell = [string, string]; // [color, state]
 type Board = Cell[][];
 type Piece = { shape: number[][]; color: string };
-const speed = 129;
+const speed = 181;
 const createBoard = (rows: number, cols: number): Board =>
   Array.from(Array(rows), () => Array(cols).fill(["0", "clear"]));
 
@@ -284,12 +285,12 @@ const Tetris: React.FC = () => {
     loadScores()
   }, [])
   return (
-    <Box style={{ height: '100vh'}} display="flex" flexDirection="column" alignItems="center" gap={2}>
+    <Box style={{ height: '100vh'}} display="flex" flexDirection="column" alignItems="center" gap={1}>
       {/* Primera fila: Reiniciar, Pausar, Líneas y Temporizador */}
       <Box
         display="flex"
         justifyContent="space-between"
-        width="300px"
+        width="400px"
         style={{margin: "0 0 0 0"}}
       >
         <Button variant="contained" onClick={() => setScores(!scores)}>{!scores ? "Play" : "Scores"}</Button>
@@ -301,9 +302,6 @@ const Tetris: React.FC = () => {
         </Button>
         <Typography variant="body1" margin={0}>
           {lines}
-        </Typography>
-        <Typography variant="body1" margin={0}>
-          {timer}s
         </Typography>
       </Box>
 
@@ -318,30 +316,27 @@ const Tetris: React.FC = () => {
       </Box>}
 
       {/* Botones finales */}
-      {scores && <Stack direction="column" spacing={1} style={{margin: "0 0 0 0"}}>
-        <Stack direction="row" spacing={1} justifyContent="center">
-          <Button variant="contained" onClick={() => rotatePiece(-1)}>
+      {scores && <Box style={{ width: "400px", maxWidth:"100%", height: '100vh'}}>
+        <div style={{width: "calc(57% - 0px)", display: "inline-block"}}>
+          <Button variant="contained" style={{width: "32%!important", height: "48px", padding: "0!important"}} onClick={() => movePiece(-1, 0)}>
+            {"<"}
+          </Button>
+          <Button variant="contained" style={{width: "32%!important", height: "48px", padding: "0!important"}} onClick={() => dropPiece()}>
+            {"v"}
+          </Button>
+          <Button variant="contained" style={{width: "32%!important", height: "48px", padding: "0!important"}} onClick={() => movePiece(1, 0)}>
+            {">"}
+          </Button>
+        </div>
+        <div style={{width: "calc(43% - 0px)", textAlign: "right", display: "inline-block"}}>
+          <Button variant="contained" style={{width: "45%", height: "48px", padding: "0!important"}} onClick={() => rotatePiece(-1)}>
             O
           </Button>
-          <Button variant="contained" disabled>
-            N/A
-          </Button>
-          <Button variant="contained" onClick={() => rotatePiece(1)}>
+          <Button variant="contained" style={{width: "45%", height: "48px", padding: "0!important"}} onClick={() => rotatePiece(1)}>
             P
           </Button>
-        </Stack>
-        <Stack direction="row" spacing={1} justifyContent="center">
-          <Button variant="contained" onClick={() => movePiece(-1, 0)}>
-            A
-          </Button>
-          <Button variant="contained" onClick={() => dropPiece()}>
-            S
-          </Button>
-          <Button variant="contained" onClick={() => movePiece(1, 0)}>
-            D
-          </Button>
-        </Stack>
-      </Stack>}
+        </div>
+      </Box>}
       {!scores && topScores && <h4>Highest scores</h4>}
       {!scores && topScores && <table style={{width: "70%" }} border={2}>
       <tr><th>Pos</th><th>User</th><th>Lines</th><th>Time</th></tr>

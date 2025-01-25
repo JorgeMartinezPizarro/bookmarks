@@ -1,5 +1,6 @@
 html, body {
   background: #222!important;
+  color: #e1e1e1;
   height: calc(100% - 0px);
   width: calc(100% - 0px);
   margin: 0;
@@ -10,4 +11,7 @@ img.favorite {
 }
 h4, table tr td, table tr th, span, p {
   color: white!important;
+}
+a:hover {
+  color: darkgrey;
 }

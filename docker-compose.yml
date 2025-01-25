@@ -1,13 +1,17 @@
 services:
-  bookmarks:
-    image: jorgemartinezpizarro/bookmarks:latest
-    restart: always
+  #bookmarks:
+  #  image: jorgemartinezpizarro/bookmarks:latest
+  #  restart: always
+  #  ports:
+  #    - ${PORT}:3000
+  #  environment:
+  #    - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
+  #    - NEXT_PUBLIC_NEXTCLOUD_URL=${NEXT_PUBLIC_NEXTCLOUD_URL}
+  #    - PORT=${PORT}
+  wordlist:
+    image: jorgemartinezpizarro/wordlist:latest
     ports:
-      - ${PORT}:3000
-    environment:
-      - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
-      - NEXT_PUBLIC_NEXTCLOUD_URL=${NEXT_PUBLIC_NEXTCLOUD_URL}
-      - PORT=${PORT}
+      - 1009:8080
   stockfish:
     image: jorgemartinezpizarro/stockfish:latest
     ports:

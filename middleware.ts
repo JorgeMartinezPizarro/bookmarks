@@ -8,8 +8,6 @@ export async function middleware(request: NextRequest) {
   // Lee la cookie proporcionada por Nginx
   const cookie = request.cookies.get('nc_session_id')?.value;
 
-  console.log("tetas", cookie)
-
   // Si no hay cookie, redirige inmediatamente al login
   if (!cookie) {
     return NextResponse.redirect(new URL('/login', request.url));

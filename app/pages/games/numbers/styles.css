@@ -15,7 +15,7 @@
     box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
     padding: 20px 2px;
     width: calc(100% - 2px);
-    height: 24px;
+    height: 24px!important;
     border-radius: 8px;
     margin: 1px;
     font-size: 16px;
@@ -23,24 +23,33 @@
     max-width: 40px;
     transition: opacity 0.3s ease-in-out, background-color 0.6s ease-in-out;
 }
-.box button.MuiButton-colorSecondary {
-    color: black; 
+.box .cell button.MuiButton-colorSecondary {
+    color: #444; 
     background: black;
 }
-.box button.MuiButton-colorPrimary {
+.box .cell button.MuiButton-colorPrimary {
     background: #319732;
+    color: white;
+}
+.box button, .box button[disabled] {
+    min-width: none!important;
+    background: darkolivegreen;
     color: white;
 }
 .box button.danger {
     background: #b37;
-    border: 1px solid #de1331;
 }
 .box .cell {
     display: flex;
     align-items: center;
     justify-content: center;
+    
 }
-.box button:hover {
+.box .cell button {
+    opacity: 1;
+    background: grey;
+}
+.box .cell button:hover {
     opacity: 0.2;
     
 }
