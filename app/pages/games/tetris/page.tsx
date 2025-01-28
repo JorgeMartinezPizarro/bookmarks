@@ -7,7 +7,7 @@ import "./style.css"
 type Cell = [string, string]; // [color, state]
 type Board = Cell[][];
 type Piece = { shape: number[][]; color: string };
-const speed = 181;
+const speed = 184;
 const createBoard = (rows: number, cols: number): Board =>
   Array.from(Array(rows), () => Array(cols).fill(["0", "clear"]));
 
@@ -247,35 +247,18 @@ const Tetris: React.FC = () => {
           rotatePiece(1);
           break;
         case "s": // Mantener presionado para bajar
-          if (!isHolding.current) {
-            isHolding.current = true;
-            dropPiece();
-            holdInterval.current = setInterval(() => {
-              dropPiece(); // Baja periódicamente mientras se mantiene presionado
-            }, 100); // Ajusta el tiempo entre bajadas
-          }
+          dropPiece();
           break;
         default:
           break;
       }
     };
 
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() === "s") {
-        isHolding.current = false;
-        if (holdInterval.current) {
-          clearInterval(holdInterval.current);
-          holdInterval.current = null;
-        }
-      }
-    };
-
+ 
     window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-
+ 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
       if (holdInterval.current) {
         clearInterval(holdInterval.current);
       }

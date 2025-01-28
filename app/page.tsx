@@ -1,6 +1,6 @@
 'use client';
 
-import { Box } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import { useEffect, useState } from "react";
 
 const key = "123213231asdssdadasdas213"
@@ -42,26 +42,38 @@ const AgePage = () => {
 
     }, [])
     */
-   return <Box style={{ height: '100vh'}} display="flex" flexDirection="column" alignItems="center" gap={2}>
+   const size = 64;
+   return <Box className="intro" style={{ height: '100vh'}} display="flex" flexDirection="column" alignItems="center" gap={2}>
         <p>Input your birthdate as <i>dd-mm-yyyy</i></p>
         <input type="text" value={birthDate} onChange={(e: any) => {setBirthDate(e.target.value)}} />
         <p>Dear user, you are since {days} days on planet Earth, congratulations!</p>
         <p>What do you want to play today?</p>
         <p>
-            <a href="https://nube.ideniox.com/apps/external/11/">Tetris</a>
+            <Button onClick={(e: any) => {window.parent.location.href = "https://nube.ideniox.com/apps/external/11/"}} >
+                <img src="/bookmarks/tetromino_tetris.png" width={size} height={size} />
+            </Button>
             &nbsp;/&nbsp; 
-            <a href="https://nube.ideniox.com/apps/external/9/">Chess</a>
+            <Button onClick={(e: any) => {window.parent.location.href = "https://nube.ideniox.com/apps/external/9/"}} >
+                <img src="/bookmarks/queen.png" width={size} height={size} />
+            </Button>
             &nbsp;/&nbsp;
-            <a href="https://nube.ideniox.com/apps/external/1/">Numbers</a>
+            <Button onClick={(e: any) => {window.parent.location.href = "https://nube.ideniox.com/apps/external/1/"}} >
+                <img src="/bookmarks/icon-test.png" width={size} height={size} />
+            </Button>
             &nbsp;/&nbsp; 
-            <a href="https://nube.ideniox.com/apps/external/12/">Words</a>
+            <Button onClick={(e: any) => {window.parent.location.href = "https://nube.ideniox.com/apps/external/12/"}} >
+                <img src="/bookmarks/omega_lowercase_transparent_fixed.png" width={size} height={size} />    
+            </Button>
           </p>
           <p>Or maybe you prefer to learn a bit?</p>
           
             <p>
-              <a href="https://nube.ideniox.com/apps/external/7/">Code</a>
-              &nbsp;/&nbsp;
-              <a href="https://nube.ideniox.com/apps/external/4/">Trainer</a>
+            <Button onClick={(e: any) => {window.parent.location.href = "https://nube.ideniox.com/apps/external/7/"}} >
+                <img src="/bookmarks/favicon.ico" width={size} height={size} />    
+            </Button>
+            <Button onClick={(e: any) => {window.parent.location.href = "https://nube.ideniox.com/apps/external/4/"}} >
+                <img src="/bookmarks/espada.png" width={size} height={size} />    
+            </Button>
             </p>
           
     </Box>
