@@ -18,8 +18,6 @@ const GamesComponent = () => {
   const [time, setTime] = useState<number>(Date.now())
   const [topScores, setTopScores] = useState<any>([])
   
-  const factorial = (n: number): number => n ? Array.from({ length: n }, (_, i) => i + 1).reduce((a, b) => a * b, 1) : 1;
-
   const currentScore = time - start === 0 ?
     0 : 
     Math.round(score**3 * 1000 / (time - start))

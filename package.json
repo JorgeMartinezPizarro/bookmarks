@@ -33,6 +33,7 @@
     "react-dom": "^18",
     "react-player": "^2.16.0",
     "react-tetris": "^0.4.0",
+    "sqlite3": "^5.1.7",
     "utf8": "^3.0.0",
     "webdav": "^5.7.1",
     "xml2js": "^0.6.2"
