@@ -11,7 +11,9 @@ services:
   wordlist:
     image: jorgemartinezpizarro/wordlist:latest
     ports:
-      - 1009:8080
+      - 1009:5000
+    volumes:
+      - ./audio/:/app/audio
   stockfish:
     image: jorgemartinezpizarro/stockfish:latest
     ports:
