@@ -20,10 +20,10 @@ const TrainerComponent = () => {
 		}
 		setLoading(true);
 		fetch(`/bookmarks/api/ask?question=${encodeURIComponent(question)}`)
-			.then((res) => res.text())
+			.then((res) => res.json())
 			.then((res) => {
-				setAnswer(res);
-				setHistory((prevHistory) => [...prevHistory, { question, answer: res }]);
+				setAnswer(res.response);
+				setHistory((prevHistory) => [...prevHistory, { question, answer: res.response }]);
 				setLoading(false);
 			})
 			.catch((error) => {

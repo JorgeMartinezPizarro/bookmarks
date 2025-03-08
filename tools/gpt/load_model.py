@@ -1,10 +1,18 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from flask import Flask, request, jsonify
+import torch
+from flask import Flask, request
 
-# Carga el modelo y el tokenizer
+# 🔹 Carga del modelo optimizada para CPU
 model_name = "EleutherAI/gpt-j-6B"
-model = AutoModelForCausalLM.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    torch_dtype=torch.float32,
+    device_map={"": "cpu"}
+)
+
+# 🔹 Cargamos el tokenizer
 tokenizer = AutoTokenizer.from_pretrained(model_name)
+tokenizer.pad_token = tokenizer.eos_token  # 🔹 Define token de padding
 
 app = Flask(__name__)
 
@@ -13,15 +21,51 @@ def chat():
     data = request.json
     messages = data.get("messages", [])
     if not messages:
-        return jsonify({"error": "No messages provided"}), 400
+        return "Error: No messages provided", 400
 
-    # Combina el historial de mensajes
-    prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
+    # 🔹 Solo tomamos la última pregunta
+    ultima_pregunta = messages[-1]["content"] if messages else ""
 
-    inputs = tokenizer(prompt, return_tensors="pt")
-    outputs = model.generate(inputs["input_ids"], max_length=100, num_return_sequences=1)
-    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return jsonify({"response": response})
+    # 🔹 Reformulamos el prompt para enfocarlo en resultados matemáticos
+    prompt = f"Pregunta: {ultima_pregunta}\nRespuesta matemática precisa y breve:"
+
+    # 🔹 Tokenización optimizada
+    inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True)
+
+    # 🔹 Inferencia optimizada sin gradientes para mejorar velocidad
+    with torch.no_grad():
+        outputs = model.generate(
+            inputs["input_ids"], 
+            attention_mask=inputs["attention_mask"],  
+            max_new_tokens=50,  # 🔹 Genera respuestas más rápidas y concretas
+            num_return_sequences=1,
+            temperature=0.3,  # 🔹 Prioriza precisión sobre creatividad
+            top_k=30,  
+            top_p=0.7,  # 🔹 Reduce la variabilidad de respuestas
+            repetition_penalty=1.2,  # 🔹 Evita que repita frases sin sentido
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id,
+            do_sample=False  
+        )
+
+    # 🔹 Procesamos la respuesta para eliminar el prompt y limpiar el texto
+    response = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+
+    # 🔹 Eliminamos la pregunta si el modelo la repite
+    response = response.replace(ultima_pregunta, "").strip()
+    response = response.replace("Pregunta:", "").strip()
+    response = response.replace("Respuesta matemática precisa y breve:", "").strip()
+
+    # 🔹 Eliminamos cualquier línea en blanco que haya quedado
+    response = "\n".join([line.strip() for line in response.split("\n") if line.strip()])
+
+    # 🔹 Si la respuesta no termina en punto, lo agregamos
+    if response and response[-1] not in ".!?":
+        response += "."
+
+    # 🔹 Devuelve texto puro, sin JSON
+    print(response)  # 🔹 Se verá en los logs de Docker
+    return response, 200, {"Content-Type": "text/plain"}
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

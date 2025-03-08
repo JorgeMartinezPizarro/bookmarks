@@ -20,12 +20,4 @@ services:
     image: jorgemartinezpizarro/gpt:latest
     ports:
       - 1008:5000
-  deepseek:
-    build: ./tools/deepseek
-    container_name: deepseek_api
-    ports:
-      - "8000:8000"
-    restart: unless-stopped
-    environment:
-      - OMP_NUM_THREADS=10
-      - MKL_NUM_THREADS=10
+  

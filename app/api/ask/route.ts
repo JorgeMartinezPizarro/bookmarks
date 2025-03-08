@@ -7,23 +7,22 @@ export async function GET(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const question = url.searchParams.get('question');
 
-    const nextcloudUserInfoEndpoint = `${process.env.NEXT_PUBLIC_NEXTCLOUD_URL}/gpt/gpt`;
+    const nextcloudUserInfoEndpoint = `${process.env.NEXT_PUBLIC_NEXTCLOUD_URL}/gpt`;
 
     if (!question) {
       return Response.json({ error: "No question provided" }, { status: 400 });
     }
 
-    console.error(nextcloudUserInfoEndpoint)
+    console.log("Enviando request a:", nextcloudUserInfoEndpoint);
 
-    // Construct request body for OpenAI API
+    // 🔹 NUEVO: Eliminamos el "system" y solo enviamos la pregunta real
     const body = {
       "messages": [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": question}
+        { "role": "user", "content": question }
       ]
-    }
+    };
 
-    // Fetch response from OpenAI
+    // Fetch response from GPT API
     const response = await fetch(nextcloudUserInfoEndpoint, {
       method: 'POST',
       headers: {
@@ -32,17 +31,17 @@ export async function GET(request: Request): Promise<Response> {
       body: JSON.stringify(body),
     });
 
-    // Handle OpenAI API errors
+    // Handle API errors
     if (!response.ok) {
       const error = await response.text();
       return Response.json({ error }, { status: response.status });
     }
 
-    console.log(body)
+    // 🔹 Procesar el output antes de enviarlo a la UI
+    const data = await response.text();
+    
+    return Response.json({ response: data }, { status: 200 });
 
-    // Parse and return response
-    const answer = await response.json();
-    return Response.json(answer, { status: 200 });
   } catch (error) {
     return Response.json({ error: errorMessage(error) }, { status: 500 });
   }
