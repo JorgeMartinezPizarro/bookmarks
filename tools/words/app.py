@@ -22,7 +22,7 @@ def get_word(word=None):
             query = "SELECT word FROM words WHERE word = ? LIMIT 1"  # Revisa el nombre correcto de la tabla
             cursor.execute(query, (word,))
         else:
-            query = "SELECT word FROM words WHERE word NOT LIKE '% %' ORDER BY RANDOM() LIMIT 1"
+            query = """SELECT word FROM words WHERE word NOT LIKE '% %' AND word NOT LIKE '% %' AND word NOT LIKE '%-%' AND word NOT LIKE "%'%" AND word GLOB '[A-Za-z]*' ORDER BY RANDOM() LIMIT 1"""
             cursor.execute(query)
 
         result = cursor.fetchone()
