@@ -62,6 +62,7 @@ const TrainerComponent = () => {
 					fontSize: "16px",
 					border: "1px solid #ccc",
 					borderRadius: "5px",
+					color: "black"
 				}}
 				value={question}
 				onChange={handleChange}

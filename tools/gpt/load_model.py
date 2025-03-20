@@ -39,9 +39,9 @@ def chat():
             attention_mask=inputs["attention_mask"],  
             max_new_tokens=50,  # 🔹 Genera respuestas más rápidas y concretas
             num_return_sequences=1,
-            temperature=0.3,  # 🔹 Prioriza precisión sobre creatividad
+            temperature=0.2,  # 🔹 Prioriza precisión sobre creatividad
             top_k=30,  
-            top_p=0.7,  # 🔹 Reduce la variabilidad de respuestas
+            top_p=0.8,  # 🔹 Reduce la variabilidad de respuestas
             repetition_penalty=1.2,  # 🔹 Evita que repita frases sin sentido
             pad_token_id=tokenizer.pad_token_id,
             eos_token_id=tokenizer.eos_token_id,
