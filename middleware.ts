@@ -28,7 +28,8 @@ export async function middleware(request: NextRequest) {
 
       // Si la respuesta contiene un usuario válido, permite continuar
       if (userInfo?.ocs?.data?.id) {
-        return NextResponse.next();
+        //return NextResponse.next();
+        return NextResponse.redirect(new URL('/login', request.url));
       }
     }
 
@@ -43,5 +44,5 @@ export async function middleware(request: NextRequest) {
 
 // Configuración para que el middleware se aplique en todas las rutas
 export const config = {
-  matcher: '/bookmarks/:path*', // Aplica el middleware a todas las rutas bajo /knowman
+  matcher: '/bookmarks/:path*', // Aplica el middleware a todas las rutas bajo /bookmarks
 };

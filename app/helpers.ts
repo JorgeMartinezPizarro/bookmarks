@@ -1,4 +1,3 @@
-import { CellValues } from "./pages/games/types";
 
 export function errorMessage(error: Error | any, traceLength: number = 15): string {
     let message: string;

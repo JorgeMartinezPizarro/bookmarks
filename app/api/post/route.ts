@@ -1,9 +1,13 @@
 import { errorMessage } from "@/app/helpers";
+import { requireAuth } from "@/app/lib/auth";
+import { NextRequest } from "next/server";
 
 // Placeholder for a standard POST request from the UI
-export async function POST(request: Request): Promise<Response> {  
+export async function POST(request: NextRequest): Promise<Response> {  
 
   try {
+
+    const user = await requireAuth(request);
 
     const params = await request.json();
 

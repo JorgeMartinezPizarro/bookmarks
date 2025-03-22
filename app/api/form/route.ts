@@ -1,9 +1,14 @@
 import { cookies } from "next/headers"; // Importa cookies desde next/headers
 import { errorMessage } from "@/app/helpers";
+import { requireAuth } from "@/app/lib/auth";
+import { NextRequest } from "next/server";
 
 // Save SQL information to a Nextcloud Form
-export async function POST(request: Request): Promise<Response> {
+export async function POST(request: NextRequest): Promise<Response> {
   try {
+    const u = await requireAuth(request);
+
+
     const params = await request.json();
     const { form, answers, user } = params;
 

@@ -1,9 +1,14 @@
 import { errorMessage } from "@/app/helpers";
+import { requireAuth } from "@/app/lib/auth";
+import { NextRequest } from "next/server";
 
 // Placeholder for a standard GET request from the UI
-export async function GET(request: Request): Promise<Response> {
+export async function GET(request: NextRequest): Promise<Response> {
   
   try {
+
+    const user = await requireAuth(request);
+
     const { searchParams } = new URL(request.url)
     
     const params = {

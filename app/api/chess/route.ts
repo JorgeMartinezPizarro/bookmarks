@@ -1,5 +1,7 @@
 import { errorMessage } from "@/app/helpers";
+import { requireAuth } from "@/app/lib/auth";
 import { Chess } from "chess.js";
+import { NextRequest } from "next/server";
 
 const isValidFEN = (fen: string) => {
   try {
@@ -10,11 +12,14 @@ const isValidFEN = (fen: string) => {
   }
 };
 
-export async function POST(req: Request): Promise<Response> {
+export async function POST(req: NextRequest): Promise<Response> {
   // La URL correcta para Stockfish, basada en tu configuración de Nginx
   const STOCKFISH_API_URL = "https://nube.ideniox.com/chess";
 
   try {
+
+    const user = await requireAuth(req);
+
     // Parseamos los datos del cuerpo de la solicitud
     const params = await req.json();
     const { fen, elo } = params;

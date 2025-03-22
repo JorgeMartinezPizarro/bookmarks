@@ -12,6 +12,7 @@ let lastEventTime = ''
 
 const Monitor = () => {
 
+
 	const [values, setValues] = useState<any>({banned: [], resources: [], cron: [], docker: []})
 	const [copied, setCopied] = React.useState(false);
 

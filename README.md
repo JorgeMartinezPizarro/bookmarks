@@ -76,4 +76,3 @@ Change the strings `jorgemartinezpizarro/NAME` to you own hub docker namespace.
 
 It is required to link the app with a nextcloud valid URL, otherwise the app will not work. 
 
-Alternatively you can just comment out the middleware.ts 

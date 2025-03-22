@@ -1,8 +1,13 @@
 import { errorMessage } from "@/app/helpers";
+import { requireAuth } from "@/app/lib/auth";
+import { NextRequest } from "next/server";
 
 // Communicate with CHATGPT using a custom UI
-export async function GET(request: Request): Promise<Response> {
+export async function GET(request: NextRequest): Promise<Response> {
   try {
+
+    const user = await requireAuth(request);
+
     // Extract question from query string
     const url = new URL(request.url);
     const question = url.searchParams.get('question');
