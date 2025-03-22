@@ -1,25 +1,28 @@
 services:
+  # Disable bookmarks to use local node development
   #bookmarks:
   #  image: jorgemartinezpizarro/bookmarks:latest
   #  restart: always
   #  ports:
   #    - ${PORT}:3000
   #  environment:
-  #    - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
   #    - NEXT_PUBLIC_NEXTCLOUD_URL=${NEXT_PUBLIC_NEXTCLOUD_URL}
   #    - PORT=${PORT}
   wordlist:
     image: jorgemartinezpizarro/wordlist:latest
+    # Exposed to comunicate node, remove later to use docker network communication
     ports:
       - 1009:5000
     volumes:
       - ./audio/:/app/audio
   stockfish:
     image: jorgemartinezpizarro/stockfish:latest
+    # Exposed to comunicate node, remove later to use docker network communication
     ports:
       - 1007:8080
   gpt:
     image: jorgemartinezpizarro/gpt:latest
+    # Exposed to comunicate node, remove later to use docker network communication
     ports:
       - 1008:5000
   
