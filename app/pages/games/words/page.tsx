@@ -24,7 +24,7 @@ const Wording = () => {
     <div>
       {word !== "" && <audio key={word} controls>
         <source 
-          src={"/api/audio?file="+word+".mp3"}
+          src={"/bookmarks/api/audio?file="+word+".mp3"}
           type="audio/mpeg"
         ></source>
       </audio>}
@@ -32,7 +32,7 @@ const Wording = () => {
     <hr />
     <Button 
       variant="contained" 
-      color="primary" 
+      color="secondary" 
       style={{height: "54px", background: "grey", padding: "8px", borderRadius: "4px"}} 
       onClick={requestWord}
     >Request word</Button>
