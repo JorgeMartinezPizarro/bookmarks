@@ -23,7 +23,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     // Endpoint de Nextcloud para obtener la información del usuario
-    const nextcloudUserInfoEndpoint = `${process.env.NEXT_PUBLIC_NEXTCLOUD_URL}/ocs/v2.php/cloud/user`;
+    const nextcloudUserInfoEndpoint = `${process.env.NEXT_PRIVATE_CLOUD}/ocs/v2.php/cloud/user`;
 
     // Realiza la solicitud al API de Nextcloud con la cookie
     const responseX = await fetch(nextcloudUserInfoEndpoint, {
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     console.log(body)
 
     // Guardar resultados en el formulario de Nextcloud
-    const response = await fetch(`${process.env.NEXT_PUBLIC_NEXTCLOUD_URL}/ocs/v2.php/apps/forms/api/v3/forms/${form}/submissions`, {
+    const response = await fetch(`${process.env.NEXT_PRIVATE_CLOUD}/ocs/v2.php/apps/forms/api/v3/forms/${form}/submissions`, {
       method: "POST",
       headers: {
         Authorization: `Basic ${btoa(`${username}:${apiKey}`)}`,
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     });
 
     if (!response.ok) {
-      throw new Error("Failed to save data to Nextcloud form.");
+      throw new Error("Failed to save data to Nextcloud form." + response.text);
     }
 
     return Response.json({ message: "Data saved successfully." }, { status: 200 });
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 }
 
 // Load SQL information from a Nextcloud Form by ID
-export async function GET(request: Request): Promise<Response> {
+export async function GET(request: NextRequest): Promise<Response> {
   try {
     const { searchParams } = new URL(request.url);
     const formId = searchParams.get("formId");
@@ -89,11 +89,13 @@ export async function GET(request: Request): Promise<Response> {
     const apiKey = process.env.NEXTCLOUD_API_KEY;
     const username = process.env.NEXTCLOUD_USERNAME;
 
-    const url = `${process.env.NEXT_PUBLIC_NEXTCLOUD_URL}/ocs/v2.php/apps/forms/api/v3/forms/${formId}/submissions`;
+    const url = `${process.env.NEXT_PRIVATE_CLOUD}/ocs/v2.php/apps/forms/api/v3/forms/${formId}/submissions`;
+
+    const cookie = request.cookies.get('nc_session_id')?.value;
 
     const response = await fetch(url, {
       headers: {
-        Authorization: `Basic ${btoa(`${username}:${apiKey}`)}`, // Autenticación básica
+        Authorization: `Bearer ${cookie}`,
         "OCS-APIRequest": "true", // Necesario para las solicitudes OCS
         "Accept": "application/json", // Aceptar JSON como respuesta
       },
