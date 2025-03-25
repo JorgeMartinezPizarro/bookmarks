@@ -190,7 +190,7 @@ const ChessGame: React.FC = () => {
       </Typography>
     )}
     {!scores && topScores && <h4>Highest scores</h4>}
-    {!scores && topScores && <table style={{width: "70%" }} border={2}>
+    {!scores && topScores && <table style={{width: "70%" }} border={2}><tbody>
       <tr><th>Pos</th><th>User</th><th>Elo</th><th>Time</th></tr>
       {topScores
         .sort((a: any, b: any) => b.score - a.score)
@@ -202,7 +202,7 @@ const ChessGame: React.FC = () => {
           <td  style={{padding: "6px"}}>{a.time}</td>
         </tr>)
       }
-    </table>}
+    </tbody></table>}
     </div>
     </>
   );

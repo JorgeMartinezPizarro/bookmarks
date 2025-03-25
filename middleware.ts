@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
   // Endpoint de Nextcloud para validar la cookie
-  const nextcloudUserInfoEndpoint = process.env.NEXT_PUBLIC_NEXTCLOUD_URL + '/ocs/v2.php/cloud/user';
+  const nextcloudUserInfoEndpoint = process.env.NEXTCLOUD_URL + '/ocs/v2.php/cloud/user';
   
   // Lee la cookie proporcionada por Nginx
   const cookie = request.cookies.get('nc_session_id')?.value;
@@ -28,8 +28,7 @@ export async function middleware(request: NextRequest) {
 
       // Si la respuesta contiene un usuario válido, permite continuar
       if (userInfo?.ocs?.data?.id) {
-        //return NextResponse.next();
-        return NextResponse.redirect(new URL('/login', request.url));
+        return NextResponse.next();
       }
     }
 
@@ -41,8 +40,3 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 }
-
-// Configuración para que el middleware se aplique en todas las rutas
-export const config = {
-  matcher: '/bookmarks/:path*', // Aplica el middleware a todas las rutas bajo /bookmarks
-};

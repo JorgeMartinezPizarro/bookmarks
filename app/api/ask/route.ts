@@ -12,7 +12,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     const url = new URL(request.url);
     const question = url.searchParams.get('question');
 
-    const nextcloudUserInfoEndpoint = `${process.env.NEXT_PUBLIC_NEXTCLOUD_URL}/gpt`;
+    const nextcloudUserInfoEndpoint = `${process.env.NEXTCLOUD_URL}/gpt`;
 
     if (!question) {
       return Response.json({ error: "No question provided" }, { status: 400 });

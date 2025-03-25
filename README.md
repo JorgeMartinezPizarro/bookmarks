@@ -1,3 +1,10 @@
+## TODO
+
+- Add Makefile with build start stop commands.
+- Adapt paths to docker volumes. Build last working version.
+- Use docker network to connect to the dockerized services for security
+- Move docker spaces to private env variables.
+
 ## ABOUT
 
 A private extension for Nextcloud.
@@ -12,7 +19,7 @@ It provides:
 
 This is a [next.js](https://nextjs.org/) project created with [create-next-app](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
-Created and tested using `node@22.12`, `npm@11.0.0` and `docker@26.0.1`.
+Created and tested using `node@22.12`, `npm@11.2.0` and `docker@26.0.1`.
 
 ## SETUP
 

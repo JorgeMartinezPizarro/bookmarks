@@ -15,7 +15,7 @@ export async function requireAuth(request: NextRequest): Promise<UserInfo> {
     throw new Error('No autorizado: falta cookie');
   }
 
-  const endpoint = process.env.NEXT_PRIVATE_CLOUD + '/ocs/v2.php/cloud/user';
+  const endpoint = process.env.NEXTCLOUD_URL + '/ocs/v2.php/cloud/user';
 
   const response = await fetch(endpoint, {
     headers: {

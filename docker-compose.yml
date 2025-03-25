@@ -6,7 +6,7 @@ services:
   #  ports:
   #    - ${PORT}:3000
   #  environment:
-  #    - NEXT_PRIVATE_CLOUD=${NEXT_PRIVATE_CLOUD}
+  #    - NEXTCLOUD_URL=${NEXTCLOUD_URL}
   #    - PORT=${PORT}
   wordlist:
     image: jorgemartinezpizarro/wordlist:latest

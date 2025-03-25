@@ -23,7 +23,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     // Endpoint de Nextcloud para obtener la información del usuario
-    const nextcloudUserInfoEndpoint = `${process.env.NEXT_PRIVATE_CLOUD}/ocs/v2.php/cloud/user`;
+    const nextcloudUserInfoEndpoint = `${process.env.NEXTCLOUD_URL}/ocs/v2.php/cloud/user`;
 
     // Realiza la solicitud al API de Nextcloud con la cookie
     const responseX = await fetch(nextcloudUserInfoEndpoint, {
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     console.log(body)
 
     // Guardar resultados en el formulario de Nextcloud
-    const response = await fetch(`${process.env.NEXT_PRIVATE_CLOUD}/ocs/v2.php/apps/forms/api/v3/forms/${form}/submissions`, {
+    const response = await fetch(`${process.env.NEXTCLOUD_URL}/ocs/v2.php/apps/forms/api/v3/forms/${form}/submissions`, {
       method: "POST",
       headers: {
         Authorization: `Basic ${btoa(`${username}:${apiKey}`)}`,
@@ -85,11 +85,10 @@ export async function GET(request: NextRequest): Promise<Response> {
       return Response.json({ error: "Form ID is required." }, { status: 400 });
     }
 
-    // Usa la API Key almacenada en variables de entorno
-    const apiKey = process.env.NEXTCLOUD_API_KEY;
-    const username = process.env.NEXTCLOUD_USERNAME;
+    const user = requireAuth(request)
 
-    const url = `${process.env.NEXT_PRIVATE_CLOUD}/ocs/v2.php/apps/forms/api/v3/forms/${formId}/submissions`;
+    // Usa la API Key almacenada en variables de entorno
+    const url = `${process.env.NEXTCLOUD_URL}/ocs/v2.php/apps/forms/api/v3/forms/${formId}/submissions`;
 
     const cookie = request.cookies.get('nc_session_id')?.value;
 
