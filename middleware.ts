@@ -17,26 +17,42 @@ export async function middleware(request: NextRequest) {
     // Llamar al endpoint de Nextcloud
     const response = await fetch(nextcloudUserInfoEndpoint, {
       headers: {
-        'Authorization': `Bearer ${cookie}`,
-        'OCS-APIREQUEST': 'true', // Header necesario para el API de Nextcloud
+        Authorization: `Bearer ${cookie}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'OCS-APIREQUEST': 'true'
       },
     });
 
     // Verifica si el token es válido
-    if (response.ok) {
-      const userInfo = await response.json();
+    if (!response.ok) {
+      throw new Error("Error: " + response.statusText + ". " + nextcloudUserInfoEndpoint)
+      
+    }
+    
+    const userInfo = await response.json();
 
-      // Si la respuesta contiene un usuario válido, permite continuar
-      if (userInfo?.ocs?.data?.id) {
-        return NextResponse.next();
-      }
+    // Si la respuesta contiene un usuario válido, permite continuar
+    if (!userInfo?.ocs?.data?.id) {
+      throw new Error("No user load from nextcloud, error")
+      
     }
 
-    // Si el response no es OK o no tiene la información esperada, redirige al login
-    return NextResponse.redirect(new URL('/login', request.url));
+    // No error happened, so continue
+    return NextResponse.next();
   } catch (error) {
     console.error('Error validando la cookie:', error);
     // En caso de error, redirige al login
     return NextResponse.redirect(new URL('/login', request.url));
   }
 }
+
+export const config = {
+  matcher: [
+    //'/pages/monitor/:path*', 
+    '/pages/games/:path',
+    '/pages/code/:path',
+    '/pages/paythering/:path',
+    '/pages/trainer/:path',
+  ]
+};

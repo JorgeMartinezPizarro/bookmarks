@@ -4,15 +4,19 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Tooltip } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
-import NotificationsIcon from '@mui/icons-material/Notifications';
-import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import "./styles.css";
 
-let lastEventTime = ''
 
 const Monitor = () => {
 
-
+	/* TODO: Move read files to backend:
+		- read files from nodejs fs
+		- remove uneccessary reports apache server
+		- sync with volumes
+		- use new json sources to read server status
+		- use websockets to retrieve real time data
+		- sqlite db with historical data
+	*/
 	const [values, setValues] = useState<any>({banned: [], resources: [], cron: [], docker: []})
 	const [copied, setCopied] = React.useState(false);
 
