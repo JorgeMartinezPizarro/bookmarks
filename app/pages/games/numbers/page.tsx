@@ -45,6 +45,19 @@ const GamesComponent = () => {
       </Box>
   }
 
+  const loadScores = useCallback(() => {
+    fetch("/bookmarks/api/form?formId=1").then(a => a.json()).then(a => {
+      const topScores = a.ocs.data.submissions.map((e: any) => {
+        return {
+          score: e.answers[0].text,
+          steps: e.answers[1].text,
+          name: e.answers[2].text
+        }
+      })
+      setTopScores(topScores)
+    })
+  }, [setTopScores])
+
   const handleClick = useCallback((cell: CellValues): boolean => {
     
     const clickIsRight = !cell.values.b && isRight && (
@@ -90,7 +103,7 @@ const GamesComponent = () => {
 
     return false
     
-  }, [last, score, numbers, setIsRight, setNumbers, setLast, setScore])
+  }, [last, score, numbers, setIsRight, setNumbers, setLast, setScore, currentScore, isRight, loadScores])
 
   const newNumbers = [...numbers]
   const [top, right, bottom, left] = [
@@ -100,18 +113,7 @@ const GamesComponent = () => {
     newNumbers.slice(16, 20).reverse()
   ]
 
-  const loadScores = useCallback(() => {
-    fetch("/bookmarks/api/form?formId=1").then(a => a.json()).then(a => {
-      const topScores = a.ocs.data.submissions.map((e: any) => {
-        return {
-          score: e.answers[0].text,
-          steps: e.answers[1].text,
-          name: e.answers[2].text
-        }
-      })
-      setTopScores(topScores)
-    })
-  }, [setTopScores])
+  
   const newGame = useCallback(() => {
     setLoading(true)
     setIsRight(true)
@@ -135,7 +137,7 @@ const GamesComponent = () => {
       // Clear load action on component unmount
       clearTimeout(startGameSoon)
     }
-  }, [])
+  }, [loadScores, newGame])
 
   
 
@@ -196,7 +198,7 @@ const GamesComponent = () => {
       {topScores
         .sort((a: any, b: any) => b.score - a.score)
         .slice(0, 10)
-        .map((a: any, i: number) => <tr style={{padding: ""}}>
+        .map((a: any, i: number) => <tr key={i} style={{padding: ""}}>
           <td style={{padding: "6px"}}>{i+1}</td>
           <td style={{padding: "6px"}}>{a.name}</td>
           <td  style={{padding: "6px"}}>{a.score}</td>
@@ -210,7 +212,7 @@ const GamesComponent = () => {
       {topScores
         .sort((a: any, b: any) => b.steps - a.steps)
         .slice(0, 10)
-        .map((a: any, i: number) => <tr style={{padding: ""}}>
+        .map((a: any, i: number) => <tr key={i} style={{padding: ""}}>
           <td style={{padding: "6px"}}>{i+1}</td>
           <td style={{padding: "6px"}}>{a.name}</td>
           <td  style={{padding: "6px"}}>{a.score}</td>

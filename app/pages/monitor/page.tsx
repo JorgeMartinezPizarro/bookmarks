@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Tooltip } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-
+import { signIn, useSession } from "next-auth/react";
 import "./styles.css";
 
 
@@ -17,18 +17,22 @@ const Monitor = () => {
 		- use websockets to retrieve real time data
 		- sqlite db with historical data
 	*/
+
+	const { data: session, status } = useSession();
+    
 	const [values, setValues] = useState<any>({banned: [], resources: [], cron: [], docker: []})
 	const [copied, setCopied] = React.useState(false);
 
-	const requestDocker = () => {
-		fetch('/reports/docker.txt?x=' + new Date().toString())
-			.then(a => a.text())
-			.then(e => {
+	const requestDocker = useCallback(() => {
+		fetch('/bookmarks/api/report?name=docker', {credentials: 'include'})
+			.then(a => a.json())
+			.then(r => {
+				const e = r.content || "";
 				setValues((newValues: any) => {
 					return {
 						...newValues,
 						docker: [
-							...e.split("\n").filter((a: string) => a.trim() !== "").map(a => a.split("--").map((e: string, i: number) => (e.indexOf("(") === -1 && i===1)
+							...e.split("\n").filter((a: string) => a.trim() !== "").map((a: any) => a.split("--").map((e: string, i: number) => (e.indexOf("(") === -1 && i===1)
 								? (e.replace('Up ', '') +" ❤️")
 								: (e
 									.replace('Up ', '')
@@ -42,30 +46,31 @@ const Monitor = () => {
 				})
 			})
 			.catch(e => console.error('Error', e));
-	}
+	}, [setValues])
 
 	const requestResources = useCallback(() => {
-        fetch('/reports/computer.txt?x=' + new Date().toString())
-			.then(a => a.text())
-			.then(e => {
+        fetch('/bookmarks/api/report?name=computer', {credentials: 'include'})
+			.then(a => a.json())
+			.then(r => {
+				const e = r.content;
 				setValues((newValues: any) => {
 					const a = e.split("\n");
 					return {
 						...newValues,
 						resources: [
-							...a.slice(1,2).map(a => [...a.split(" ").filter(a => a!=="").slice(0, 2)]),
-							...a.slice(3,6).map((a, i) => {
+							...a.slice(1,2).map((a: any) => [...a.split(" ").filter((a: any) => a!=="").slice(0, 2)]),
+							...a.slice(3,6).map((a: any, i: number) => {
 								const b = a.split("--")
 								return [
 									b[0],
 									b[i === 0 ? 1 : 2]
 								]
 							}),
-							...a.slice(8,12).map(x => {
-								return x.split(" ").filter(a => a !== "").slice(0,2)
+							...a.slice(8,12).map((x: any) => {
+								return x.split(" ").filter((a: any) => a !== "").slice(0,2)
 							}),
-							...a.slice(13).map(x => {
-								return x.split(" ").filter(a => a !== "").slice(0,2)
+							...a.slice(13).map((x: any) => {
+								return x.split(" ").filter((a: any) => a !== "").slice(0,2)
 							}),
 							
 						]
@@ -93,9 +98,10 @@ const Monitor = () => {
 	}
 
 	const requestCron = useCallback(() => {
-		fetch('/reports/cron.txt?x=' + new Date().toString())
-			.then(a => a.text())
-			.then(e => {
+		fetch('/bookmarks/api/report?name=cron', {credentials: 'include'})
+			.then(a => a.json())
+			.then(r => {
+				const e = r.content;
 				setValues((newValues: any) => {
 					const x = e.split("\n").filter((a: any, i: number) => a !== undefined && a !== "" && a.indexOf("====")===-1)
 					const y = x							
@@ -113,30 +119,31 @@ const Monitor = () => {
 			.catch(e => console.error('Error', e));
 	}, [setValues])
 	
-
+0
 	const requestAccess = useCallback(() => {
-        fetch('/reports/access.txt?x=' + new Date().toString())
-			.then(a => a.text())
-			.then(e => {
+        fetch('/bookmarks/api/report?name=access', {credentials: 'include'})
+			.then(a => a.json())
+			.then(r => {
+				const e = r.content;
 				setValues((newValues: any) => {
-						
+					console.log(e)
 					const x = e.split("----------------- --------------------")
 
-					const banned = x[4].split("\n").filter(x => x !== "-" && x !== "")
+					const banned = x[4].split("\n").filter((x: any) => x !== "-" && x !== "")
 
 					const access = [
 						["############", "Last 48h"],
-						...x[1].split("\n").map(a => a.split(" 20").map(a => a.replace("24-", "").replace("25-", "").replace("T", " at "))),
+						...x[1].split("\n").map((a: any) => a.split(" 20").map((a: any) => a.replace("24-", "").replace("25-", "").replace("T", " at "))),
 						["############", "Attempts"],
-						...x[2].split("\n").map(a => {
-							const x = a.split(" ").filter(a => a !== "")
+						...x[2].split("\n").map((a: any) => {
+							const x = a.split(" ").filter((a: any) => a !== "")
 							
 							return [x[0], x[1]]
 						}),
 						["Banned", newValues.banned.length],
 						["############", "Logins"],
-						...x[3].split("\n").map(a => {
-							const x = a.split(" ").filter(a => a !== "")
+						...x[3].split("\n").map((a: any) => {
+							const x = a.split(" ").filter((a: any) => a !== "")
 							return [x[0], x[1]]
 						}),
 					]
@@ -152,20 +159,21 @@ const Monitor = () => {
 			.catch(e => console.error('Error', e));
 	}, [setValues])
 
-	const requestBannedIPs = () => {
-	fetch('/reports/banned_ips_table.txt?x=' + new Date().toString())
-		.then(a => a.text())
-                .then(e => {
+	const requestBannedIPs = useCallback(() => {
+		fetch('/bookmarks/api/report?name=banned_ips_table', {credentials: 'include'})
+			.then(a => a.json())
+			.then(r => {
+					const e = r.content;
                         setValues((newValues: any) => {
                             const list = e.split("\n")
 							
 							return {
                                         ...newValues,
-                                        list: list.map(a=>{
+                                        list: list.map((a: any)=>{
 											const x = a.split("\t").filter((r: string) => r!=="")
 											return x
 											
-										}).filter((a: string[]) => a.length === 3).map(x=> {
+										}).filter((a: string[]) => a.length === 3).map((x: any) => {
 											
 											return [
 												x[0],
@@ -177,38 +185,38 @@ const Monitor = () => {
                         })
                 })
 		.catch(e => console.error('Error', e));
-	}
+	}, [setValues])
 
-	const reloadIframes = () => {
-		return [
-			//setInterval(requestOCS, 5000),
-			setInterval(requestCron, 5000),
-			setInterval(requestResources, 1500),
-			setInterval(requestBannedIPs, 2500),
-			setInterval(requestAccess, 1500),
-			setInterval(requestDocker, 2500),
-		];
-	}
-
-	const requestData = () => {
-		//requestOCS();
-		requestAccess();
-		requestBannedIPs();
-		requestCron();
-		requestResources();
-		requestDocker();
-		
-	}
+	
 	
 	useEffect(() => {  
+	
+		const reloadIframes = () => {
+			return [
+				setInterval(requestCron, 5000),
+				setInterval(requestResources, 1100),
+				setInterval(requestBannedIPs, 2500),
+				setInterval(requestAccess, 1500),
+				setInterval(requestDocker, 1000),
+			];
+		}
+	
+		const requestData = () => {
+			//requestAccess();
+			//requestBannedIPs();
+			//requestCron();
+			//requestResources();
+			requestDocker();
+			
+		}
 		const a = setTimeout(requestData, 60);
 		
-		const ids = reloadIframes();
+		//const ids = reloadIframes();
 		return () => {
 			clearTimeout(a)
-			ids.forEach(clearInterval)
+			//ids.forEach(clearInterval)
 		};
-	}, []);
+	}, [requestCron, requestResources, requestBannedIPs, requestAccess, requestDocker]);
 
 	const w = values.banned.map((b: string[]) => b[1].trim()).slice(1)
 
@@ -262,10 +270,14 @@ const Monitor = () => {
 		</table>
 	}
 
-	
-
 	return (
     <div className="my-frame">
+		{!session && <button 
+			style={{position: "absolute", top: "0", left: "0", zIndex: "12000"}} 
+			onClick={() => signIn("nextcloud")}
+		>
+			Login con Nextcloud
+		</button>}
 		<div style={{ 
 			padding: 0, 
 			color: "white", 

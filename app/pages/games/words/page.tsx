@@ -15,7 +15,7 @@ const Wording = () => {
   
   }, [setWord])
 
-  useEffect(requestWord, [])
+  useEffect(requestWord, [requestWord])
   return <div style={{margin: "auto", width: "320px", color: "white", textAlign: "center", marginTop: "100px"}}>
     <InputLabel>{word}</InputLabel>
     <hr />

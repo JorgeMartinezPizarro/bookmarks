@@ -1,4 +1,9 @@
+// lib/requireAuth.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '../helpers';
+import { getServerSession } from "next-auth";
+import { Session } from 'next-auth';
+import { authOptions } from "../api/oauth/callback/route";
 
 type UserInfo = {
   id: string;
@@ -7,35 +12,14 @@ type UserInfo = {
   [key: string]: any;
 };
 
-export async function requireAuth(request: NextRequest): Promise<UserInfo> {
-  const cookie = request.cookies.get('nc_session_id')?.value;
+export async function requireAuth(request: NextRequest): Promise<Session> {
+  const session = await getServerSession(authOptions);
 
-  
-  if (!cookie) {
-    throw new Error('No autorizado: falta cookie');
+  try {
+    if (!session)
+      throw new Error("Invalid session!")
+    return session;
+  } catch (err) {
+    throw new Error("Error parsing user\n"+errorMessage(err));
   }
-
-  const endpoint = process.env.NEXTCLOUD_URL + '/ocs/v2.php/cloud/user';
-
-  const response = await fetch(endpoint, {
-    headers: {
-      Authorization: `Bearer ${cookie}`,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'OCS-APIREQUEST': 'true',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('No autorizado: sesión inválida');
-  }
-
-  const data = await response.json();
-  const user = data?.ocs?.data;
-
-  if (!user?.id) {
-    throw new Error('No autorizado: datos de usuario inválidos');
-  }
-
-  return user;
 }

@@ -23,13 +23,6 @@ const ChessGame: React.FC = () => {
     setElo(event.target.value);
   };
 
-  useEffect(() => {
-    // Cargar chess.js dinámicamente
-    loadScores()
-    import("chess.js").then((module) => {
-      setGame(new Chess());
-    });
-  }, []);
 
   const makeAIMove = async () => {
     if (!game || gameResult) {
@@ -141,6 +134,15 @@ const ChessGame: React.FC = () => {
     }
   };
 
+  
+  useEffect(() => {
+    // Cargar chess.js dinámicamente
+    loadScores()
+    import("chess.js").then((module) => {
+      setGame(new Chess());
+    });
+  }, [loadScores, setGame]);
+
   return (<>
     <Button variant="contained" onClick={() => setScores(!scores)}>{!scores ? "Play" : "Scores"}</Button>
     <div style={{
@@ -195,7 +197,7 @@ const ChessGame: React.FC = () => {
       {topScores
         .sort((a: any, b: any) => b.score - a.score)
         .slice(0, 10)
-        .map((a: any, i: number) => <tr style={{padding: ""}}>
+        .map((a: any, i: number) => <tr key={i} style={{padding: ""}}>
           <td style={{padding: "6px"}}>{i+1}</td>
           <td style={{padding: "6px"}}>{a.name}</td>
           <td  style={{padding: "6px"}}>{a.elo}</td>

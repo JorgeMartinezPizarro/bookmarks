@@ -63,14 +63,69 @@ const Tetris: React.FC = () => {
 
 
   // Función para mover la pieza
-  const movePiece = (x: number, y: number) => {
+  const movePiece = useCallback((x: number, y: number) => {
     if (!checkCollision(board, piece, pos.x + x, pos.y + y)) {
       setPos(prev => ({ x: prev.x + x, y: prev.y + y }));
     }
-  };
+  }, [setPos, board, piece, pos])
+
+  const loadScores = useCallback(() => {
+    fetch("/bookmarks/api/form?formId=3").then(a => a.json()).then(a => {
+      const topScores = a.ocs.data.submissions.map((e: any) => {
+        return {
+          lines: e.answers[0].text,
+          speed: e.answers[1].text,
+          name: e.answers[2].text
+        }
+      })
+      setTopScores(topScores)
+    })
+  }, [setTopScores])
+
+  const finishGame = useCallback(() => {
+    // Juego terminado
+    setIsPaused(true)
+    fetch("/bookmarks/api/form", {
+      method: "POST",
+      body: JSON.stringify({ 
+        form: 3, // form to save the progress
+        answers: {
+          9: [lines],
+          10: [timer],
+        },
+        user: 11
+      }),
+    }).then(_ => loadScores())
+  }, [setIsPaused, loadScores, lines, timer])
+
+  const resetPiece = useCallback(() => {
+    const newPiece = getRandomPiece();
+    const initialPos = { x: 3, y: 0 }; // Posición inicial
+  
+    // Si hay colisión al intentar colocar una nueva pieza, termina el juego
+    if (checkCollision(board, newPiece, initialPos.x, initialPos.y)) {
+      finishGame()
+      return;
+    }
+  
+    // Si no hay colisión, coloca la nueva pieza
+    setPiece(newPiece);
+    setPos(initialPos);
+  }, [board, setPiece, setPos, finishGame])
+
+  const clearLines = useCallback(() => {
+    const clearedBoard = board.filter(row => row.some(cell => cell[1] === "clear"));
+    const clearedLines = board.length - clearedBoard.length;
+    const newBoard = [
+      ...Array(clearedLines).fill(Array(board[0].length).fill(["0", "clear"])),
+      ...clearedBoard,
+    ];
+    setBoard(newBoard);
+    setLines(lines + clearedLines);
+  }, [board, setBoard, setLines, lines])
 
   // Función para hacer que la pieza caiga
-  const dropPiece = () => {
+  const dropPiece = useCallback(() => {
     if (!checkCollision(board, piece, pos.x, pos.y + 1)) {
       setPos(prev => ({ ...prev, y: prev.y + 1 }));
     } else {
@@ -90,19 +145,10 @@ const Tetris: React.FC = () => {
       clearLines();
       resetPiece();
     }
-  };
+  }, [board, clearLines, piece, pos, resetPiece])
 
   // Función para limpiar las líneas completadas
-  const clearLines = () => {
-    const clearedBoard = board.filter(row => row.some(cell => cell[1] === "clear"));
-    const clearedLines = board.length - clearedBoard.length;
-    const newBoard = [
-      ...Array(clearedLines).fill(Array(board[0].length).fill(["0", "clear"])),
-      ...clearedBoard,
-    ];
-    setBoard(newBoard);
-    setLines(lines + clearedLines);
-  };
+  
 
   // Función para reiniciar el juego
   const restartGame = () => {
@@ -114,58 +160,20 @@ const Tetris: React.FC = () => {
     setTimer(0); // Reiniciar el temporizador
   };
 
-  const loadScores = useCallback(() => {
-    fetch("/bookmarks/api/form?formId=3").then(a => a.json()).then(a => {
-      const topScores = a.ocs.data.submissions.map((e: any) => {
-        return {
-          lines: e.answers[0].text,
-          speed: e.answers[1].text,
-          name: e.answers[2].text
-        }
-      })
-      setTopScores(topScores)
-    })
-  }, [setTopScores])
+  
 
-  const resetPiece = () => {
-    const newPiece = getRandomPiece();
-    const initialPos = { x: 3, y: 0 }; // Posición inicial
   
-    // Si hay colisión al intentar colocar una nueva pieza, termina el juego
-    if (checkCollision(board, newPiece, initialPos.x, initialPos.y)) {
-      finishGame()
-      return;
-    }
-  
-    // Si no hay colisión, coloca la nueva pieza
-    setPiece(newPiece);
-    setPos(initialPos);
-  };
   
 
   // Manejar la rotación de la pieza
-  const rotatePiece = (direction: number) => {
+  const rotatePiece = useCallback((direction: number) => {
     const rotatedShape = rotate(piece.shape);
     if (!checkCollision(board, { ...piece, shape: rotatedShape }, pos.x, pos.y)) {
       setPiece({ ...piece, shape: rotatedShape });
     }
-  };
+  }, [setPiece, piece, board, pos])
 
-  const finishGame = useCallback(() => {
-    // Juego terminado
-    setIsPaused(true)
-    fetch("/bookmarks/api/form", {
-      method: "POST",
-      body: JSON.stringify({ 
-        form: 3, // form to save the progress
-        answers: {
-          9: [lines],
-          10: [timer],
-        },
-        user: 11
-      }),
-    }).then(_ => loadScores())
-  }, [setIsPaused, loadScores, lines, timer])
+  
   // Temporizador
   useEffect(() => {
     if (isPaused) return;
@@ -180,7 +188,7 @@ const Tetris: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(countdown);
-  }, [isPaused, timer]);
+  }, [isPaused, lines, finishGame, setTimer]);
 
   // Caída automática de la pieza
   useEffect(() => {
@@ -189,7 +197,7 @@ const Tetris: React.FC = () => {
       dropPiece();
     }, speed);
     return () => clearInterval(interval);
-  }, [isPaused, timer, board, piece, pos]);
+  }, [isPaused, timer, board, piece, pos, dropPiece, lines]);
 
   const renderBoard = () => {
     return board.map((row, y) =>
@@ -248,7 +256,6 @@ const Tetris: React.FC = () => {
           break;
         case "s": // Mantener presionado para bajar
           dropPiece();
-          break;
         default:
           break;
       }
@@ -256,17 +263,17 @@ const Tetris: React.FC = () => {
 
  
     window.addEventListener("keydown", handleKeyDown);
- 
+    const holder = holdInterval.current
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      if (holdInterval.current) {
-        clearInterval(holdInterval.current);
+      if (holder) {
+        clearInterval(holder);
       }
     };
-  }, [isPaused, board, piece, pos]);
+  }, [isPaused, board, piece, pos, dropPiece, movePiece, rotatePiece]);
   useEffect(() => {
     loadScores()
-  }, [])
+  }, [loadScores])
   return (
     <Box style={{ height: '100vh'}} display="flex" flexDirection="column" alignItems="center" gap={1}>
       {/* Primera fila: Reiniciar, Pausar, Líneas y Temporizador */}
@@ -326,7 +333,7 @@ const Tetris: React.FC = () => {
       {topScores
         .sort((a: any, b: any) => b.lines - a.lines)
         .slice(0, 10)
-        .map((a: any, i: number) => <tr style={{padding: ""}}>
+        .map((a: any, i: number) => <tr key={i} style={{padding: ""}}>
           <td style={{padding: "6px"}}>{i+1}</td>
           <td style={{padding: "6px"}}>{a.name}</td>
           <td  style={{padding: "6px"}}>{a.lines}</td>
