@@ -26,7 +26,7 @@ const Monitor = () => {
 	const [copied, setCopied] = React.useState(false);
 
 	const requestDocker = useCallback(() => {
-		fetch('/bookmarks/api/report?name=docker', {credentials: 'include'})
+		fetch	('/bookmarks/api/report?name=docker', {credentials: 'include'})
 			.then(a => a.json())
 			.then(r => {
 				const e = r.content || "";
@@ -54,7 +54,7 @@ const Monitor = () => {
         fetch('/bookmarks/api/report?name=computer', {credentials: 'include'})
 			.then(a => a.json())
 			.then(r => {
-				const e = r.content;
+				const e = r.content || "";
 				setValues((newValues: any) => {
 					const a = e.split("\n");
 					return {
@@ -103,7 +103,7 @@ const Monitor = () => {
 		fetch('/bookmarks/api/report?name=cron', {credentials: 'include'})
 			.then(a => a.json())
 			.then(r => {
-				const e = r.content;
+				const e = r.content || "";
 				setValues((newValues: any) => {
 					const x = e.split("\n").filter((a: any, i: number) => a !== undefined && a !== "" && a.indexOf("====")===-1)
 					const y = x							
@@ -126,9 +126,12 @@ const Monitor = () => {
         fetch('/bookmarks/api/report?name=access', {credentials: 'include'})
 			.then(a => a.json())
 			.then(r => {
-				const e = r.content;
+				const e = r.content || "";
+
+				if (e === "") return;
 				setValues((newValues: any) => {
 					console.log(e)
+					 
 					const x = e.split("----------------- --------------------")
 
 					const banned = x[4].split("\n").filter((x: any) => x !== "-" && x !== "")
@@ -165,7 +168,7 @@ const Monitor = () => {
 		fetch('/bookmarks/api/report?name=banned_ips_table', {credentials: 'include'})
 			.then(a => a.json())
 			.then(r => {
-					const e = r.content;
+					const e = r.content || "";
                         setValues((newValues: any) => {
                             const list = e.split("\n")
 							
@@ -272,16 +275,13 @@ const Monitor = () => {
 		</table>
 	}
 
-	if (status !== "authenticated") return <>Nothing</>
-
 	return (
     <div className="my-frame">
-		{<Button 
+		{status !== "authenticated" && <Button 
 			color="primary"
 			
 			style={{position: "absolute", top: "0", left: "0", zIndex: "12000"}} 
 			onClick={() => {
-				//window.location.href = "/bookmarks/api/auth/signin/nextcloud"
 				signIn("nextcloud", {callbackUrl: "/bookmarks/", redirect: true})
 			}}
 		>
