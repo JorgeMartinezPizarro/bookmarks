@@ -21,7 +21,7 @@ export default function RootLayout({
       <body className={inter.className}>
       <ThemeProvider theme={theme}>
           <CssBaseline />
-            <SessionProvider>{children}</SessionProvider>
+            <SessionProvider basePath="/bookmarks/api/auth">{children}</SessionProvider>
         </ThemeProvider>
       </body>
     </html>

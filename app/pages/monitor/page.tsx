@@ -19,6 +19,8 @@ const Monitor = () => {
 	*/
 
 	const { data: session, status } = useSession();
+
+	
     
 	const [values, setValues] = useState<any>({banned: [], resources: [], cron: [], docker: []})
 	const [copied, setCopied] = React.useState(false);
@@ -202,19 +204,19 @@ const Monitor = () => {
 		}
 	
 		const requestData = () => {
-			//requestAccess();
-			//requestBannedIPs();
-			//requestCron();
-			//requestResources();
+			requestAccess();
+			requestBannedIPs();
+			requestCron();
+			requestResources();
 			requestDocker();
 			
 		}
 		const a = setTimeout(requestData, 60);
 		
-		//const ids = reloadIframes();
+		const ids = reloadIframes();
 		return () => {
 			clearTimeout(a)
-			//ids.forEach(clearInterval)
+			ids.forEach(clearInterval)
 		};
 	}, [requestCron, requestResources, requestBannedIPs, requestAccess, requestDocker]);
 
@@ -270,14 +272,21 @@ const Monitor = () => {
 		</table>
 	}
 
+	if (status !== "authenticated") return <>Nothing</>
+
 	return (
     <div className="my-frame">
-		{!session && <button 
+		{<Button 
+			color="primary"
+			
 			style={{position: "absolute", top: "0", left: "0", zIndex: "12000"}} 
-			onClick={() => signIn("nextcloud")}
+			onClick={() => {
+				//window.location.href = "/bookmarks/api/auth/signin/nextcloud"
+				signIn("nextcloud", {callbackUrl: "/bookmarks/", redirect: true})
+			}}
 		>
-			Login con Nextcloud
-		</button>}
+			Login con Nextcloud {status}
+		</Button>}
 		<div style={{ 
 			padding: 0, 
 			color: "white", 

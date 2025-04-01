@@ -4,7 +4,7 @@ import { NextApiRequest } from "next";
 import { NextRequest } from "next/server";
 
 // Placeholder for a standard GET request from the UI
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
 
   try {
     await requireAuth(request)
@@ -42,6 +42,6 @@ export async function GET(request: NextRequest) {
     
     return Response.json({content: text}, { status: 200})
   } catch (error) { 
-    return Response.json({ error: errorMessage(error) }, { status: 500 });
+    return Response.json({ error: "Error in route report. \n" + errorMessage(error) }, { status: 500 });
   }
 }

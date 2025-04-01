@@ -1,25 +1,34 @@
-// lib/requireAuth.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { errorMessage } from '../helpers';
-import { getServerSession } from "next-auth";
-import { Session } from 'next-auth';
-import { authOptions } from "../api/oauth/callback/route";
+// app/lib/auth.ts
+import { getToken } from "next-auth/jwt";
 
-type UserInfo = {
-  id: string;
-  displayName: string;
-  email?: string;
-  [key: string]: any;
-};
+export async function requireAuth(request: Request) {
+  const token = await getToken({
+    req: request as any,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
 
-export async function requireAuth(request: NextRequest): Promise<Session> {
-  const session = await getServerSession(authOptions);
-
-  try {
-    if (!session)
-      throw new Error("Invalid session!")
-    return session;
-  } catch (err) {
-    throw new Error("Error parsing user\n"+errorMessage(err));
+  if (!token || !token.accessToken) {
+    throw new Error("No access token");
   }
+
+  // Validamos el token contra Nextcloud
+  const res = await fetch(process.env.NEXTCLOUD_URL + "/ocs/v2.php/cloud/user?format=json", {
+    headers: {
+      Authorization: `Bearer ${token.accessToken}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Invalid token");
+  }
+
+  const json = await res.json();
+  const user = json.ocs?.data;
+
+  return {
+    id: user.id,
+    name: user.displayname,
+    email: user.email,
+  };
 }
