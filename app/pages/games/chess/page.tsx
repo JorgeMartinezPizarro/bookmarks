@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Button, Tooltip, TextField, Typography, Box, Slider } from "@mui/material";
 import { Chess } from "chess.js";
+import MainMenu from "@/app/components/MainMenu";
 
 // Cargar Chessboardjsx dinámicamente sin SSR
 const Chessboard = dynamic(() => import("chessboardjsx"), { ssr: false });
@@ -144,7 +145,8 @@ const ChessGame: React.FC = () => {
   }, [loadScores, setGame]);
 
   return (<>
-    <Button variant="contained" onClick={() => setScores(!scores)}>{!scores ? "Play" : "Scores"}</Button>
+    <MainMenu />
+    <Button className="game-menu" variant="contained" onClick={() => setScores(!scores)}>{!scores ? "Play" : "Scores"}</Button>
     <div style={{
       display: "flex",
       flexDirection: "column",
@@ -153,6 +155,7 @@ const ChessGame: React.FC = () => {
       minHeight: "calc(100vh - 40px)",
       textAlign: "center",
     }}>
+      
       
       {scores && game && <Chessboard position={fen} onDrop={onDrop} width={400} />}
       {scores && game && <Button

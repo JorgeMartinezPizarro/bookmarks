@@ -1,15 +1,18 @@
 'use client';
 
-import { Box, Button } from "@mui/material";
-import { useEffect, useState } from "react";
+import { Box, Button, Menu, MenuItem } from "@mui/material";
+import { MouseEvent, useEffect, useState } from "react";
 import DatePicker from "react-datepicker";
+import MainMenu from "./components/MainMenu";
 
 const key = "123213231asdssdadasdas213"
 const AgePage = () => {
     const [birthDate, setBirthDate] = useState("")
     const [days, setDays] = useState(0)
     const [user, setUser] = useState("")
+    const [page, setPage] = useState("")
     
+
     useEffect(() => {
         if (localStorage)
             setBirthDate(localStorage.getItem(key)||"")
@@ -33,11 +36,17 @@ const AgePage = () => {
     }, [birthDate])
     
    const size = 64;
-   return <Box className="intro" style={{ height: '100vh'}} display="flex" flexDirection="column" alignItems="center" gap={2}>
-        <p>Enter your birthdate as <i>dd-mm-yyyy</i></p>
-        <input type="text" value={birthDate} onChange={(e: any) => {setBirthDate(e.target.value)}} />
-        <p>Dear user, you are since {days} days on planet Earth, congratulations!</p>
-    </Box>
+
+   const box = <Box className="intro" style={{ height: '100vh'}} display="flex" flexDirection="column" alignItems="center" gap={2}>
+    <p>Enter your birthdate as <i>dd-mm-yyyy</i></p>
+    <input type="text" value={birthDate} onChange={(e: any) => {setBirthDate(e.target.value)}} />
+    <p>Dear user, you are since {days} days on planet Earth, congratulations!</p>
+   </Box>
+   return <>
+        <MainMenu />
+      {box}
+    
+   </>
 }
 
 export default AgePage;

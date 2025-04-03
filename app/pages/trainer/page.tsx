@@ -1,5 +1,6 @@
 'use client'
 
+import MainMenu from '@/app/components/MainMenu';
 import { errorMessage } from '@/app/helpers';
 import React, { useState } from 'react';
 
@@ -53,6 +54,7 @@ const TrainerComponent = () => {
 
 	return (
 		<div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
+			<MainMenu />
 			<h1>Entrenador GPT</h1>
 			<textarea
 				style={{

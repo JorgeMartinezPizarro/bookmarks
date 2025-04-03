@@ -1,5 +1,6 @@
 'use client';
 
+import MainMenu from "@/app/components/MainMenu";
 import { TextField, Button, InputLabel } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 
@@ -16,7 +17,8 @@ const Wording = () => {
   }, [setWord])
 
   useEffect(requestWord, [requestWord])
-  return <div style={{margin: "auto", width: "320px", color: "white", textAlign: "center", marginTop: "100px"}}>
+  return <div style={{margin: "auto", width: "320px", color: "white", textAlign: "center"}}>
+    <MainMenu />
     <InputLabel>{word}</InputLabel>
     <hr />
     <TextField style={{background: "white"}} value={text} onChange={(e: any) => setText(e.target.value)} />

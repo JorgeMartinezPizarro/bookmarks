@@ -26,3 +26,8 @@ a:hover {
   filter: brightness(0) invert(0.4);
   background: transparent;
 }
+
+button.game-menu {
+  float: right;
+  margin-top: 92px;
+}

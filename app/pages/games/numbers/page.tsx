@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import "./styles.css"
 import { CellProps, CellValues } from "./types";
 import { randomArrayCellValues } from "./helpers";
+import MainMenu from "@/app/components/MainMenu";
 
 const GamesComponent = () => {
 
@@ -142,7 +143,8 @@ const GamesComponent = () => {
   
 
   return (<>
-  <Button variant="contained" onClick={() => setScores(!scores)}>{!scores ? "Play" : "Scores"}</Button>
+  <MainMenu />
+  <Button className="game-menu" variant="contained" onClick={() => setScores(!scores)}>{!scores ? "Play" : "Scores"}</Button>
   <Box
     style={{
       display: "flex",

@@ -4,6 +4,7 @@ import GitHubIcon from '@mui/icons-material/GitHub';
 import BackupIcon from '@mui/icons-material/Backup';
 
 import "./styles.css"
+import MainMenu from '@/app/components/MainMenu';
 
 const resources = [
   { icon: <GitHubIcon />, text: 'BRAIN Sources', link: 'https://github.com/jorgemartinezpizarro/brain' },
@@ -15,6 +16,7 @@ const ResourcePage = () => {
   return (
     <Box sx={{ color: "white", maxWidth: 600, margin: 'auto', padding: 4 }}>
       {/* Lista de Recursos */}
+      <MainMenu />
       <Typography variant="h6" gutterBottom>
         Resources
       </Typography>

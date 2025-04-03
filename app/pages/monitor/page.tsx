@@ -5,6 +5,7 @@ import { Button, Tooltip } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { signIn, useSession } from "next-auth/react";
 import "./styles.css";
+import MainMenu from '@/app/components/MainMenu';
 
 
 const Monitor = () => {
@@ -277,21 +278,11 @@ const Monitor = () => {
 
 	return (
     <div className="my-frame">
-		{status !== "authenticated" && <Button 
-			color="primary"
-			
-			style={{position: "absolute", top: "0", left: "0", zIndex: "12000"}} 
-			onClick={() => {
-				signIn("nextcloud", {callbackUrl: "/bookmarks/", redirect: true})
-			}}
-		>
-			Login con Nextcloud {status}
-		</Button>}
 		<div style={{ 
 			padding: 0, 
 			color: "white", 
 			background: 'black', 
-			height: 'calc(100% - 4px)', 
+			height: 'calc(100% - 8px)', 
 			overflow: 'hidden', 
 			borderRadius: '4px',
 			display: "inline-block"

@@ -3,6 +3,7 @@
 import { Box, Button, Stack, Typography } from "@mui/material";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./style.css"
+import MainMenu from "@/app/components/MainMenu";
 
 type Cell = [string, string]; // [color, state]
 type Board = Cell[][];
@@ -54,7 +55,7 @@ const Tetris: React.FC = () => {
   const [piece, setPiece] = useState<Piece>(getRandomPiece());
   const [pos, setPos] = useState({ x: 3, y: 0 });
   const [lines, setLines] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPaused, setIsPaused] = useState(true);
   const [timer, setTimer] = useState(0); // Contador de 60 segundos
   const isHolding = useRef(false); // Para detectar si una tecla está presionada
   const holdInterval = useRef<NodeJS.Timeout | null>(null); // Referencia al intervalo
@@ -277,17 +278,18 @@ const Tetris: React.FC = () => {
   return (
     <Box style={{ height: '100vh'}} display="flex" flexDirection="column" alignItems="center" gap={1}>
       {/* Primera fila: Reiniciar, Pausar, Líneas y Temporizador */}
+      <MainMenu />
       <Box
         display="flex"
         justifyContent="space-between"
         width="400px"
         style={{margin: "0 0 0 0"}}
       >
-        <Button variant="contained" onClick={() => setScores(!scores)}>{!scores ? "Play" : "Scores"}</Button>
-        <Button variant="contained" onClick={restartGame}>
+        <Button className="game-menu" variant="contained" onClick={() => setScores(!scores)}>{!scores ? "Play" : "Scores"}</Button>
+        <Button className="game-menu" variant="contained" onClick={restartGame}>
           Reiniciar
         </Button>
-        <Button variant="contained" onClick={() => setIsPaused(!isPaused)}>
+        <Button className="game-menu" variant="contained" onClick={() => setIsPaused(!isPaused)}>
           {isPaused ? "Reanudar" : "Pausar"}
         </Button>
         <Typography variant="body1" margin={0}>
