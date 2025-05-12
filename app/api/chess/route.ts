@@ -39,11 +39,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     const payload = `uci
 setoption name UCI_LimitStrength value true
 setoption name UCI_Elo value ${elo}
-setoption name Hash value 1024
+setoption name Hash value 4096
 setoption name Threads value 2
 isready
 position fen ${cleanFEN}
-go movetime 100
+go movetime 150
 `.trim();
 
     console.log("Payload limpio enviado a Stockfish:", JSON.stringify(payload));

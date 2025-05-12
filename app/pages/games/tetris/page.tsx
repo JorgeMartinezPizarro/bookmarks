@@ -50,6 +50,7 @@ const getRandomPiece = (): Piece => {
   return TETROMINOS[randomIndex];
 };
 
+// TODO: fix visual errors, fix buttons menu
 const Tetris: React.FC = () => {
   const [board, setBoard] = useState<Board>(createBoard(20, 10));
   const [piece, setPiece] = useState<Piece>(getRandomPiece());

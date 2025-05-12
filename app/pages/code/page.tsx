@@ -14,7 +14,8 @@ const resources = [
 
 const ResourcePage = () => {
   return (
-    <Box sx={{ color: "white", maxWidth: 600, margin: 'auto', padding: 4 }}>
+    <div style={{height: "100%", display: "flex", justifyContent: "center"}}>
+    <Box className="intro" sx={{ color: "white", maxWidth: 600, margin: 'auto', padding: 4 }}>
       {/* Lista de Recursos */}
       <MainMenu />
       <Typography variant="h6" gutterBottom>
@@ -24,12 +25,12 @@ const ResourcePage = () => {
         {resources.map((item, index) => (
           <ListItem className="item" key={index} component="a" href={item.link} target="_blank" rel="noopener noreferrer" sx={{ textDecoration: 'none' }}>
             <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText style={{color: "white"}} primary={item.text} />
+            <ListItemText style={{color: "white", fontSize: "32pt"}} primary={item.text} />
           </ListItem>
         ))}
       </List>
       <Divider sx={{ marginY: 2 }} />
-    </Box>
+    </Box></div>
   );
 };
 

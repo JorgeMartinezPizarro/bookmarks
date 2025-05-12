@@ -10,3 +10,10 @@ a.item:hover span {
     color: black;
 }
 
+.MuiTypography-root {
+    font-size: 1.4rem!important;
+}
+
+h6 {
+    font-size: 2.2rem!important;
+}

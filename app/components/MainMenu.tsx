@@ -1,13 +1,13 @@
 'use client'
 
 import { Button, Menu, MenuItem } from "@mui/material";
-import { MouseEvent, useState } from "react";
+import { MouseEvent, useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
 import MenuOpenIcon from "@mui/icons-material/Menu";
+import Image from "next/image";
 
 
 const MainMenu = () => {
-
   const {status } = useSession()
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
         const open = Boolean(anchorEl);
@@ -25,38 +25,58 @@ const MainMenu = () => {
         aria-haspopup="true"
         aria-expanded={open ? 'true' : undefined}
         onClick={handleClick}
-        variant="contained"
         style={{
+          color: "grey",
           position: "absolute",
-          right: "8px",
-          top: "54px",
+          left: "5px",
+          top: "58px",
+          zIndex: "14000",
+          padding: "8px",
+          minWidth: "0",
+          margin: 0,
+          scale: "1.4"
         }}
       >
         <MenuOpenIcon />
       </Button>
     <Menu
         id="basic-menu"
+        color="secondary"
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
       >
-        <MenuItem onClick={()=>window.location.href="/bookmarks"}><Button>Home</Button></MenuItem>
-        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/code"}><Button>Code</Button></MenuItem>
-        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/monitor"}><Button>Monitor</Button></MenuItem>
-        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/trainer"}><Button>Trainer</Button></MenuItem>
+        <MenuItem  color="primary" onClick={()=>window.location.href="/bookmarks"}><Button>
+          <Image alt="" width="24" height="24" src="/bookmarks/icon-test.png" />Home
+        </Button></MenuItem>
+        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/code"}><Button>
+          <Image alt="" width="24" height="24" src="/bookmarks/icon-github.png" />Code
+        </Button></MenuItem>
+        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/trainer"}><Button>
+          <Image alt="" width="24" height="24" src="/bookmarks/espada.png" />Trainer
+        </Button></MenuItem>
         <hr />
-        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/games/chess"}><Button>Chess</Button></MenuItem>
-        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/games/words"}><Button>Words</Button></MenuItem>
-        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/games/numbers"}><Button>Numbers</Button></MenuItem>
-        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/games/tetris"}><Button>Tetris</Button></MenuItem>
+        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/games/chess"}><Button>
+          <Image alt="" width="24" height="24" src="/bookmarks/queen.png" />Chess
+        </Button></MenuItem>
+        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/games/words"}><Button>
+          <Image alt="" width="24" height="24" src="/bookmarks/omega.png" />Words
+        </Button></MenuItem>
+        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/games/numbers"}><Button>
+          <Image alt="" width="24" height="24" src="/bookmarks/number.png" />Numbers
+        </Button></MenuItem>
+        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/games/tetris"}><Button>
+          <Image alt="" width="24" height="24" src="/bookmarks/tetris.png" />Tetris
+        </Button></MenuItem>
+        <hr />
         {<MenuItem onClick={() => {
 				  signIn("nextcloud", {callbackUrl: window.location.href, redirect: true})
 			  }}><Button 
-			color="primary"
-			variant="contained"
-		>
-			Login
-		</Button></MenuItem>}
+          color="primary"
+          
+        >
+          <Image alt="" width="24" height="24" src="/bookmarks/user.png" />Login
+        </Button></MenuItem>}
       </Menu>
     </>
 }

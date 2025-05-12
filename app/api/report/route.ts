@@ -3,7 +3,7 @@ import { requireAuth } from "@/app/lib/auth";
 import { NextApiRequest } from "next";
 import { NextRequest } from "next/server";
 
-// Placeholder for a standard GET request from the UI
+// TODO: Use websocket to read files in real time
 export async function GET(request: Request) {
 
   try {

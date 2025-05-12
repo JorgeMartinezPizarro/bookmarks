@@ -8,6 +8,7 @@ import { Chess } from "chess.js";
 import MainMenu from "@/app/components/MainMenu";
 
 // Cargar Chessboardjsx dinámicamente sin SSR
+// TODO: fix layout. Fix buttons menu.
 const Chessboard = dynamic(() => import("chessboardjsx"), { ssr: false });
 
 const ChessGame: React.FC = () => {
@@ -152,12 +153,15 @@ const ChessGame: React.FC = () => {
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      minHeight: "calc(100vh - 40px)",
+      minHeight: "calc(100vh - 120px)",
       textAlign: "center",
+      padding: 0,
+      margin: 0,
+      width: "100%",
     }}>
       
       
-      {scores && game && <Chessboard position={fen} onDrop={onDrop} width={400} />}
+      {scores && game && <Chessboard position={fen} onDrop={onDrop} width={420} />}
       {scores && game && <Button
         onClick={() => {
           if (game) {
@@ -167,6 +171,7 @@ const ChessGame: React.FC = () => {
           setLogs([])
           setGameResult(null); // Limpiar el resultado
         }}
+        style={{height: "48px", marginTop: "8px"}}
         variant="contained"
         color="primary"
       >

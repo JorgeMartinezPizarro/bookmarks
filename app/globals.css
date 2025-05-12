@@ -28,6 +28,37 @@ a:hover {
 }
 
 button.game-menu {
+  margin: 8px;
   float: right;
-  margin-top: 92px;
+  margin-top: 54px;
+}
+
+.MuiList-root {
+  background: grey!important;
+  color: white;
+}
+
+.MuiList-root button {
+  color: white;
+  margin: 2px;
+  margin-right: 32px;
+  
+
+}
+.MuiList-root button img {
+  filter: brightness(0) invert(1);
+  margin: 0 16px;
+  margin-right: 32px;
+}
+.MuiFormLabel-root {
+  font-size: 1.2rem!important;
+  
+}
+
+.intro > * {
+  margin-top: 32px;
+}
+
+.intro {
+  font-size: 1.4rem;
 }

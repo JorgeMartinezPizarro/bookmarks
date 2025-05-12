@@ -53,7 +53,7 @@ const TrainerComponent = () => {
 	};
 
 	return (
-		<div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
+		<div style={{ width: "600px", margin: "auto", padding: "20px", fontFamily: "Arial, sans-serif" }}>
 			<MainMenu />
 			<h1>Entrenador GPT</h1>
 			<textarea

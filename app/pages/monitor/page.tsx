@@ -25,6 +25,7 @@ const Monitor = () => {
     
 	const [values, setValues] = useState<any>({banned: [], resources: [], cron: [], docker: []})
 	const [copied, setCopied] = React.useState(false);
+	const [failed, setFailed] = useState(false)
 
 	const requestDocker = useCallback(() => {
 		fetch	('/bookmarks/api/report?name=docker', {credentials: 'include'})
@@ -48,7 +49,7 @@ const Monitor = () => {
 					};
 				})
 			})
-			.catch(e => console.error('Error', e));
+			.catch(e => setFailed(true));
 	}, [setValues])
 
 	const requestResources = useCallback(() => {
@@ -80,7 +81,7 @@ const Monitor = () => {
 					};
 				})
 			})
-			.catch(e => console.error('Error', e));
+			.catch(e => setFailed(true));
 	}, [setValues])
 
 	
@@ -119,7 +120,7 @@ const Monitor = () => {
 					};
 				})
 			})
-			.catch(e => console.error('Error', e));
+			.catch(e => setFailed(true));
 	}, [setValues])
 	
 0
@@ -256,12 +257,16 @@ const Monitor = () => {
       </Button>
 	</Tooltip>
 
+const loginButton = <Button variant="contained" onClick={() => {
+	signIn("nextcloud", {callbackUrl: window.location.href, redirect: true})
+}}>Login</Button>
 	const parseValues = (array = [], suffix="") => {
 		const x = array.filter((a: string[]) => a !== undefined && a.join && a.join("").trim() !== "" && !w.includes(a[0]?.trim()))
 		return <table key={JSON.stringify(array)+suffix}>
 			<tbody>
-				{suffix === "b" && x.length > 0 && <tr><td colSpan={3}>{button}</td></tr>}
-				{suffix === "b" && x.length === 0 && <tr><td colSpan={3}>No attackers found!</td></tr>}
+				{suffix === "b" && x.length > 0 && <tr><td colSpan={3}>{button} {loginButton}
+		</td></tr>}
+				{suffix === "b" && x.length === 0 && <tr><td colSpan={3}>No attackers found! {loginButton}</td></tr>}
 				{x.map((a: string[], i) => <tr key={i} title={
 					(a && a.length > 1 && a[1].includes && a[1].includes("❗​")) ? ("Failed access attempts " + a[1].replace("❗​", "")) : undefined
 				}>
@@ -304,7 +309,7 @@ const Monitor = () => {
 					height: 'calc(100% - 28px)',
 					display: "inline-block"
 				}}
-				title="Docker"
+				title={values.docker.length + " Docker containers running"}
 			>{parseValues(values.docker)}</div>
     		<div
 				id="cron"

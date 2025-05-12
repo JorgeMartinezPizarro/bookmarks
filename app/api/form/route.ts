@@ -3,7 +3,7 @@ import { errorMessage } from "@/app/helpers";
 import { requireAuth } from "@/app/lib/auth";
 import { NextRequest } from "next/server";
 
-// Save SQL information to a Nextcloud Form
+// TODO: Save SQLlite information to a custom DB
 export async function POST(request: NextRequest): Promise<Response> {
   try {
     const u = await requireAuth(request);
@@ -51,13 +51,11 @@ export async function POST(request: NextRequest): Promise<Response> {
       answers: x
     } 
 
-    console.log(body)
-
     // Guardar resultados en el formulario de Nextcloud
     const response = await fetch(`${process.env.NEXTCLOUD_URL}/ocs/v2.php/apps/forms/api/v3/forms/${form}/submissions`, {
       method: "POST",
       headers: {
-        Authorization: `Basic ${btoa(`${username}:${apiKey}`)}`,
+        'Authorization': `Bearer ${sessionCookie}`,
         "OCS-APIRequest": "true",
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -66,7 +64,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     });
 
     if (!response.ok) {
-      throw new Error("Failed to save data to Nextcloud form." + response.text);
+      throw new Error("Failed to save data to Nextcloud form." + response.statusText);
     }
 
     return Response.json({ message: "Data saved successfully." }, { status: 200 });

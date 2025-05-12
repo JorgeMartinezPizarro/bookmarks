@@ -17,6 +17,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <title>
+          Gaming
+        </title>
       </head>
       <body className={inter.className}>
       <ThemeProvider theme={theme}>

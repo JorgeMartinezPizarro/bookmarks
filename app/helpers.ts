@@ -1,5 +1,5 @@
 
-export function errorMessage(error: Error | any, traceLength: number = 7): string {
+export function errorMessage(error: Error | any, traceLength: number = 10): string {
     let message: string;
     if (error instanceof Error) {
         message = error.stack || "";

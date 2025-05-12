@@ -6,7 +6,8 @@ import "./styles.css"
 import { CellProps, CellValues } from "./types";
 import { randomArrayCellValues } from "./helpers";
 import MainMenu from "@/app/components/MainMenu";
-
+import { errorMessage } from "@/app/helpers";
+// TODO: fix layout mobile. Fix buttons menu
 const GamesComponent = () => {
 
   const [start, setStart] = useState(Date.now())
@@ -18,7 +19,8 @@ const GamesComponent = () => {
   const [score, setScore] = useState<number>(0)
   const [time, setTime] = useState<number>(Date.now())
   const [topScores, setTopScores] = useState<any>([])
-  
+  const [error, setError] = useState(undefined)
+
   const currentScore = time - start === 0 ?
     0 : 
     Math.round(score**3 * 1000 / (time - start))
@@ -47,6 +49,7 @@ const GamesComponent = () => {
   }
 
   const loadScores = useCallback(() => {
+    setError(undefined)
     fetch("/bookmarks/api/form?formId=1").then(a => a.json()).then(a => {
       const topScores = a.ocs.data.submissions.map((e: any) => {
         return {
@@ -56,7 +59,7 @@ const GamesComponent = () => {
         }
       })
       setTopScores(topScores)
-    })
+    }).catch(e => setError(e))
   }, [setTopScores])
 
   const handleClick = useCallback((cell: CellValues): boolean => {
@@ -68,6 +71,7 @@ const GamesComponent = () => {
     )
     
     if (!clickIsRight) {
+      setError(undefined)
       fetch("/bookmarks/api/form", {
         method: "POST",
         body: JSON.stringify({ 
@@ -79,6 +83,7 @@ const GamesComponent = () => {
           user: 5
         }),
       }).then(a => a.json()).then(a => loadScores())
+      .catch(e => setError(e))
       setIsRight(false)
       setLast(undefined)
       return true
@@ -151,11 +156,12 @@ const GamesComponent = () => {
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      minHeight: "calc(100vh - 40px)",
+      minHeight: "calc(100vh - 140px)",
       textAlign: "center",
       width: "100%"
     }}
   >
+    {error && <pre style={{color: "red"}}>{errorMessage(error)}</pre>}
     {scores && <>
     {/* Render The Game Board */}
     {numbers.length === 20 && <Box
