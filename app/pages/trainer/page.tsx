@@ -16,7 +16,7 @@ const TrainerComponent = () => {
 
 	const handleSubmit = () => {
 		if (!question.trim()) {
-			setAnswer("Por favor, escribe una pregunta antes de enviarla.");
+			setAnswer("Ask me a question.");
 			return;
 		}
 		setLoading(true);
@@ -42,7 +42,7 @@ const TrainerComponent = () => {
 	};
 
 	const exportHistory = () => {
-		const content = history
+		const content = history.reverse()
 			.map((entry, index) => `Interacción ${index + 1}:\nPregunta: ${entry.question}\nRespuesta: ${entry.answer}\n`)
 			.join("\n");
 		const blob = new Blob([content], { type: "text/plain" });

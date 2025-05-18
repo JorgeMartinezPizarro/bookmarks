@@ -77,6 +77,13 @@ docker build -t jorgemartinezpizarro/wordlist:latest .
 docker push jorgemartinezpizarro/wordlist:latest
 ```
 
+To build the GPT2 container:
+```bash
+cd tools/gpt
+docker build -t jorgemartinezpizarro/gpt:latest . 
+docker push jorgemartinezpizarro/gpt:latest
+```
+
 Change the strings `jorgemartinezpizarro/NAME` to you own hub docker namespace.
 
 ## NOTE

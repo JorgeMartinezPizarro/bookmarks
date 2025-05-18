@@ -6,6 +6,9 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { signIn, useSession } from "next-auth/react";
 import "./styles.css";
 import MainMenu from '@/app/components/MainMenu';
+import { UsageBar } from '@/app/components/UsageBar';
+import { access } from 'fs';
+import { parse } from 'path';
 
 
 const Monitor = () => {
@@ -22,29 +25,48 @@ const Monitor = () => {
 	const { data: session, status } = useSession();
 
 	
-    
-	const [values, setValues] = useState<any>({banned: [], resources: [], cron: [], docker: []})
+    const [show, setShow] = useState<string[]>(["main"])
+	const [values, setValues] = useState<any>({groupedDockers: [], banned: [], resources: [], cron: [], docker: []})
 	const [copied, setCopied] = React.useState(false);
 	const [failed, setFailed] = useState(false)
 
 	const requestDocker = useCallback(() => {
-		fetch	('/bookmarks/api/report?name=docker', {credentials: 'include'})
+		fetch('/bookmarks/api/report?name=docker', {credentials: 'include'})
 			.then(a => a.json())
 			.then(r => {
 				const e = r.content || "";
 				setValues((newValues: any) => {
+
+					const dockers = e.split("\n").filter((a: string) => a.trim() !== "").map((a: any) => a.split("--").map((e: string, i: number) => (e.indexOf("(") === -1 && i===1)
+						? (e.replace('Up ', '') +" ❤️")
+						: (e
+							.replace('Up ', '')
+							.replace("(healthy)", "❤️")
+							.replace("(Paused)", "⏸️")
+							.replace("(unhealthy)", "❤️‍🩹")
+						)
+					))
+
+					const groupedDockers = dockers.reduce((acc: any, service: string[]) => {
+						
+						const newAcc = {...acc}
+						const project = service[0].split("-")[0]
+						
+						if (newAcc[project]) {
+							newAcc[project].push(service)
+						} else {
+							newAcc[project] = [service]
+						}
+
+						return newAcc
+
+					}, {})
+					
 					return {
 						...newValues,
+						groupedDockers: {...groupedDockers},
 						docker: [
-							...e.split("\n").filter((a: string) => a.trim() !== "").map((a: any) => a.split("--").map((e: string, i: number) => (e.indexOf("(") === -1 && i===1)
-								? (e.replace('Up ', '') +" ❤️")
-								: (e
-									.replace('Up ', '')
-									.replace("(healthy)", "❤️")
-									.replace("(Paused)", "⏸️")
-									.replace("(unhealthy)", "❤️‍🩹")
-								)
-							))
+							...dockers,
 						],
 					};
 				})
@@ -57,8 +79,16 @@ const Monitor = () => {
 			.then(a => a.json())
 			.then(r => {
 				const e = r.content || "";
+				
 				setValues((newValues: any) => {
 					const a = e.split("\n");
+
+					const percentUsages = {
+						cpu: a[8]?.replace("CPU", "").replace("%", "").trim(),
+						ram: a[9]?.replace("RAM", "").replace("%", "").trim(),
+						disk: a[10]?.replace("Disk", "").replace("%", "").trim(),
+					}
+
 					return {
 						...newValues,
 						resources: [
@@ -77,7 +107,8 @@ const Monitor = () => {
 								return x.split(" ").filter((a: any) => a !== "").slice(0,2)
 							}),
 							
-						]
+						],
+						percentUsages
 					};
 				})
 			})
@@ -108,15 +139,29 @@ const Monitor = () => {
 				const e = r.content || "";
 				setValues((newValues: any) => {
 					const x = e.split("\n").filter((a: any, i: number) => a !== undefined && a !== "" && a.indexOf("====")===-1)
+
 					const y = x							
-						.map((a: any, i: number) => i%5 === 0 && x[i+2] !== undefined ? [x[i+2].substring(0, x[i+2].indexOf(" ")).toUpperCase(), a.substring(5)] : a)
-						.map((a: any, i: number) => i%5 === 1 ? [" ✅​ ", readableTime(a)] : a)
-						.map((a: any, i: number) => i%5 === 3 ? [" ⬆️ ", readableTime(a)] : a)
-						.filter((a: any, i: number) => [0, 1, 3].includes(i%5))
+						.map((a: any, i: number) => {
+
+							if (i%5!==0 || x[i+2] === undefined) 
+								return false
+							const saveTime = readableTime(x[i+1])
+							const pushTime = readableTime(x[i+3])
+							const title = x[i+2].substring(0, x[i+2].indexOf(" ")).toUpperCase()
+							
+							return [
+								a,
+								title,
+								"✅ in " + saveTime,
+								"⬆️ in " + pushTime,
+							]
+								
+						})
+						.filter((a: any, i: number) => [0].includes(i%5))
 					
 					return {
 						...newValues,
-						cron: reverseInBlocks(y, 3)
+						cron: reverseInBlocks(y, 1).slice(0, 24)
 					};
 				})
 			})
@@ -132,8 +177,6 @@ const Monitor = () => {
 
 				if (e === "") return;
 				setValues((newValues: any) => {
-					console.log(e)
-					 
 					const x = e.split("----------------- --------------------")
 
 					const banned = x[4].split("\n").filter((x: any) => x !== "-" && x !== "")
@@ -245,28 +288,44 @@ const Monitor = () => {
 		});
 	};
 
-	const button = <Tooltip title={copied ? "Copied!" : "Copy to clipboard"} arrow>
+	const showButton = (name: string) => {
+		return <Button
+			variant={show.includes(name) ? "contained" : "outlined"}
+			onClick={() => {
+				if (show.includes(name)) {
+					setShow([
+						
+					])
+				} else {
+					setShow([
+						name
+					])
+				}
+			}} >
+				Show {name}
+		</Button>
+	}
+
+	const button = <Tooltip title={copied ? "Copied!" : "Ban " + (script === "" ? 0 : script.split("&&").length) + " attackers"} arrow>
       <Button
-        variant="contained"
-        color="primary"
-        onClick={handleCopy}
-		disabled={script===""}
+        variant="outlined"
+        color={script==="" ? "secondary" : "primary"}
+		onClick={handleCopy}
+		
         startIcon={<ContentCopyIcon />}
       >
-        Copy
+        Ban attackers
       </Button>
 	</Tooltip>
 
 const loginButton = <Button variant="contained" onClick={() => {
 	signIn("nextcloud", {callbackUrl: window.location.href, redirect: true})
 }}>Login</Button>
+
 	const parseValues = (array = [], suffix="") => {
 		const x = array.filter((a: string[]) => a !== undefined && a.join && a.join("").trim() !== "" && !w.includes(a[0]?.trim()))
 		return <table key={JSON.stringify(array)+suffix}>
 			<tbody>
-				{suffix === "b" && x.length > 0 && <tr><td colSpan={3}>{button} {loginButton}
-		</td></tr>}
-				{suffix === "b" && x.length === 0 && <tr><td colSpan={3}>No attackers found! {loginButton}</td></tr>}
 				{x.map((a: string[], i) => <tr key={i} title={
 					(a && a.length > 1 && a[1].includes && a[1].includes("❗​")) ? ("Failed access attempts " + a[1].replace("❗​", "")) : undefined
 				}>
@@ -281,13 +340,37 @@ const loginButton = <Button variant="contained" onClick={() => {
 		</table>
 	}
 
+
+	console.log(values.resources)
+
+	const getResource = (search: string) => {
+
+		const usedSearch = search === "gaming" ? "brain" : search
+
+		const trueSearch = usedSearch === "mptree" ? "mptree/data" : usedSearch
+		const item = values.resources.reverse().find((el: string[]) => el[0] && el[0].includes(trueSearch))
+		if (item)
+			return item[1]
+		return 0
+	}
+
 	return (
     <div className="my-frame">
+		<div style={{
+
+		}} >
+			{loginButton}
+			{showButton("main")}
+			{showButton("docker")}
+			{showButton("access")}
+			{showButton("cron")}
+			{button}
+		</div>
 		<div style={{ 
 			padding: 0, 
 			color: "white", 
 			background: 'black', 
-			height: 'calc(100% - 8px)', 
+			height: 'calc(100% - 45px)', 
 			overflow: 'hidden', 
 			borderRadius: '4px',
 			display: "inline-block"
@@ -297,25 +380,37 @@ const loginButton = <Button variant="contained" onClick={() => {
 				style={{
 					height: 'calc(100% - 28px)',
 					margin: '4px',
-					display: "inline-block"
+					display: !show.includes("main") ? "none" : "inline-block"
 				}}
-				title="Resources"
 			>
-				{parseValues(values.resources)}
+				<div className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
+				<h4 className="text-xl font-bold mb-6">Server usage</h4>
+				{values.percentUsages?.ram && <UsageBar value={values.percentUsages?.ram} label="RAM" />}
+				{values.percentUsages?.disk && <UsageBar value={values.percentUsages?.disk} label="Disk" />}
+				{values.percentUsages?.cpu && <UsageBar value={values.percentUsages?.cpu} label="CPU" />}
+				
+				{Object.keys(values.groupedDockers).map((line: string) => <p>{
+					<div>{line + " " + values.groupedDockers[line].length + " images" + getResource(line)}</div>
+				}</p>)}
+				
+				</div>
 			</div>
 			<div
 				id="docker"
 				style={{
 					height: 'calc(100% - 28px)',
-					display: "inline-block"
+					display: !show.includes("docker") ? "none" : "inline-block"					
 				}}
-				title={values.docker.length + " Docker containers running"}
-			>{parseValues(values.docker)}</div>
+				title={Object.keys(values.docker).length + "  docker projects running"}
+
+			>
+				{parseValues(values.docker)}
+			</div>
     		<div
 				id="cron"
 				style={{
 					height: 'calc(100% - 28px)',
-					display: "inline-block"
+					display: !show.includes("cron") ? "none" : "inline-block"
 				}}
 				title="Cron"
 			>
@@ -326,24 +421,13 @@ const loginButton = <Button variant="contained" onClick={() => {
 			<div
         id="access"
         style={{
-          display: 'inline-block',
+          display: !show.includes("access") ? "none" : 'inline-block',
           height: 'calc(100% - 28px)',
           
         }}
         title="Access report"
       >{parseValues(values.access, "x")}</div>
     
-	<div
-        id="banned"
-        style={{
-			height: 'calc(100% - 28px)',
-          
-		  display: 'inline-block',
-        }}
-        title="Failed access attempts"
-      >
-	  {parseValues(values.list, "b")}
-	</div>
 	</div>
 		
     </div>

@@ -1,6 +1,8 @@
+from flask import Flask, request
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
-from flask import Flask, request
+torch.set_num_threads(12)
+torch.set_num_interop_threads(3)
 
 # 🔹 Carga del modelo optimizada para CPU
 model_name = "EleutherAI/gpt-j-6B"
@@ -27,7 +29,7 @@ def chat():
     ultima_pregunta = messages[-1]["content"] if messages else ""
 
     # 🔹 Reformulamos el prompt para enfocarlo en resultados matemáticos
-    prompt = f"Pregunta: {ultima_pregunta}\nRespuesta matemática precisa y breve:"
+    prompt = f"{ultima_pregunta}"
 
     # 🔹 Tokenización optimizada
     inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True)
@@ -37,7 +39,7 @@ def chat():
         outputs = model.generate(
             inputs["input_ids"], 
             attention_mask=inputs["attention_mask"],  
-            max_new_tokens=50,  # 🔹 Genera respuestas más rápidas y concretas
+            max_new_tokens=150,  # 🔹 Genera respuestas más rápidas y concretas
             num_return_sequences=1,
             temperature=0.2,  # 🔹 Prioriza precisión sobre creatividad
             top_k=30,  
@@ -53,15 +55,9 @@ def chat():
 
     # 🔹 Eliminamos la pregunta si el modelo la repite
     response = response.replace(ultima_pregunta, "").strip()
-    response = response.replace("Pregunta:", "").strip()
-    response = response.replace("Respuesta matemática precisa y breve:", "").strip()
-
+    
     # 🔹 Eliminamos cualquier línea en blanco que haya quedado
     response = "\n".join([line.strip() for line in response.split("\n") if line.strip()])
-
-    # 🔹 Si la respuesta no termina en punto, lo agregamos
-    if response and response[-1] not in ".!?":
-        response += "."
 
     # 🔹 Devuelve texto puro, sin JSON
     print(response)  # 🔹 Se verá en los logs de Docker
