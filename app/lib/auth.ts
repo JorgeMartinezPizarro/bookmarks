@@ -1,7 +1,20 @@
-
 import { getToken } from "next-auth/jwt";
 import { OAuthConfig } from "next-auth/providers/oauth";
 import type { NextAuthOptions } from "next-auth";
+
+// ⛔️ Validación estricta de variables requeridas
+const requiredEnv = [
+  "NEXTCLOUD_URL",
+  "NEXTCLOUD_CLIENT_ID",
+  "NEXTCLOUD_CLIENT_SECRET",
+  "NEXTAUTH_SECRET",
+];
+
+for (const key of requiredEnv) {
+  if (!process.env[key]) {
+    throw new Error(`[auth.ts] Faltante variable de entorno: ${key}`);
+  }
+}
 
 export async function requireAuth(request: Request) {
   const token = await getToken({
@@ -13,13 +26,16 @@ export async function requireAuth(request: Request) {
     throw new Error("No access token");
   }
 
-  // Validamos el token contra Nextcloud
-  const res = await fetch(process.env.NEXTCLOUD_URL + "/ocs/v2.php/cloud/user?format=json", {
-    headers: {
-      Authorization: `Bearer ${token.accessToken}`,
-      Accept: "application/json",
-    },
-  });
+  const res = await fetch(
+    `${process.env.NEXTCLOUD_URL}/ocs/v2.php/cloud/user?format=json`,
+    {
+      headers: {
+        Authorization: `Bearer ${token.accessToken}`,
+        Accept: "application/json",
+        "OCS-APIRequest": "true",
+      },
+    }
+  );
 
   if (!res.ok) {
     throw new Error("Invalid token");
@@ -35,6 +51,7 @@ export async function requireAuth(request: Request) {
   };
 }
 
+// 🧩 Tipo para cuando quieras reintroducir userinfo más adelante
 interface NextcloudProfile {
   ocs: {
     data: {
@@ -53,20 +70,37 @@ const nextcloudProvider: OAuthConfig<any> = {
   clientSecret: process.env.NEXTCLOUD_CLIENT_SECRET!,
   authorization: `${process.env.NEXTCLOUD_URL}/index.php/apps/oauth2/authorize`,
   token: `${process.env.NEXTCLOUD_URL}/index.php/apps/oauth2/api/v1/token`,
-  userinfo: `${process.env.NEXTCLOUD_URL}/ocs/v2.php/cloud/user?format=json`,
-  profile(profile: NextcloudProfile) {
-    return {
-      id: profile.ocs.data.id,
-      name: profile.ocs.data.displayname,
-      email: profile.ocs.data.email,
-    };
+  userinfo: `${process.env.NEXTCLOUD_URL}/ocs/v2.php/cloud/user?format=json`, // ← esto lo hace feliz
+  async profile(_profile, tokens) {
+    try {
+      const res = await fetch(`${process.env.NEXTCLOUD_URL}/ocs/v2.php/cloud/user?format=json`, {
+        headers: {
+          Authorization: `Bearer ${tokens.access_token}`,
+          Accept: "application/json",
+          "OCS-APIRequest": "true",
+        },
+      });
+
+      if (!res.ok) throw new Error("Failed to fetch user info");
+
+      const json = await res.json();
+      const user = json?.ocs?.data;
+
+      return {
+        id: user.id,
+        name: user.displayname,
+        email: user.email,
+      };
+    } catch (err) {
+      console.error("[Nextcloud Profile Error]", err);
+      throw new Error("Nextcloud profile() failed");
+    }
   },
 };
 
+// 🛡️ Configuración principal de NextAuth
 export const authOptions: NextAuthOptions = {
-  providers: [
-    nextcloudProvider
-  ],
+  providers: [nextcloudProvider],
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
     async session({ session, token }) {
