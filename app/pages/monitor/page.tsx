@@ -34,7 +34,7 @@ const Monitor = () => {
 	const [values, setValues] = useState<any>({groupedDockers: [], banned: [], resources: [], cron: [], docker: [], percentUsages: {}})
 	const [copied, setCopied] = React.useState(false);
 	const [failed, setFailed] = useState(false)
-
+	
 	const requestDocker = useCallback(() => {
 		fetch('/bookmarks/api/report?name=docker', {credentials: 'include'})
 			.then(a => a.json())
@@ -49,23 +49,43 @@ const Monitor = () => {
 							.replace("(healthy)", "❤️")
 							.replace("(Paused)", "⏸️")
 							.replace("(unhealthy)", "❤️‍🩹")
+							.split("/")[0]
 						)
 					))
+
+					const r = (n: string) => Math.round(Number(n) * 100) / 100;
 
 					const groupedDockers = dockers.reduce((acc: any, service: string[]) => {
 						
 						const newAcc = {...acc}
 						const project = service[0].split("-")[0]
 						
+						const cpu = r(service[2].replace("%", ""))
+
+
+
+						const ram = service[3].includes("GiB") 
+							? r(service[3].replace("GiB", ""))*1024
+							: r(service[3].replace("MiB", ""))
+
+
 						if (newAcc[project]) {
-							newAcc[project].push(service)
+							newAcc[project].services.push(service)
+							newAcc[project].ram = Math.round(newAcc[project].ram + ram)
+							newAcc[project].cpu = r(newAcc[project].cpu + cpu)
 						} else {
-							newAcc[project] = [service]
+							newAcc[project] = {
+								services: [service],
+								ram: Math.round(ram),
+								cpu
+							}
 						}
 
 						return newAcc
 
 					}, {})
+
+					console.log(groupedDockers)
 					
 					return {
 						...newValues,
@@ -404,14 +424,26 @@ const loginButton = <Button variant="outlined" onClick={() => {
 				}}
 			>
 				<div className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
-				<h4 className="text-xl font-bold mb-6">{Object.keys(values.percentUsages).length > 0 ? "Server usage" : "Loading ..."}</h4>
 				{values.percentUsages?.ram && <UsageBar value={values.percentUsages?.ram} label="RAM" />}
 				{values.percentUsages?.disk && <UsageBar value={values.percentUsages?.disk} label="Disk" />}
 				{values.percentUsages?.cpu && <UsageBar value={values.percentUsages?.cpu} label="CPU" />}
 				
-				<table><tbody>{Object.keys(values.groupedDockers).map((line: string, i: number) => 
-					<tr key={i}><td>{line}</td><td>{values.groupedDockers[line].length + " images"}</td><td>{getResource(line)}</td></tr>
-				)}</tbody></table>
+				<table><tbody>
+					<tr>
+						<th>Name</th>
+						<th>RAM</th>
+						<th>CPU</th>
+						<th>Disk</th>
+					</tr>
+					{Object.keys(values.groupedDockers).map((line: string, i: number) => 
+						<tr key={i}>
+							<td style={{borderRight: "1pt solid #535333"}}>{line} ({values.groupedDockers[line].services.length})</td>
+							<td style={{borderRight: "1pt solid #535333"}}>{values.groupedDockers[line].ram < 1024 ? (values.groupedDockers[line].ram+"MiB") : (values.groupedDockers[line].ram / 1024).toFixed(2)+"GiB"}</td>
+							<td style={{borderRight: "1pt solid #535333"}}>{values.groupedDockers[line].cpu}</td>
+							<td>{getResource(line)}</td>
+						</tr>
+					)}
+				</tbody></table>
 				
 				</div>
 			</div>

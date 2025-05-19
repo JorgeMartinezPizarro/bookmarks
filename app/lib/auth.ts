@@ -62,6 +62,42 @@ const nextcloudProvider: OAuthConfig<any> = {
   },
 };
 
+async function refreshAccessToken(token: any) {
+  try {
+    const url = `${process.env.NEXTCLOUD_URL}/index.php/apps/oauth2/api/v1/token`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: process.env.NEXTCLOUD_CLIENT_ID!,
+        client_secret: process.env.NEXTCLOUD_CLIENT_SECRET!,
+        grant_type: 'refresh_token',
+        refresh_token: token.refreshToken,
+      }),
+    });
+
+    const refreshedTokens = await response.json();
+
+    if (!response.ok) throw refreshedTokens;
+
+    return {
+      ...token,
+      accessToken: refreshedTokens.access_token,
+      accessTokenExpires: Date.now() + refreshedTokens.expires_in * 1000,
+      refreshToken: refreshedTokens.refresh_token ?? token.refreshToken, // Fallback
+    };
+  } catch (error) {
+    console.error('Error refreshing access token', error);
+    return {
+      ...token,
+      error: 'RefreshAccessTokenError',
+    };
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     nextcloudProvider
@@ -69,13 +105,29 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
     async session({ session, token }) {
-      return session;
+      return {
+        ...session,
+        accessToken: token.accessToken,
+        error: token.error,
+      } as typeof session & {
+        accessToken?: string;
+        error?: string;
+      };
     },
     async jwt({ token, account }) {
       if (account) {
         token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.accessTokenExpires = Date.now() + (account.expires_at! * 1000);
       }
-      return token;
-    },
+
+      // Si el token aún es válido, retornamos
+      if (Date.now() < (token.accessTokenExpires as number)) {
+        return token;
+      }
+
+      // Si el token expiró, intenta renovarlo
+      return await refreshAccessToken(token);
+    }
   },
 };
