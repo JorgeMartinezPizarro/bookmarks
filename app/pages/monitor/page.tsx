@@ -9,6 +9,11 @@ import MainMenu from '@/app/components/MainMenu';
 import { UsageBar } from '@/app/components/UsageBar';
 import { access } from 'fs';
 import { parse } from 'path';
+import LoginIcon from '@mui/icons-material/Login';
+import CloudIcon from '@mui/icons-material/Cloud';
+import VpnKeyIcon from '@mui/icons-material/VpnKey';
+import ComputerIcon from '@mui/icons-material/Computer';
+import ScheduleIcon from '@mui/icons-material/Schedule';
 
 
 const Monitor = () => {
@@ -26,7 +31,7 @@ const Monitor = () => {
 
 	
     const [show, setShow] = useState<string[]>(["main"])
-	const [values, setValues] = useState<any>({groupedDockers: [], banned: [], resources: [], cron: [], docker: []})
+	const [values, setValues] = useState<any>({groupedDockers: [], banned: [], resources: [], cron: [], docker: [], percentUsages: {}})
 	const [copied, setCopied] = React.useState(false);
 	const [failed, setFailed] = useState(false)
 
@@ -289,6 +294,18 @@ const Monitor = () => {
 	};
 
 	const showButton = (name: string) => {
+
+		let icon = undefined;
+
+		if (name === "docker")
+			icon = <CloudIcon />
+		if (name === "access")
+			icon = <VpnKeyIcon />
+		if (name === "cron") 
+			icon = <ScheduleIcon />
+		if (name === "main")
+			icon = <ComputerIcon />
+
 		return <Button
 			variant={show.includes(name) ? "contained" : "outlined"}
 			onClick={() => {
@@ -302,25 +319,25 @@ const Monitor = () => {
 					])
 				}
 			}} >
-				Show {name}
+				{icon}
 		</Button>
 	}
 
 	const button = <Tooltip title={copied ? "Copied!" : "Ban " + (script === "" ? 0 : script.split("&&").length) + " attackers"} arrow>
       <Button
         variant="outlined"
-        color={script==="" ? "secondary" : "primary"}
+        color={script==="" ? "primary" : "error"}
 		onClick={handleCopy}
 		
         startIcon={<ContentCopyIcon />}
       >
-        Ban attackers
+        Ban
       </Button>
 	</Tooltip>
 
 const loginButton = <Button variant="contained" onClick={() => {
 	signIn("nextcloud", {callbackUrl: window.location.href, redirect: true})
-}}>Login</Button>
+}}><LoginIcon /></Button>
 
 	const parseValues = (array = [], suffix="") => {
 		const x = array.filter((a: string[]) => a !== undefined && a.join && a.join("").trim() !== "" && !w.includes(a[0]?.trim()))
@@ -345,13 +362,13 @@ const loginButton = <Button variant="contained" onClick={() => {
 
 	const getResource = (search: string) => {
 
-		const usedSearch = search === "gaming" ? "brain" : search
+		const usedSearch = search === "gaming" ? "brain/data" : search
 
 		const trueSearch = usedSearch === "mptree" ? "mptree/data" : usedSearch
 		const item = values.resources.reverse().find((el: string[]) => el[0] && el[0].includes(trueSearch))
 		if (item)
 			return item[1]
-		return 0
+		return "0K"
 	}
 
 	return (
@@ -379,19 +396,20 @@ const loginButton = <Button variant="contained" onClick={() => {
 				id="resources"
 				style={{
 					height: 'calc(100% - 28px)',
+					width: "400px",
 					margin: '4px',
 					display: !show.includes("main") ? "none" : "inline-block"
 				}}
 			>
 				<div className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
-				<h4 className="text-xl font-bold mb-6">Server usage</h4>
+				<h4 className="text-xl font-bold mb-6">{Object.keys(values.percentUsages).length > 0 ? "Server usage" : "Loading ..."}</h4>
 				{values.percentUsages?.ram && <UsageBar value={values.percentUsages?.ram} label="RAM" />}
 				{values.percentUsages?.disk && <UsageBar value={values.percentUsages?.disk} label="Disk" />}
 				{values.percentUsages?.cpu && <UsageBar value={values.percentUsages?.cpu} label="CPU" />}
 				
-				{Object.keys(values.groupedDockers).map((line: string) => <p>{
-					<div>{line + " " + values.groupedDockers[line].length + " images" + getResource(line)}</div>
-				}</p>)}
+				<table><tbody>{Object.keys(values.groupedDockers).map((line: string) => 
+					<tr><td>{line}</td><td>{values.groupedDockers[line].length + " images"}</td><td>{getResource(line)}</td></tr>
+				)}</tbody></table>
 				
 				</div>
 			</div>
