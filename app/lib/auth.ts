@@ -2,20 +2,6 @@ import { getToken } from "next-auth/jwt";
 import { OAuthConfig } from "next-auth/providers/oauth";
 import type { NextAuthOptions } from "next-auth";
 
-// ⛔️ Validación estricta de variables requeridas
-const requiredEnv = [
-  "NEXTCLOUD_URL",
-  "NEXTCLOUD_CLIENT_ID",
-  "NEXTCLOUD_CLIENT_SECRET",
-  "NEXTAUTH_SECRET",
-];
-
-for (const key of requiredEnv) {
-  if (!process.env[key]) {
-    throw new Error(`[auth.ts] Faltante variable de entorno: ${key}`);
-  }
-}
-
 export async function requireAuth(request: Request) {
   const token = await getToken({
     req: request as any,
@@ -48,17 +34,6 @@ export async function requireAuth(request: Request) {
     id: user.id,
     name: user.displayname,
     email: user.email,
-  };
-}
-
-// 🧩 Tipo para cuando quieras reintroducir userinfo más adelante
-interface NextcloudProfile {
-  ocs: {
-    data: {
-      id: string;
-      displayname: string;
-      email: string;
-    };
   };
 }
 
