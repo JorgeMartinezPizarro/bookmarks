@@ -450,7 +450,7 @@ const loginButton = <Button variant="outlined" onClick={() => {
 		<p>Access</p>
 		{parseValues(values.access, "x")}
 		<p>{notBannedIps.lenght || 0} Failed attempts</p>
-		{notBannedIps.map((ip: string) => <p>{ip}</p>)}
+		{notBannedIps.map((ip: string, i: number) => <p key={i}>{ip}</p>)}
 		{notBannedIps.length > 0 && button}
 	</div>
     
