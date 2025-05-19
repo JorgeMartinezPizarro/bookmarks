@@ -431,16 +431,17 @@ const loginButton = <Button variant="outlined" onClick={() => {
 				<table><tbody>
 					<tr>
 						<th>Name</th>
-						<th>RAM</th>
-						<th>CPU</th>
 						<th>Disk</th>
+						<th>RAM</th>
+						<th>CPU</th>						
 					</tr>
 					{Object.keys(values.groupedDockers).map((line: string, i: number) => 
 						<tr key={i}>
 							<td style={{borderRight: "1pt solid #535333"}}>{line} ({values.groupedDockers[line].services.length})</td>
-							<td style={{borderRight: "1pt solid #535333"}}>{values.groupedDockers[line].ram < 1024 ? (values.groupedDockers[line].ram+"MiB") : (values.groupedDockers[line].ram / 1024).toFixed(2)+"GiB"}</td>
-							<td style={{borderRight: "1pt solid #535333"}}>{values.groupedDockers[line].cpu}</td>
-							<td>{getResource(line)}</td>
+							<td style={{borderRight: "1pt solid #535333"}}>{getResource(line)}</td>
+							<td style={{borderRight: "1pt solid #535333"}}>{values.groupedDockers[line].ram < 1024 ? (values.groupedDockers[line].ram+"MiB") : (values.groupedDockers[line].ram / 1024).toFixed(0)+"GiB"}</td>
+							<td >{values.groupedDockers[line].cpu}%</td>
+							
 						</tr>
 					)}
 				</tbody></table>
