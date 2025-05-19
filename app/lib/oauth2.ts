@@ -7,7 +7,7 @@ const config = {
     secret: process.env.NEXTCLOUD_CLIENT_SECRET!,
   },
   auth: {
-    tokenHost: process.env.NEXTCLOUD_TOKEN_URL!.split('/apps/')[0],
+    tokenHost: process.env.NEXTCLOUD_URL!,
     tokenPath: '/apps/oauth2/api/v1/token',
     authorizePath: '/apps/oauth2/authorize',
   },
