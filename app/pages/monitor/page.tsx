@@ -277,15 +277,18 @@ const Monitor = () => {
 
 	const bannedIps = values.banned.map((a: string[]) => a[1]?.trim())
 	
-	const script = values.list ? values.list
+	const notBannedIps = values.list ? values.list
 		.filter((value: string[]) => 
 			!bannedIps.includes(value[0])
 		)
 		.map((value: string[]) => 
 			`iptables -A INPUT -s ${value[0]} -j DROP`
-		)
-		.join(" && ") : ""
+		) : []
 
+	const script = notBannedIps
+		.join(" && ")
+
+	
 	const handleCopy = () => {
 		navigator.clipboard.writeText(script).then(() => {
 			setCopied(true);
@@ -335,7 +338,7 @@ const Monitor = () => {
       </Button>
 	</Tooltip>
 
-const loginButton = <Button variant="contained" onClick={() => {
+const loginButton = <Button variant="outlined" onClick={() => {
 	signIn("nextcloud", {callbackUrl: window.location.href, redirect: true})
 }}><LoginIcon /></Button>
 
@@ -374,14 +377,13 @@ const loginButton = <Button variant="contained" onClick={() => {
 	return (
     <div className="my-frame">
 		<div style={{
-
+			textAlign: "center"
 		}} >
 			{loginButton}
 			{showButton("main")}
 			{showButton("docker")}
 			{showButton("access")}
 			{showButton("cron")}
-			{button}
 		</div>
 		<div style={{ 
 			padding: 0, 
@@ -444,7 +446,13 @@ const loginButton = <Button variant="contained" onClick={() => {
           
         }}
         title="Access report"
-      >{parseValues(values.access, "x")}</div>
+      >
+		<p>Access</p>
+		{parseValues(values.access, "x")}
+		<p>{notBannedIps.lenght || 0} Failed attempts</p>
+		{notBannedIps.map((ip: string) => <p>{ip}</p>)}
+		{notBannedIps.length > 0 && button}
+	</div>
     
 	</div>
 		
