@@ -359,7 +359,7 @@ const Monitor = () => {
 	</Tooltip>
 
 const loginButton = <Button variant="outlined" onClick={() => {
-	signIn("nextcloud", {callbackUrl: window.location.href, redirect: true})
+	signIn("nextcloud")
 }}><LoginIcon /></Button>
 
 	const parseValues = (array = [], suffix="") => {
