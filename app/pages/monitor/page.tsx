@@ -407,8 +407,8 @@ const loginButton = <Button variant="contained" onClick={() => {
 				{values.percentUsages?.disk && <UsageBar value={values.percentUsages?.disk} label="Disk" />}
 				{values.percentUsages?.cpu && <UsageBar value={values.percentUsages?.cpu} label="CPU" />}
 				
-				<table><tbody>{Object.keys(values.groupedDockers).map((line: string) => 
-					<tr><td>{line}</td><td>{values.groupedDockers[line].length + " images"}</td><td>{getResource(line)}</td></tr>
+				<table><tbody>{Object.keys(values.groupedDockers).map((line: string, i: number) => 
+					<tr key={i}><td>{line}</td><td>{values.groupedDockers[line].length + " images"}</td><td>{getResource(line)}</td></tr>
 				)}</tbody></table>
 				
 				</div>

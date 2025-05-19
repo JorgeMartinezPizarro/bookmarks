@@ -27,7 +27,7 @@ const Wording = () => {
   useEffect(() => {
     const audio = document.getElementsByTagName("audio")[0] as HTMLAudioElement
     if (playing) audio?.play()
-  }, [word])
+  }, [word, playing])
   useEffect(() => {
     if (playing) {
       setTime(60)
