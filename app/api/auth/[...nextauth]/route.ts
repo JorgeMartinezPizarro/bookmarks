@@ -39,7 +39,7 @@ const nextcloudProvider: OAuthConfig<any> = {
 
 import NextAuth from "next-auth";
 // 🛡️ Configuración principal de NextAuth
-export const authOptions: NextAuthOptions = {
+const authOptions: NextAuthOptions = {
   providers: [nextcloudProvider],
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
