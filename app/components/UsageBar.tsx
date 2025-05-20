@@ -30,8 +30,8 @@ export const UsageBar: React.FC<UsageBarProps> = ({ label, value }) => {
   }));
 
   return (
-    <Box mb={3}>
-      <Box display="flex" justifyContent="space-between" mb={0.5}>
+    <Box style={{margin: "8px"}}>
+      <Box display="flex" justifyContent="space-between">
         <Typography variant="body2">{label}</Typography>
         <Typography variant="body2" color="text.secondary">{`${value}%`}</Typography>
       </Box>

@@ -1,8 +1,6 @@
 #access, #cron, #docker, #resources, #banned {
   font-family: monospace;
   unicode-bidi: isolate;	
-  
-  
   max-height: 100%;
   overflow: auto;
   color: silver;
@@ -14,13 +12,15 @@
 }
 
 .my-frame {
-  height: 100%;
+  height: calc(100% - 18px);
+  width: 600px;
+  max-width: 100%;
+  margin: auto;
 }
 
 #access tr td, #cron tr td, #docker tr td, #resources tr td, #banned tr td{
   padding: 2px;
 }
-
 
 .container .block {
   display: inline-block;

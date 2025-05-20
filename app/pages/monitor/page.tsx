@@ -364,7 +364,7 @@ const loginButton = <Button variant="outlined" onClick={() => {
 
 	const parseValues = (array = [], suffix="") => {
 		const x = array.filter((a: string[]) => a !== undefined && a.join && a.join("").trim() !== "" && !w.includes(a[0]?.trim()))
-		return <table key={JSON.stringify(array)+suffix}>
+		return <table style={{width: "100%"}} key={JSON.stringify(array)+suffix}>
 			<tbody>
 				{x.map((a: string[], i) => <tr key={i} title={
 					(a && a.length > 1 && a[1].includes && a[1].includes("❗​")) ? ("Failed access attempts " + a[1].replace("❗​", "")) : undefined
@@ -380,8 +380,6 @@ const loginButton = <Button variant="outlined" onClick={() => {
 		</table>
 	}
 
-
-	console.log(values.resources)
 
 	const getResource = (search: string) => {
 
@@ -409,42 +407,44 @@ const loginButton = <Button variant="outlined" onClick={() => {
 			padding: 0, 
 			color: "white", 
 			background: 'black', 
-			height: 'calc(100% - 45px)', 
+			height: 'calc(100% - 24px)', 
 			overflow: 'hidden', 
 			borderRadius: '4px',
-			display: "inline-block"
+			display: "inline-block",
+			width: "100%",
 		}}>
 			<div
 				id="resources"
 				style={{
-					height: 'calc(100% - 28px)',
-					width: "400px",
-					margin: '4px',
+					height: 'calc(100%px)',
+					width: "596px",
+					maxWidth: "100%",
+					
 					display: !show.includes("main") ? "none" : "inline-block"
 				}}
 			>
 				<div className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
-				{values.percentUsages?.ram && <UsageBar value={values.percentUsages?.ram} label="RAM" />}
-				{values.percentUsages?.disk && <UsageBar value={values.percentUsages?.disk} label="Disk" />}
-				{values.percentUsages?.cpu && <UsageBar value={values.percentUsages?.cpu} label="CPU" />}
-				
-				<table><tbody>
-					<tr>
-						<th>Name</th>
-						<th>Disk</th>
-						<th>RAM</th>
-						<th>CPU</th>						
-					</tr>
-					{Object.keys(values.groupedDockers).map((line: string, i: number) => 
-						<tr key={i}>
-							<td style={{borderRight: "1pt solid #535333"}}>{line} ({values.groupedDockers[line].services.length})</td>
-							<td style={{borderRight: "1pt solid #535333"}}>{getResource(line)}</td>
-							<td style={{borderRight: "1pt solid #535333"}}>{values.groupedDockers[line].ram < 1024 ? (values.groupedDockers[line].ram+"MiB") : (values.groupedDockers[line].ram / 1024).toFixed(0)+"GiB"}</td>
-							<td >{values.groupedDockers[line].cpu}%</td>
-							
+					{values.percentUsages?.ram && <UsageBar value={values.percentUsages?.ram} label="RAM" />}
+					{values.percentUsages?.disk && <UsageBar value={values.percentUsages?.disk} label="Disk" />}
+					{values.percentUsages?.cpu && <UsageBar value={values.percentUsages?.cpu} label="CPU" />}
+					
+					<table style={{width: "100%", fontSize: "80%"}}><tbody>
+						<tr>
+							<th>Name</th>
+							<th>Disk</th>
+							<th>RAM</th>
+							<th>CPU</th>						
 						</tr>
-					)}
-				</tbody></table>
+						{Object.keys(values.groupedDockers).map((line: string, i: number) => 
+							<tr key={i}>
+								<td style={{borderRight: "1pt solid #535333"}}>{line} ({values.groupedDockers[line].services.length})</td>
+								<td style={{borderRight: "1pt solid #535333"}}>{getResource(line)}</td>
+								<td style={{borderRight: "1pt solid #535333"}}>{values.groupedDockers[line].ram < 1024 ? (values.groupedDockers[line].ram+"MiB") : (values.groupedDockers[line].ram / 1024).toFixed(0)+"GiB"}</td>
+								<td >{values.groupedDockers[line].cpu}%</td>
+								
+							</tr>
+						)}
+					</tbody></table>
 				
 				</div>
 			</div>
@@ -452,6 +452,7 @@ const loginButton = <Button variant="outlined" onClick={() => {
 				id="docker"
 				style={{
 					height: 'calc(100% - 28px)',
+					width: "100%",
 					display: !show.includes("docker") ? "none" : "inline-block"					
 				}}
 				title={Object.keys(values.docker).length + "  docker projects running"}
@@ -462,7 +463,8 @@ const loginButton = <Button variant="outlined" onClick={() => {
     		<div
 				id="cron"
 				style={{
-					height: 'calc(100% - 28px)',
+					width: "100%",
+					height: '100%',
 					display: !show.includes("cron") ? "none" : "inline-block"
 				}}
 				title="Cron"
@@ -476,6 +478,7 @@ const loginButton = <Button variant="outlined" onClick={() => {
         style={{
           display: !show.includes("access") ? "none" : 'inline-block',
           height: 'calc(100% - 28px)',
+		  width: "100%"
           
         }}
         title="Access report"
