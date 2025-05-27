@@ -11,17 +11,17 @@ export async function requireAuth(request: Request) {
     secret: process.env.NEXTAUTH_SECRET,
   });
 
-  if (!token || !token.accessToken) {
-    throw new Error("No access token");
+  if (!token) {
+    throw new Error("No token");
   }
 
-  if (typeof token?.accessToken !== "string") {
+  let accessToken = token.accessToken as string;
+  const refreshToken = token.refreshToken as string | undefined;
+  const now = Date.now();
+
+  if (!accessToken || typeof accessToken !== "string") {
     throw new Error("Invalid access token");
   }
-
-  const accessToken = token.accessToken as string;
-  
-  const now = Date.now();
 
   const cached = tokenCache.get(accessToken);
   if (cached && cached.expires > now) {
@@ -39,13 +39,51 @@ export async function requireAuth(request: Request) {
     }
   );
 
-  if (!res.ok) {
-    throw new Error("Invalid token");
+  // Si token expiró o es inválido, intentamos usar refreshToken
+  if (!res.ok && refreshToken) {
+    const refreshed = await refreshAccessToken(refreshToken);
+    if (!refreshed?.accessToken) {
+      throw new Error("Failed to refresh access token");
+    }
+
+    accessToken = refreshed.accessToken;
+
+    // Reintentar con el nuevo token
+    const retryRes = await fetch(
+      `${process.env.NEXTCLOUD_URL}/ocs/v2.php/cloud/user?format=json`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/json",
+          "OCS-APIRequest": "true",
+        },
+      }
+    );
+
+    if (!retryRes.ok) {
+      throw new Error("Invalid refreshed token");
+    }
+
+    const user = (await retryRes.json()).ocs?.data;
+    const userData = {
+      id: user.id,
+      name: user.displayname,
+      email: user.email,
+    };
+
+    tokenCache.set(accessToken, {
+      user: userData,
+      expires: now + 60_000,
+    });
+
+    return userData;
   }
 
-  const json = await res.json();
-  const user = json.ocs?.data;
+  if (!res.ok) {
+    throw new Error("Invalid token and no refresh token available");
+  }
 
+  const user = (await res.json()).ocs?.data;
   const userData = {
     id: user.id,
     name: user.displayname,
@@ -54,8 +92,29 @@ export async function requireAuth(request: Request) {
 
   tokenCache.set(accessToken, {
     user: userData,
-    expires: now + 60_000, // 1 minuto
+    expires: now + 60_000,
   });
 
   return userData;
 }
+
+async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string } | null> {
+  const res = await fetch(`${process.env.AUTH_SERVER}/api/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  return {
+    accessToken: data.accessToken,
+  };
+}
+
+export const withAuth = (handler: (req: Request, user: any) => Response | Promise<Response>) =>
+  async (req: Request) => {
+    const user = await requireAuth(req);
+    return handler(req, user);
+  };
