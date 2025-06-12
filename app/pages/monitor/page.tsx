@@ -66,7 +66,9 @@ const Monitor = () => {
 
 						const ram = service[3].includes("GiB") 
 							? r(service[3].replace("GiB", ""))*1024
-							: r(service[3].replace("MiB", ""))
+							: service[3].includes("MiB") 
+								? r(service[3].replace("MiB", ""))
+								: r(service[3].replace("KiB", ""))/1024
 
 
 						if (newAcc[project]) {
