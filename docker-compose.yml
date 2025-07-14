@@ -25,4 +25,9 @@ services:
     # Exposed to comunicate node, remove later to use docker network communication
     ports:
       - 1008:5000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
   
