@@ -1,5 +1,3 @@
 flask
 gunicorn
-transformers
-torch
-accelerate
+huggingface_hub

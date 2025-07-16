@@ -40,3 +40,5 @@ volume/
 
 # environment variables
 .env
+
+cache

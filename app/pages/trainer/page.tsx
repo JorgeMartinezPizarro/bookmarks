@@ -16,14 +16,14 @@ const TrainerComponent = () => {
 
 	const handleSubmit = () => {
 		if (!question.trim()) {
-			setAnswer("Ask me a question.");
+			setAnswer("Ask me a question.!!!");
 			return;
 		}
 		setLoading(true);
 		fetch(`/bookmarks/api/ask?question=${encodeURIComponent(question)}`)
 			.then((res) => res.json())
 			.then((res) => {
-				setAnswer(res.response);
+				setAnswer(res.response.result);
 				setHistory((prevHistory) => [...prevHistory, { question, answer: res.response }]);
 				setLoading(false);
 			})

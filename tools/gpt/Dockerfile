@@ -1,46 +1,31 @@
-# Etapa 1: Construcción con dependencias necesarias
-FROM python:3.9-slim AS build
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Instala dependencias necesarias del sistema
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libffi-dev \
-    libssl-dev \
-    libstdc++6 \
-    git \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Crear directorio de trabajo
-WORKDIR /app
-
-# Copiar e instalar dependencias
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
-
-# Etapa 2: Imagen final, limpia y mínima
 FROM python:3.9-slim
 
-ENV HF_HOME=/app/.cache
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ARG USE_GPU=false
+ENV USE_GPU=${USE_GPU}
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    curl \
+    git \
+    libopenblas-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copia sólo lo necesario desde la etapa de construcción
-COPY --from=build /usr/local /usr/local
-COPY load_model.py /app/load_model.py
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Crea el directorio de caché para Hugging Face
-RUN mkdir -p /app/.cache
+# Compila llama-cpp-python desde fuente con o sin cuBLAS
+RUN if [ "$USE_GPU" = "true" ]; then \
+      pip install llama-cpp-python[cuda] --force-reinstall --no-cache-dir; \
+    else \
+      pip install llama-cpp-python --force-reinstall --no-cache-dir; \
+    fi
 
-# Exponer el puerto de la API
+COPY . .
+
+RUN chmod +x entrypoint.sh
+
 EXPOSE 5000
-
-RUN apt-get update && apt-get install -y curl && apt-get clean
-
-# Comando de ejecución con Gunicorn (optimizado para CPU)
-CMD ["gunicorn", "--workers=1", "--threads=10", "--bind", "0.0.0.0:5000", "load_model:app"]
+ENTRYPOINT ["./entrypoint.sh"]
