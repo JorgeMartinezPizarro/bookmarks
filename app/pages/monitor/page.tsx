@@ -48,7 +48,7 @@ const Monitor = () => {
 							.replace('Up ', '')
 							.replace("(healthy)", "❤️")
 							.replace("(Paused)", "⏸️")
-							.replace("(unhealthy)", "❤️‍🩹")
+							.replace("(unhealthy)", "💀")
 							.split("/")[0]
 						)
 					))
