@@ -16,7 +16,7 @@ const Monitor = () => {
 
 	const { data: session, status } = useSession(); // force logged user.
 
-	const messages = useStats("https://nube.ideniox.com/bookmarks/api/report");
+	const messages = useStats("/bookmarks/api/report");
 
 	const [show, setShow] = useState<string>("main")
 	
