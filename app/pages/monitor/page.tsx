@@ -93,7 +93,7 @@ const Monitor = () => {
 
 				let truncatedMem = Math.floor(sumMem * 100) / 100;
 				let truncatedCPU = Math.floor(sumCPU * 100) / 100;
-				return <div className="docker-project">
+				return <div key={id} className="docker-project">
 					<p>{row} - ({dockerProjects[row].length})</p>
 					<Chart label="CPU" value={truncatedCPU/1.0} />
 					<Chart label="RAM" value={truncatedMem/1.0} />
@@ -103,8 +103,8 @@ const Monitor = () => {
 		{messages["access.json"] !== undefined && <div style={{display: (show === "access" ? "block": "none")}}>
 			<div className="my-grid">
 				<table><tbody>
-					{messages["access.json"]["content"]["login"].map((row: any) => <tr><td style={{textAlign: "right"}}>{row.ip} ✅</td><td style={{textAlign: "left"}}>{row.ultimo_acceso.split(".")[0]}</td></tr>)}
-					{messages["access.json"]["content"]["fails"].filter((row: any) => !messages["access.json"]["content"]["banned_ips"].includes(row.ip)).map((row: any) => <tr><td style={{textAlign: "right"}}>{row.ip} ❌</td><td style={{textAlign: "left"}}>{row.ultimo_acceso.split(".")[0]}</td></tr>)}
+					{messages["access.json"]["content"]["login"].map((row: any, id: number) => <tr key={id}><td style={{textAlign: "right"}}>{row.ip} ✅</td><td style={{textAlign: "left"}}>{row.ultimo_acceso.split(".")[0]}</td></tr>)}
+					{messages["access.json"]["content"]["fails"].filter((row: any) => !messages["access.json"]["content"]["banned_ips"].includes(row.ip)).map((row: any, id: number) => <tr key={id}><td style={{textAlign: "right"}}>{row.ip} ❌</td><td style={{textAlign: "left"}}>{row.ultimo_acceso.split(".")[0]}</td></tr>)}
 					
 				</tbody></table>
 				<p>
