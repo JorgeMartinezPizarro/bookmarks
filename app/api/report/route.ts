@@ -1,47 +1,54 @@
-import { errorMessage } from "@/app/helpers";
+// app/api/stats/route.ts
+import { NextResponse } from "next/server";
+import fs from "fs/promises";
+import path from "path";
 import { requireAuth } from "@/app/lib/auth";
-import { NextApiRequest } from "next";
-import { NextRequest } from "next/server";
 
-// TODO: Use websocket to read files in real time
-export async function GET(request: Request) {
+const WATCH_DIR = "/var/www/html";
+let lastModified = 0; // memoria simple en backend
 
-  try {
-    await requireAuth(request)
-    
-    const { searchParams } = new URL(request.url || "")
-    
-    const params = {
-      name: searchParams.get("name"),
-    }
-    
-    const url = process.env.NEXTCLOUD_URL + '/reports/' + params.name + '.txt'
+export async function GET(req: Request) {
+  
+	const user = await requireAuth(req);
+	try {
+    const files = await fs.readdir(WATCH_DIR);
+    const jsonFiles = files.filter((f) => f.endsWith(".json"));
 
-    const credentials = btoa(
-      process.env.SYSTEM_REPORTS_USER + ":" + process.env.SYSTEM_REPORTS_PASS
-    )
+    let newestTimestamp = lastModified;
+    const data: Record<string, any> = {}; // objeto con claves = nombres de fichero
 
-    const response = await fetch(
-      url,
-      {
-        headers: {
-          'Authorization': 'Basic ' + credentials,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        credentials: 'include'
+    for (const file of jsonFiles) {
+      const fullPath = path.join(WATCH_DIR, file);
+      const stats = await fs.stat(fullPath);
+
+      if (stats.mtimeMs > lastModified) {
+        newestTimestamp = Math.max(newestTimestamp, stats.mtimeMs);
+
+        const content = await fs.readFile(fullPath, "utf8");
+        data[file] = {
+          timestamp: stats.mtimeMs,
+          content: JSON.parse(content),
+        };
       }
-    )
-		
-    if (!response.ok) throw new Error("Error accessing to " + url +  "\n" + response.statusText)
-    
-    
-    const text = await response.text()
+    }
 
-    
-    
-    return Response.json({content: text}, { status: 200})
-  } catch (error) { 
-    return Response.json({ error: "Error in route report. \n" + errorMessage(error) }, { status: 500 });
+    if (Object.keys(data).length === 0) {
+      // Nada nuevo → devolvemos solo timestamp
+      return NextResponse.json({ changed: false, timestamp: lastModified });
+    }
+
+    lastModified = newestTimestamp;
+
+    return NextResponse.json({
+      changed: true,
+      timestamp: lastModified,
+      data, // ahora es un objeto { "fichero.json": {timestamp, content}, ... }
+    });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json(
+      { error: "Error reading files" },
+      { status: 500 }
+    );
   }
 }

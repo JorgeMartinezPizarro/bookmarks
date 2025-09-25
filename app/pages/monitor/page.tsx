@@ -1,322 +1,29 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Tooltip } from "@mui/material";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import React, { useState } from 'react';
+import { Button } from "@mui/material";
 import { signIn, useSession } from "next-auth/react";
 import "./styles.css";
-import MainMenu from '@/app/components/MainMenu';
-import { UsageBar } from '@/app/components/UsageBar';
-import { access } from 'fs';
-import { parse } from 'path';
 import LoginIcon from '@mui/icons-material/Login';
 import CloudIcon from '@mui/icons-material/Cloud';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import ComputerIcon from '@mui/icons-material/Computer';
 import ScheduleIcon from '@mui/icons-material/Schedule';
-
+import {useStats} from '@/app/hooks/useStats';
+import { Chart } from '@/app/components/Chart';
 
 const Monitor = () => {
 
-	/* TODO: Move read files to backend:
-		- read files from nodejs fs
-		- remove uneccessary reports apache server
-		- sync with volumes
-		- use new json sources to read server status
-		- use websockets to retrieve real time data
-		- sqlite db with historical data
-	*/
+	const { data: session, status } = useSession(); // force logged user.
 
-	const { data: session, status } = useSession();
+	const messages = useStats("https://nube.ideniox.com/bookmarks/api/report");
 
-	
-    const [show, setShow] = useState<string[]>(["main"])
-	const [values, setValues] = useState<any>({groupedDockers: [], banned: [], resources: [], cron: [], docker: [], percentUsages: {}})
-	const [copied, setCopied] = React.useState(false);
-	const [failed, setFailed] = useState(false)
-	
-	const requestDocker = useCallback(() => {
-		fetch('/bookmarks/api/report?name=docker', {credentials: 'include'})
-			.then(a => a.json())
-			.then(r => {
-				const e = r.content || "";
-				setValues((newValues: any) => {
-
-					const dockers = e.split("\n").filter((a: string) => a.trim() !== "").map((a: any) => a.split("--").map((e: string, i: number) => (e.indexOf("(") === -1 && i===1)
-						? (e.replace('Up ', '') +" ❤️")
-						: (e
-							.replace('Up ', '')
-							.replace("(healthy)", "❤️")
-							.replace("(Paused)", "⏸️")
-							.replace("(unhealthy)", "💀")
-							.split("/")[0]
-						)
-					))
-
-					const r = (n: string) => Math.round(Number(n) * 100) / 100;
-
-					const groupedDockers = dockers.reduce((acc: any, service: string[]) => {
-						
-						const newAcc = {...acc}
-						const project = service[0].split("-")[0]
-						
-						const cpu = r(service[2].replace("%", ""))
-
-
-
-						const ram = service[3].includes("GiB") 
-							? r(service[3].replace("GiB", ""))*1024
-							: service[3].includes("MiB") 
-								? r(service[3].replace("MiB", ""))
-								: r(service[3].replace("KiB", ""))/1024
-
-
-						if (newAcc[project]) {
-							newAcc[project].services.push(service)
-							newAcc[project].ram = Math.round(newAcc[project].ram + ram)
-							newAcc[project].cpu = r(newAcc[project].cpu + cpu)
-						} else {
-							newAcc[project] = {
-								services: [service],
-								ram: Math.round(ram),
-								cpu
-							}
-						}
-
-						return newAcc
-
-					}, {})
-
-					console.log(groupedDockers)
-					
-					return {
-						...newValues,
-						groupedDockers: {...groupedDockers},
-						docker: [
-							...dockers,
-						],
-					};
-				})
-			})
-			.catch(e => setFailed(true));
-	}, [setValues])
-
-	const requestResources = useCallback(() => {
-        fetch('/bookmarks/api/report?name=computer', {credentials: 'include'})
-			.then(a => a.json())
-			.then(r => {
-				const e = r.content || "";
-				
-				setValues((newValues: any) => {
-					const a = e.split("\n");
-
-					const percentUsages = {
-						cpu: a[8]?.replace("CPU", "").replace("%", "").trim(),
-						ram: a[9]?.replace("RAM", "").replace("%", "").trim(),
-						disk: a[10]?.replace("Disk", "").replace("%", "").trim(),
-					}
-
-					return {
-						...newValues,
-						resources: [
-							...a.slice(1,2).map((a: any) => [...a.split(" ").filter((a: any) => a!=="").slice(0, 2)]),
-							...a.slice(3,6).map((a: any, i: number) => {
-								const b = a.split("--")
-								return [
-									b[0],
-									b[i === 0 ? 1 : 2]
-								]
-							}),
-							...a.slice(8,12).map((x: any) => {
-								return x.split(" ").filter((a: any) => a !== "").slice(0,2)
-							}),
-							...a.slice(13).map((x: any) => {
-								return x.split(" ").filter((a: any) => a !== "").slice(0,2)
-							}),
-							
-						],
-						percentUsages
-					};
-				})
-			})
-			.catch(e => setFailed(true));
-	}, [setValues])
-
-	
-
-	const readableTime = (d: string) => d.replace(/(\d+)m(\d+)\.\d+s/, (match, m, s) => 
-		`${String(m).padStart(2, '0')}:${String(Math.round(s)).padStart(2, '0')}`
-	);
-
-	function reverseInBlocks(arr: any[], blockSize: number) {
-		if (blockSize <= 0) throw new Error("Block size must be greater than 0");
-			
-		const result = [];
-		for (let i = arr.length; i > 0; i -= blockSize) {
-			const block = arr.slice(i - blockSize, i);
-			result.push(...block);
-		}
-		return result;
-	}
-
-	const requestCron = useCallback(() => {
-		fetch('/bookmarks/api/report?name=cron', {credentials: 'include'})
-			.then(a => a.json())
-			.then(r => {
-				const e = r.content || "";
-				setValues((newValues: any) => {
-					const x = e.split("\n").filter((a: any, i: number) => a !== undefined && a !== "" && a.indexOf("====")===-1)
-
-					const y = x							
-						.map((a: any, i: number) => {
-
-							if (i%5!==0 || x[i+2] === undefined) 
-								return false
-							const saveTime = readableTime(x[i+1])
-							const pushTime = readableTime(x[i+3])
-							const title = x[i+2].substring(0, x[i+2].indexOf(" ")).toUpperCase()
-							
-							return [
-								a,
-								title,
-								"✅ in " + saveTime,
-								"⬆️ in " + pushTime,
-							]
-								
-						})
-						.filter((a: any, i: number) => [0].includes(i%5))
-					
-					return {
-						...newValues,
-						cron: reverseInBlocks(y, 1).slice(0, 24)
-					};
-				})
-			})
-			.catch(e => setFailed(true));
-	}, [setValues])
-	
-0
-	const requestAccess = useCallback(() => {
-        fetch('/bookmarks/api/report?name=access', {credentials: 'include'})
-			.then(a => a.json())
-			.then(r => {
-				const e = r.content || "";
-
-				if (e === "") return;
-				setValues((newValues: any) => {
-					const x = e.split("----------------- --------------------")
-
-					const banned = x[4].split("\n").filter((x: any) => x !== "-" && x !== "")
-
-					const access = [
-						["############", "Last 48h"],
-						...x[1].split("\n").map((a: any) => a.split(" 20").map((a: any) => a.replace("24-", "").replace("25-", "").replace("T", " at "))),
-						["############", "Attempts"],
-						...x[2].split("\n").map((a: any) => {
-							const x = a.split(" ").filter((a: any) => a !== "")
-							
-							return [x[0], x[1]]
-						}),
-						["Banned", newValues.banned.length],
-						["############", "Logins"],
-						...x[3].split("\n").map((a: any) => {
-							const x = a.split(" ").filter((a: any) => a !== "")
-							return [x[0], x[1]]
-						}),
-					]
-					
-					return {
-
-							...newValues,
-							access: access.filter(a => a && a.join("").trim() !== ""),
-							banned: [["Status", "IP"], ...[...(new Set(banned))].map(a => ["Blocked", a])],
-					};
-				})
-			})
-			.catch(e => console.error('Error', e));
-	}, [setValues])
-
-	const requestBannedIPs = useCallback(() => {
-		fetch('/bookmarks/api/report?name=banned_ips_table', {credentials: 'include'})
-			.then(a => a.json())
-			.then(r => {
-					const e = r.content || "";
-                        setValues((newValues: any) => {
-                            const list = e.split("\n")
-							
-							return {
-                                        ...newValues,
-                                        list: list.map((a: any)=>{
-											const x = a.split("\t").filter((r: string) => r!=="")
-											return x
-											
-										}).filter((a: string[]) => a.length === 3).map((x: any) => {
-											
-											return [
-												x[0],
-												x[1] + "❗​",
-												x[2].replace(" 0 days 00:00:", "").replace(" 0 days 00:", "").replace(" 0 days ", "")
-											]
-										})
-                                };
-                        })
-                })
-		.catch(e => console.error('Error', e));
-	}, [setValues])
-
+	const [show, setShow] = useState<string>("main")
 	
 	
-	useEffect(() => {  
-	
-		const reloadIframes = () => {
-			return [
-				setInterval(requestCron, 5000),
-				setInterval(requestResources, 1100),
-				setInterval(requestBannedIPs, 2500),
-				setInterval(requestAccess, 1500),
-				setInterval(requestDocker, 1000),
-			];
-		}
-	
-		const requestData = () => {
-			requestAccess();
-			requestBannedIPs();
-			requestCron();
-			requestResources();
-			requestDocker();
-			
-		}
-		const a = setTimeout(requestData, 60);
-		
-		const ids = reloadIframes();
-		return () => {
-			clearTimeout(a)
-			ids.forEach(clearInterval)
-		};
-	}, [requestCron, requestResources, requestBannedIPs, requestAccess, requestDocker]);
-
-	const w = values.banned.map((b: string[]) => b[1].trim()).slice(1)
-
-	const bannedIps = values.banned.map((a: string[]) => a[1]?.trim())
-	
-	const notBannedIps = values.list ? values.list
-		.filter((value: string[]) => 
-			!bannedIps.includes(value[0])
-		)
-		.map((value: string[]) => 
-			`iptables -A INPUT -s ${value[0]} -j DROP`
-		) : []
-
-	const script = notBannedIps
-		.join(" && ")
-
-	
-	const handleCopy = () => {
-		navigator.clipboard.writeText(script).then(() => {
-			setCopied(true);
-			setTimeout(() => setCopied(false), 2000); // Reset tooltip after 2 seconds
-		});
-	};
+	const loginButton = <Button variant="outlined" onClick={() => {
+		signIn("nextcloud")
+	}}><LoginIcon /></Button>
 
 	const showButton = (name: string) => {
 
@@ -335,64 +42,26 @@ const Monitor = () => {
 			variant={show.includes(name) ? "contained" : "outlined"}
 			onClick={() => {
 				if (show.includes(name)) {
-					setShow([
-						
-					])
+					setShow("")
 				} else {
-					setShow([
-						name
-					])
+					setShow(name)
 				}
 			}} >
 				{icon}
 		</Button>
 	}
 
-	const button = <Tooltip title={copied ? "Copied!" : "Ban " + (script === "" ? 0 : script.split("&&").length) + " attackers"} arrow>
-      <Button
-        variant="outlined"
-        color={script==="" ? "primary" : "error"}
-		onClick={handleCopy}
-		
-        startIcon={<ContentCopyIcon />}
-      >
-        Ban
-      </Button>
-	</Tooltip>
+	const dockerProjects = messages["docker.json"] !== undefined && (messages["docker.json"]["content"] || []).reduce((acc: any, item: any) => {
+		const projectName = item.name?.split("-")[0];
+		if (acc[projectName] !== undefined)
+			acc[projectName].push(item);
+		else {
+			acc[projectName] = [item];
+		}
+		return acc;
+	}, {})
 
-const loginButton = <Button variant="outlined" onClick={() => {
-	signIn("nextcloud")
-}}><LoginIcon /></Button>
-
-	const parseValues = (array = [], suffix="") => {
-		const x = array.filter((a: string[]) => a !== undefined && a.join && a.join("").trim() !== "" && !w.includes(a[0]?.trim()))
-		return <table style={{width: "100%"}} key={JSON.stringify(array)+suffix}>
-			<tbody>
-				{x.map((a: string[], i) => <tr key={i} title={
-					(a && a.length > 1 && a[1].includes && a[1].includes("❗​")) ? ("Failed access attempts " + a[1].replace("❗​", "")) : undefined
-				}>
-					{a !== undefined && a?.map((e, j)=><td key={j} style={{textAlign: (j> 0 ? "right" : "left"), padding: '0 8px',}}>
-						{w.includes(a[0]?.trim())
-							? <span style={{color: "red"}}>{e}</span>
-							: e
-						}
-					</td>)}
-				</tr>)}
-			</tbody>
-		</table>
-	}
-
-
-	const getResource = (search: string) => {
-
-		const usedSearch = search === "gaming" ? "brain/data" : search
-
-		const trueSearch = usedSearch === "mptree" ? "mptree/data" : usedSearch
-		const item = values.resources.reverse().find((el: string[]) => el[0] && el[0].includes(trueSearch))
-		if (item)
-			return item[1]
-		return "0K"
-	}
+	console.log(dockerProjects);
 
 	return (
     <div className="my-frame">
@@ -403,99 +72,60 @@ const loginButton = <Button variant="outlined" onClick={() => {
 			{showButton("main")}
 			{showButton("docker")}
 			{showButton("access")}
-			{showButton("cron")}
 		</div>
-		<div style={{ 
-			padding: 0, 
-			color: "white", 
-			background: 'black', 
-			height: 'calc(100% - 24px)', 
-			overflow: 'hidden', 
-			borderRadius: '4px',
-			display: "inline-block",
-			width: "100%",
-		}}>
-			<div
-				id="resources"
-				style={{
-					height: 'calc(100%px)',
-					width: "596px",
-					maxWidth: "100%",
-					
-					display: !show.includes("main") ? "none" : "inline-block"
-				}}
-			>
-				<div className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
-					{values.percentUsages?.ram && <UsageBar value={values.percentUsages?.ram} label="RAM" />}
-					{values.percentUsages?.disk && <UsageBar value={values.percentUsages?.disk} label="Disk" />}
-					{values.percentUsages?.cpu && <UsageBar value={values.percentUsages?.cpu} label="CPU" />}
-					
-					<table style={{width: "100%", fontSize: "80%"}}><tbody>
-						<tr>
-							<th>Name</th>
-							<th>Disk</th>
-							<th>RAM</th>
-							<th>CPU</th>						
-						</tr>
-						{Object.keys(values.groupedDockers).map((line: string, i: number) => 
-							<tr key={i}>
-								<td style={{borderRight: "1pt solid #535333"}}>{line} ({values.groupedDockers[line].services.length})</td>
-								<td style={{borderRight: "1pt solid #535333"}}>{getResource(line)}</td>
-								<td style={{borderRight: "1pt solid #535333"}}>{values.groupedDockers[line].ram < 1024 ? (values.groupedDockers[line].ram+"MiB") : (values.groupedDockers[line].ram / 1024).toFixed(0)+"GiB"}</td>
-								<td >{values.groupedDockers[line].cpu}%</td>
-								
-							</tr>
-						)}
-					</tbody></table>
-				
-				</div>
+		{messages["system.json"] !== undefined && messages["docker.json"] !== undefined && <div style={{display: (show === "main" ? "block": "none")}}>
+			<div>
+				<Chart label="CPU" value={messages["system.json"]["content"]["summary"]["cpu_usage"]/1.0} />
+				<Chart label="RAM" value={messages["system.json"]["content"]["summary"]["ram_usage"]/1.0} />
+				<Chart label="DISK" value={messages["system.json"]["content"]["summary"]["disk_usage"]/1.0} />
+				<p className="my-chart">{Object.keys(dockerProjects).length} - projects running.</p>
+				<p className="my-chart">{messages["docker.json"]["content"].length} - containers running.</p>
 			</div>
-			<div
-				id="docker"
-				style={{
-					height: 'calc(100% - 28px)',
-					width: "100%",
-					display: !show.includes("docker") ? "none" : "inline-block"					
-				}}
-				title={Object.keys(values.docker).length + "  docker projects running"}
+		</div>}
+		<div className="my-grid" style={{display: (show === "docker" ? "block": "none")}}>
+			{Object.keys(dockerProjects).map((row: any, id: number) => {
+				const sumMem = dockerProjects[row].reduce((acc: number, item: any) => {
+					return acc + parseFloat(item.memory.replace("%", ""));
+				}, 0)
+				const sumCPU = dockerProjects[row].reduce((acc: number, item: any) => {
+					return acc + parseFloat(item.cpu.replace("%", ""));
+				}, 0)
 
-			>
-				{parseValues(values.docker)}
-			</div>
-    		<div
-				id="cron"
-				style={{
-					width: "100%",
-					height: '100%',
-					display: !show.includes("cron") ? "none" : "inline-block"
-				}}
-				title="Cron"
-			>
-				<div className="cron-container">
-					{parseValues(values.cron)}
+				let truncatedMem = Math.floor(sumMem * 100) / 100;
+				let truncatedCPU = Math.floor(sumCPU * 100) / 100;
+				return <div className="docker-project">
+					<p>{row} - ({dockerProjects[row].length})</p>
+					<Chart label="CPU" value={truncatedCPU/1.0} />
+					<Chart label="RAM" value={truncatedMem/1.0} />
 				</div>
+			})}
+		</div>
+		{messages["access.json"] !== undefined && <div style={{display: (show === "access" ? "block": "none")}}>
+			<div className="my-grid">
+				<table><tbody>
+					{messages["access.json"]["content"]["login"].map((row: any) => <tr><td style={{textAlign: "right"}}>{row.ip} ✅</td><td style={{textAlign: "left"}}>{row.ultimo_acceso.split(".")[0]}</td></tr>)}
+					{messages["access.json"]["content"]["fails"].filter((row: any) => !messages["access.json"]["content"]["banned_ips"].includes(row.ip)).map((row: any) => <tr><td style={{textAlign: "right"}}>{row.ip} ❌</td><td style={{textAlign: "left"}}>{row.ultimo_acceso.split(".")[0]}</td></tr>)}
+					
+				</tbody></table>
+				<p>
+					<Button variant="outlined" className="my-button" disabled={messages["access.json"]["content"]["fails"].filter((row: any) => !messages["access.json"]["content"]["banned_ips"].includes(row.ip)).map((value: any) => 
+							`iptables -A INPUT -s ${value.ip} -j DROP`
+						).length === 0} onClick={() => {
+						const elements = messages["access.json"]["content"]["fails"].filter((row: any) => !messages["access.json"]["content"]["banned_ips"].includes(row.ip)).map((value: any) => 
+							`iptables -A INPUT -s ${value.ip} -j DROP`
+						)
+						const script = elements.join(" && ")
+						navigator.clipboard.writeText(script)
+					}}>Copy script to ban ips {messages["access.json"]["content"]["fails"].filter((row: any) => !messages["access.json"]["content"]["banned_ips"].includes(row.ip)).map((value: any) => 
+							`iptables -A INPUT -s ${value.ip} -j DROP`
+						).length}</Button>
+					{}
+					<p>{messages["access.json"]["content"]["banned_ips"].length} banned IPs.</p>
+				</p>
 			</div>
-			<div
-        id="access"
-        style={{
-          display: !show.includes("access") ? "none" : 'inline-block',
-          height: 'calc(100% - 28px)',
-		  width: "100%"
-          
-        }}
-        title="Access report"
-      >
-		<p>Access</p>
-		{parseValues(values.access, "x")}
-		<p>{notBannedIps.lenght || 0} Failed attempts</p>
-		{notBannedIps.map((ip: string, i: number) => <p key={i}>{ip}</p>)}
-		{notBannedIps.length > 0 && button}
+		</div>}
 	</div>
-    
-	</div>
-		
-    </div>
-  );
+	)
 };
 
 export default Monitor;

@@ -1,111 +1,77 @@
-#access, #cron, #docker, #resources, #banned {
-  font-family: monospace;
-  unicode-bidi: isolate;	
-  max-height: 100%;
-  overflow: auto;
-  color: silver;
-  font-size: 16.1px;
-  padding: 4px;
-  margin: 2px;
-  background: black;
-  transition: width 0.5s linear;
-}
-
 .my-frame {
-  height: calc(100% - 18px);
-  width: 600px;
-  max-width: 100%;
-  margin: auto;
+	margin: auto;
+	max-width: 100%;
 }
 
-#access tr td, #cron tr td, #docker tr td, #resources tr td, #banned tr td{
-  padding: 2px;
+.my-frame table {
+	width: 100%;
 }
 
-.container .block {
-  display: inline-block;
+.my-chart {
+	max-width: 300px;
+	display: block;
+	margin: 8px auto;
+	text-align: center;
+	background-color: #888;
+	border-radius: 7px;
+	padding: 8px;
+	width: 100%;
+
+}
+p {
+	font-size: 0.9em;
+}
+.my-chart .my-label {
+	text-align: center;
+	padding: 4px;
+	color: white;
+}
+pre {
+	color: white;
 }
 
-table tr, table tr td {
-  padding: 8px!important;
-}
-
-#resources {
-  overflow: auto;
-}
-#resources table {
-  width: calc(100% - 16px);        
-    max-width: 100%;    
-}
-#resources table tr {
-  padding: 9px;
-  width: 100%;
-}
-#resources table tr td {
-  padding: 8px;
-  border-bottom: 1px solid #535333;
-  
-}
-#resources table tr td:nth-child(1) {
-  border-right: 1px solid #535333;
-}
-
-
-#docker {
-  overflow: auto;
-}
-
-#banned table, #cron table, #access table {
-  width: 100%;
-}
-
-#banned table tr td, #cron table tr td, #access table tr td {
-  border-bottom: 1px solid #535333;
-  line-height: 15px;
-}
-table {
-  opacity: 0.8;
-}
-
-table:hover {
-  opacity: 1;
-  background: black;
-  color: white;
-  box-shadow: 0 0 4px 4px rgba(255, 255, 255, 0.3);
-}
-
-#access table tr td:nth-child(1),
-#cron table tr td:nth-child(1),
-#banned table tr td:nth-child(1) {
-  border-right: 1pt solid #535333;
-}
-
-#banned table tr td:nth-child(2) {
-  border-right: 1pt solid #535333;
-}
-
-#docker table {
-  width: 100%;
-}
-#docker table tr td {
-  border-bottom: 1px solid #535333;
-  line-height: 15px;
-}
-
-#docker table tr td:nth-child(1),
-#docker table tr td:nth-child(2),
-#docker table tr td:nth-child(3) {
-  border-right: 1pt solid #535333;
-}
-#access::-webkit-scrollbar,
-#docker::-webkit-scrollbar,
-#banned::-webkit-scrollbar,
-#resources::-webkit-scrollbar,
-#cron::-webkit-scrollbar,
-.container::-webkit-scrollbar {
-  
-    display: none; 
-}
-#report {
+.progress-bar {
+  width: 100%;       /* ancho total */
+  height: 16px;       /* alto de la barra */
+  background: #eee;   /* color fondo */
+  border-radius: 10px;
   overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #2563eb); /* degradado */
+  width: 0%;           /* cambiar dinámicamente */
+  transition: width 0.5s ease-in-out; /* animación suave */
+}
+
+.docker-project {
+	display: inline-block;
+	width: 120px;
+	text-align: center;
+	padding: 4px;
+	border-radius: 4px;
+	border: 2px solid silver;
+	margin: 4px;
+}
+.my-grid {
+	width: 100%;
+	max-width: 600px;
+	margin: 12px auto;
+	text-align: center;
+	font-size: 0.80em;
+}
+
+button {
+	border: 1px solid white!important;
+	border-radius: 4px!important;
+	color: white!important;
+}
+
+table {
+	width: 360px;
+}
+
+table tr td {
+	background-color: grey;
 }
