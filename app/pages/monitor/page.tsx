@@ -56,10 +56,8 @@ const Monitor = () => {
 		return acc;
 	}, {} as Record<string, any[]>)
 
-	console.log(dockerProjects);
-
-	const cores = messages["system.json"]?.content?.resources?.cpu?.cores ?? 1
-
+	const cores = messages["system.json"]?.content?.resources?.cpu?.cores || 1
+	
 	return (
     <div className="my-frame">
 		<div style={{ textAlign: "center" }} >
@@ -72,9 +70,9 @@ const Monitor = () => {
 		{messages["system.json"]?.content && messages["docker.json"]?.content && (
 			<div style={{display: (show === "main" ? "block": "none")}}>
 				<div>
-					<Chart label="CPU" value={messages["system.json"]?.content?.summary?.cpu_usage ?? 0} />
-					<Chart label="RAM" value={messages["system.json"]?.content?.summary?.ram_usage ?? 0} />
-					<Chart label="DISK" value={messages["system.json"]?.content?.summary?.disk_usage ?? 0} />
+					<Chart label="CPU" value={messages["system.json"]?.content?.summary?.cpu_usage || 0} />
+					<Chart label="RAM" value={messages["system.json"]?.content?.summary?.ram_usage || 0} />
+					<Chart label="DISK" value={messages["system.json"]?.content?.summary?.disk_usage || 0} />
 					<p className="my-chart">{Object.keys(dockerProjects).length} - projects running.</p>
 					<p className="my-chart">{messages["docker.json"]?.content?.length ?? 0} - containers running.</p>
 				</div>
@@ -118,7 +116,7 @@ const Monitor = () => {
 								</tr>
 						)}
 					</tbody></table>
-					<p>
+					<div>
 						<Button
 							variant="outlined"
 							className="my-button"
@@ -140,8 +138,8 @@ const Monitor = () => {
 								?.filter((row: any) => !messages["access.json"]?.content?.banned_ips?.includes(row.ip))
 								.length ?? 0}
 						</Button>
-						<p>{messages["access.json"]?.content?.banned_ips?.length ?? 0} banned IPs.</p>
-					</p>
+						<div>{messages["access.json"]?.content?.banned_ips?.length ?? 0} banned IPs.</div>
+					</div>
 				</div>
 			</div>
 		)}
