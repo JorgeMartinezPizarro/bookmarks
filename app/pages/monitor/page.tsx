@@ -20,13 +20,11 @@ const Monitor = () => {
 
 	const [show, setShow] = useState<string>("main")
 	
-	
 	const loginButton = <Button variant="outlined" onClick={() => {
 		signIn("nextcloud")
 	}}><LoginIcon /></Button>
 
 	const showButton = (name: string) => {
-
 		let icon = undefined;
 
 		if (name === "docker")
@@ -51,79 +49,102 @@ const Monitor = () => {
 		</Button>
 	}
 
-	const dockerProjects = messages["docker.json"] !== undefined && (messages["docker.json"]["content"] || []).reduce((acc: any, item: any) => {
+	const dockerProjects = (messages["docker.json"]?.content ?? []).reduce((acc: any, item: any) => {
 		const projectName = item.name?.split("-")[0];
-		if (acc[projectName] !== undefined)
-			acc[projectName].push(item);
-		else {
-			acc[projectName] = [item];
-		}
+		if (acc[projectName]) acc[projectName].push(item);
+		else acc[projectName] = [item];
 		return acc;
-	}, {})
+	}, {} as Record<string, any[]>)
 
 	console.log(dockerProjects);
 
+	const cores = messages["system.json"]?.content?.resources?.cpu?.cores ?? 1
+
 	return (
     <div className="my-frame">
-		<div style={{
-			textAlign: "center"
-		}} >
+		<div style={{ textAlign: "center" }} >
 			{loginButton}
 			{showButton("main")}
 			{showButton("docker")}
 			{showButton("access")}
 		</div>
-		{messages["system.json"] !== undefined && messages["docker.json"] !== undefined && <div style={{display: (show === "main" ? "block": "none")}}>
-			<div>
-				<Chart label="CPU" value={messages["system.json"]["content"]["summary"]["cpu_usage"]/1.0} />
-				<Chart label="RAM" value={messages["system.json"]["content"]["summary"]["ram_usage"]/1.0} />
-				<Chart label="DISK" value={messages["system.json"]["content"]["summary"]["disk_usage"]/1.0} />
-				<p className="my-chart">{Object.keys(dockerProjects).length} - projects running.</p>
-				<p className="my-chart">{messages["docker.json"]["content"].length} - containers running.</p>
+
+		{messages["system.json"]?.content && messages["docker.json"]?.content && (
+			<div style={{display: (show === "main" ? "block": "none")}}>
+				<div>
+					<Chart label="CPU" value={messages["system.json"]?.content?.summary?.cpu_usage ?? 0} />
+					<Chart label="RAM" value={messages["system.json"]?.content?.summary?.ram_usage ?? 0} />
+					<Chart label="DISK" value={messages["system.json"]?.content?.summary?.disk_usage ?? 0} />
+					<p className="my-chart">{Object.keys(dockerProjects).length} - projects running.</p>
+					<p className="my-chart">{messages["docker.json"]?.content?.length ?? 0} - containers running.</p>
+				</div>
 			</div>
-		</div>}
+		)}
+
 		<div className="my-grid" style={{display: (show === "docker" ? "block": "none")}}>
 			{Object.keys(dockerProjects).map((row: any, id: number) => {
 				const sumMem = dockerProjects[row].reduce((acc: number, item: any) => {
-					return acc + parseFloat(item.memory.replace("%", ""));
+					return acc + parseFloat(item.memory?.replace("%", "") ?? "0");
 				}, 0)
 				const sumCPU = dockerProjects[row].reduce((acc: number, item: any) => {
-					return acc + parseFloat(item.cpu.replace("%", ""));
+					return acc + parseFloat(item.cpu?.replace("%", "") ?? "0");
 				}, 0)
-
 				let truncatedMem = Math.floor(sumMem * 100) / 100;
-				let truncatedCPU = Math.floor(sumCPU * 100) / 100;
+				let truncatedCPU = Math.floor(sumCPU / cores * 100) / 100;
 				return <div key={id} className="docker-project">
 					<p>{row} - ({dockerProjects[row].length})</p>
-					<Chart label="CPU" value={truncatedCPU/1.0} />
-					<Chart label="RAM" value={truncatedMem/1.0} />
+					<Chart label="CPU" value={truncatedCPU} />
+					<Chart label="RAM" value={truncatedMem} />
 				</div>
 			})}
 		</div>
-		{messages["access.json"] !== undefined && <div style={{display: (show === "access" ? "block": "none")}}>
-			<div className="my-grid">
-				<table><tbody>
-					{messages["access.json"]["content"]["login"].map((row: any, id: number) => <tr key={id}><td style={{textAlign: "right"}}>{row.ip} ✅</td><td style={{textAlign: "left"}}>{row.ultimo_acceso.split(".")[0]}</td></tr>)}
-					{messages["access.json"]["content"]["fails"].filter((row: any) => !messages["access.json"]["content"]["banned_ips"].includes(row.ip)).map((row: any, id: number) => <tr key={id}><td style={{textAlign: "right"}}>{row.ip} ❌</td><td style={{textAlign: "left"}}>{row.ultimo_acceso.split(".")[0]}</td></tr>)}
-					
-				</tbody></table>
-				<p>
-					<Button variant="outlined" className="my-button" disabled={messages["access.json"]["content"]["fails"].filter((row: any) => !messages["access.json"]["content"]["banned_ips"].includes(row.ip)).map((value: any) => 
-							`iptables -A INPUT -s ${value.ip} -j DROP`
-						).length === 0} onClick={() => {
-						const elements = messages["access.json"]["content"]["fails"].filter((row: any) => !messages["access.json"]["content"]["banned_ips"].includes(row.ip)).map((value: any) => 
-							`iptables -A INPUT -s ${value.ip} -j DROP`
-						)
-						const script = elements.join(" && ")
-						navigator.clipboard.writeText(script)
-					}}>Copy script to ban ips {messages["access.json"]["content"]["fails"].filter((row: any) => !messages["access.json"]["content"]["banned_ips"].includes(row.ip)).map((value: any) => 
-							`iptables -A INPUT -s ${value.ip} -j DROP`
-						).length}</Button>
-					{}
-					<p>{messages["access.json"]["content"]["banned_ips"].length} banned IPs.</p>
-				</p>
+
+		{messages["access.json"]?.content && (
+			<div style={{display: (show === "access" ? "block": "none")}}>
+				<div className="my-grid">
+					<table><tbody>
+						{messages["access.json"]?.content?.login?.map((row: any, id: number) => 
+							<tr key={id}>
+								<td style={{textAlign: "right"}}>{row.ip} ✅</td>
+								<td style={{textAlign: "left"}}>{row.ultimo_acceso?.split(".")[0]}</td>
+							</tr>
+						)}
+						{messages["access.json"]?.content?.fails
+							?.filter((row: any) => !messages["access.json"]?.content?.banned_ips?.includes(row.ip))
+							.map((row: any, id: number) => 
+								<tr key={id}>
+									<td style={{textAlign: "right"}}>{row.ip} ❌</td>
+									<td style={{textAlign: "left"}}>{row.ultimo_acceso?.split(".")[0]}</td>
+								</tr>
+						)}
+					</tbody></table>
+					<p>
+						<Button
+							variant="outlined"
+							className="my-button"
+							disabled={
+								(messages["access.json"]?.content?.fails
+									?.filter((row: any) => !messages["access.json"]?.content?.banned_ips?.includes(row.ip))
+									.map((value: any) => `iptables -A INPUT -s ${value.ip} -j DROP`)
+									.length ?? 0) === 0
+							}
+							onClick={() => {
+								const elements = messages["access.json"]?.content?.fails
+									?.filter((row: any) => !messages["access.json"]?.content?.banned_ips?.includes(row.ip))
+									.map((value: any) => `iptables -A INPUT -s ${value.ip} -j DROP`) ?? []
+								const script = elements.join(" && ")
+								navigator.clipboard.writeText(script)
+							}}
+						>
+							Copy script to ban ips {messages["access.json"]?.content?.fails
+								?.filter((row: any) => !messages["access.json"]?.content?.banned_ips?.includes(row.ip))
+								.length ?? 0}
+						</Button>
+						<p>{messages["access.json"]?.content?.banned_ips?.length ?? 0} banned IPs.</p>
+					</p>
+				</div>
 			</div>
-		</div>}
+		)}
 	</div>
 	)
 };
