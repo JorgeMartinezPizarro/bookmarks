@@ -53,7 +53,7 @@ const Monitor = () => {
 						}, 0)
 						let truncatedMem = Math.floor(sumMem * 100) / 100;
 						let truncatedCPU = Math.floor(sumCPU / cores * 100) / 100;
-						return <p className="my-chart" style={{display: showProjects ? "block" : "none"}}>
+						return <p key={id} className="my-chart" style={{display: showProjects ? "block" : "none"}}>
 							{row} ({dockerProjects[row].length}) - {truncatedCPU} - {truncatedMem}
 						</p>
 						
@@ -63,7 +63,7 @@ const Monitor = () => {
 						let status = row.status;
 						if (!status.includes("("))
 							status = status + " 🟢"
-						return <p className="my-chart" style={{display: showDocker ? "block" : "none"}}>
+						return <p key={id} className="my-chart" style={{display: showDocker ? "block" : "none"}}>
 							{row.name} - {status.replace("Up ", "").replace("(unhealthy)", "🔴").replace("(healthy)", "🟢").replace("(Paused)", "🟡")}
 						</p>
 					})}
