@@ -5,49 +5,20 @@ import { Button } from "@mui/material";
 import { signIn, useSession } from "next-auth/react";
 import "./styles.css";
 import LoginIcon from '@mui/icons-material/Login';
-import CloudIcon from '@mui/icons-material/Cloud';
-import VpnKeyIcon from '@mui/icons-material/VpnKey';
-import ComputerIcon from '@mui/icons-material/Computer';
-import ScheduleIcon from '@mui/icons-material/Schedule';
 import {useStats} from '@/app/hooks/useStats';
 import { Chart } from '@/app/components/Chart';
 
 const Monitor = () => {
 
-	const { data: session, status } = useSession(); // force logged user.
+	useSession();
 
-	const messages = useStats("/bookmarks/api/report");
+	const messages = useStats();
 
-	const [show, setShow] = useState<string>("main")
-	
+	const [showDocker, setShowDocker] = useState(false);
+	const [showProjects, setShowProjects] = useState(false);
 	const loginButton = <Button variant="outlined" onClick={() => {
 		signIn("nextcloud")
 	}}><LoginIcon /></Button>
-
-	const showButton = (name: string) => {
-		let icon = undefined;
-
-		if (name === "docker")
-			icon = <CloudIcon />
-		if (name === "access")
-			icon = <VpnKeyIcon />
-		if (name === "cron") 
-			icon = <ScheduleIcon />
-		if (name === "main")
-			icon = <ComputerIcon />
-
-		return <Button
-			variant={show.includes(name) ? "contained" : "outlined"}
-			onClick={() => {
-				if (show.includes(name)) {
-					setShow("")
-				} else {
-					setShow(name)
-				}
-			}} >
-				{icon}
-		</Button>
-	}
 
 	const dockerProjects = (messages["docker.json"]?.content ?? []).reduce((acc: any, item: any) => {
 		const projectName = item.name?.split("-")[0];
@@ -58,78 +29,75 @@ const Monitor = () => {
 
 	const cores = messages["system.json"]?.content?.resources?.cpu?.cores || 1
 	
+	const attackers = messages["access.json"]?.content?.fails
+		?.filter((row: any) => !messages["access.json"]?.content?.banned_ips?.includes(row.ip))
+		
 	return (
     <div className="my-frame">
 		<div style={{ textAlign: "center" }} >
 			{loginButton}
-			{showButton("main")}
-			{showButton("docker")}
-			{showButton("access")}
 		</div>
 
 		{messages["system.json"]?.content && messages["docker.json"]?.content && (
-			<div style={{display: (show === "main" ? "block": "none")}}>
-				<div>
+			<div className="my-grid">
 					<Chart label="CPU" value={messages["system.json"]?.content?.summary?.cpu_usage || 0} />
 					<Chart label="RAM" value={messages["system.json"]?.content?.summary?.ram_usage || 0} />
 					<Chart label="DISK" value={messages["system.json"]?.content?.summary?.disk_usage || 0} />
-					<p className="my-chart">{Object.keys(dockerProjects).length} - projects running.</p>
-					<p className="my-chart">{messages["docker.json"]?.content?.length ?? 0} - containers running.</p>
-				</div>
+					<p><Button onClick={() => {setShowProjects(!showProjects)}} className="my-chart my-button">{Object.keys(dockerProjects).length} - projects running.</Button></p>
+					{Object.keys(dockerProjects).map((row: any, id: number) => {
+						const sumMem = dockerProjects[row].reduce((acc: number, item: any) => {
+							return acc + parseFloat(item.memory?.replace("%", "") ?? "0");
+						}, 0)
+						const sumCPU = dockerProjects[row].reduce((acc: number, item: any) => {
+							return acc + parseFloat(item.cpu?.replace("%", "") ?? "0");
+						}, 0)
+						let truncatedMem = Math.floor(sumMem * 100) / 100;
+						let truncatedCPU = Math.floor(sumCPU / cores * 100) / 100;
+						return <p className="my-chart" style={{display: showProjects ? "block" : "none"}}>
+							{row} ({dockerProjects[row].length}) - {truncatedCPU} - {truncatedMem}
+						</p>
+						
+					})}
+					<p><Button onClick={() => {setShowDocker(!showDocker)}} className="my-chart my-button">{messages["docker.json"]?.content?.length ?? 0} - containers running.</Button></p>
+					{messages["docker.json"].content.map((row: any, id: number) => {
+						let status = row.status;
+						if (!status.includes("("))
+							status = status + " 🟢"
+						return <p className="my-chart" style={{display: showDocker ? "block" : "none"}}>
+							{row.name} - {status.replace("Up ", "").replace("(unhealthy)", "🔴").replace("(healthy)", "🟢").replace("(Paused)", "🟡")}
+						</p>
+					})}
 			</div>
 		)}
 
-		<div className="my-grid" style={{display: (show === "docker" ? "block": "none")}}>
-			{Object.keys(dockerProjects).map((row: any, id: number) => {
-				const sumMem = dockerProjects[row].reduce((acc: number, item: any) => {
-					return acc + parseFloat(item.memory?.replace("%", "") ?? "0");
-				}, 0)
-				const sumCPU = dockerProjects[row].reduce((acc: number, item: any) => {
-					return acc + parseFloat(item.cpu?.replace("%", "") ?? "0");
-				}, 0)
-				let truncatedMem = Math.floor(sumMem * 100) / 100;
-				let truncatedCPU = Math.floor(sumCPU / cores * 100) / 100;
-				return <div key={id} className="docker-project">
-					<p>{row} - ({dockerProjects[row].length})</p>
-					<Chart label="CPU" value={truncatedCPU} />
-					<Chart label="RAM" value={truncatedMem} />
-				</div>
-			})}
-		</div>
+		
 
 		{messages["access.json"]?.content && (
-			<div style={{display: (show === "access" ? "block": "none")}}>
 				<div className="my-grid">
-					<table><tbody>
 						{messages["access.json"]?.content?.login?.map((row: any, id: number) => 
-							<tr key={id}>
-								<td style={{textAlign: "right"}}>{row.ip} ✅</td>
-								<td style={{textAlign: "left"}}>{row.ultimo_acceso?.split(".")[0]}</td>
-							</tr>
+							<p className="my-chart" key={id}>
+								✅ {row.ip} {row.count} times
+							</p>
 						)}
-						{messages["access.json"]?.content?.fails
-							?.filter((row: any) => !messages["access.json"]?.content?.banned_ips?.includes(row.ip))
+						{attackers
 							.map((row: any, id: number) => 
-								<tr key={id}>
+								<p className="my-chart" key={id}>
 									<td style={{textAlign: "right"}}>{row.ip} ❌</td>
-									<td style={{textAlign: "left"}}>{row.ultimo_acceso?.split(".")[0]}</td>
-								</tr>
+									<td style={{textAlign: "left"}}>{row.count}</td>
+								</p>
 						)}
-					</tbody></table>
+					
 					<div>
 						<Button
 							variant="outlined"
-							className="my-button"
+							className="my-button my-chart"
 							disabled={
-								(messages["access.json"]?.content?.fails
-									?.filter((row: any) => !messages["access.json"]?.content?.banned_ips?.includes(row.ip))
-									.map((value: any) => `iptables -A INPUT -s ${value.ip} -j DROP`)
-									.length ?? 0) === 0
+								(attackers.length || 0) === 0
 							}
 							onClick={() => {
-								const elements = messages["access.json"]?.content?.fails
-									?.filter((row: any) => !messages["access.json"]?.content?.banned_ips?.includes(row.ip))
-									.map((value: any) => `iptables -A INPUT -s ${value.ip} -j DROP`) ?? []
+								const elements = attackers.map(
+									(value: any) => `iptables -A INPUT -s ${value.ip} -j DROP`
+								) ?? []
 								const script = elements.join(" && ")
 								navigator.clipboard.writeText(script)
 							}}
@@ -138,10 +106,9 @@ const Monitor = () => {
 								?.filter((row: any) => !messages["access.json"]?.content?.banned_ips?.includes(row.ip))
 								.length ?? 0}
 						</Button>
-						<div>{messages["access.json"]?.content?.banned_ips?.length ?? 0} banned IPs.</div>
+						<p className="my-chart">{messages["access.json"]?.content?.banned_ips?.length ?? 0} banned IPs so far</p>
 					</div>
 				</div>
-			</div>
 		)}
 	</div>
 	)

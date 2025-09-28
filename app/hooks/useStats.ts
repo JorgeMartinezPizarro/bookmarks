@@ -1,15 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
 
-export function useStats(url: string, interval = 666) {
+export function useStats(interval = 666) {
   const [stats, setStats] = useState<Record<string, any>>({});
   const [timestamp, setTimestamp] = useState<number>(0);
-
+  const url = "/bookmarks/api/report";
+  
   useEffect(() => {
     let isMounted = true; // evita actualizar estado si el componente se desmonta
-
+	
     const fetchStats = async () => {
       try {
+		
         const res = await fetch(url);
         const json = await res.json();
 
