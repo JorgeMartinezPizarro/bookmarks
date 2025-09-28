@@ -40,6 +40,7 @@ const Monitor = () => {
 
 		{messages["system.json"]?.content && messages["docker.json"]?.content && (
 			<div className="my-grid">
+					<p className="my-chart">{messages["system.json"].content.model}</p>
 					<Chart label="CPU" value={messages["system.json"]?.content?.summary?.cpu_usage || 0} />
 					<Chart label="RAM" value={messages["system.json"]?.content?.summary?.ram_usage || 0} />
 					<Chart label="DISK" value={messages["system.json"]?.content?.summary?.disk_usage || 0} />
