@@ -55,17 +55,32 @@ const Monitor = () => {
 						let truncatedMem = Math.floor(sumMem * 100) / 100;
 						let truncatedCPU = Math.floor(sumCPU / cores * 100) / 100;
 						return <p key={id} className="my-chart" style={{display: showProjects ? "block" : "none"}}>
-							{row} ({dockerProjects[row].length}) - {truncatedCPU} - {truncatedMem}
-						</p>
-						
+							<div className="project-line">
+								<div className="name">{row} ({dockerProjects[row].length})</div>
+								<div className="bar cpu"><div className="fill" style={{width: truncatedCPU + "%"}}></div></div>
+								<div className="bar ram"><div className="fill" style={{width: truncatedMem + "%"}}></div></div>
+							</div>
+						</p>						
 					})}
-					<p><Button onClick={() => {setShowDocker(!showDocker)}} className="my-chart my-button">{messages["docker.json"]?.content?.length ?? 0} - containers running.</Button></p>
+					<p>
+						<Button onClick={
+							() => {setShowDocker(!showDocker)}
+						} className="my-chart my-button">
+							{messages["docker.json"]?.content?.length ?? 0} - containers running.
+						</Button>
+					</p>
 					{messages["docker.json"].content.map((row: any, id: number) => {
-						let status = row.status;
-						if (!status.includes("("))
-							status = status + " 🟢"
+						let rawStatus = row.status;
+						if (!rawStatus.includes("("))
+							rawStatus = rawStatus + " 🟢"
+						const status = rawStatus.replace("Up ", "").replace("(unhealthy)", "🔴").replace("(healthy)", "🟢").replace("(Paused)", "🟡");
 						return <p key={id} className="my-chart" style={{display: showDocker ? "block" : "none"}}>
-							{row.name} - {status.replace("Up ", "").replace("(unhealthy)", "🔴").replace("(healthy)", "🟢").replace("(Paused)", "🟡")}
+						<div style={{marginLeft: "5%", display: "inline-block", width: "45%", textAlign: "left"}}>
+							{row.name}
+						</div>
+						<div style={{marginRight: "5%", display: "inline-block", width: "45%", textAlign: "right"}}>
+							{status}
+						</div>
 						</p>
 					})}
 			</div>
@@ -83,8 +98,7 @@ const Monitor = () => {
 						{attackers
 							.map((row: any, id: number) => 
 								<p className="my-chart" key={id}>
-									<td style={{textAlign: "right"}}>{row.ip} ❌</td>
-									<td style={{textAlign: "left"}}>{row.count}</td>
+									❌ {row.ip} {row.count} times
 								</p>
 						)}
 					
