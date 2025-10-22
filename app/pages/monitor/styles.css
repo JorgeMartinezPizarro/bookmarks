@@ -99,7 +99,7 @@ table tr td {
 }
 
 .fill {
-  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  background: linear-gradient(90deg, #2196f3, #8bc34a);
   height: 100%;
   width: 0;
   transition: width 0.3s ease;
