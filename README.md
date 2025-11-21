@@ -4,6 +4,8 @@
 - Adapt paths to docker volumes. Build last working version.
 - Use docker network to connect to the dockerized services for security
 - Move docker spaces to private env variables.
+- Add docker volumne with the helloworld app for nextcloud.
+- Integrate with brain
 
 ## ABOUT
 
