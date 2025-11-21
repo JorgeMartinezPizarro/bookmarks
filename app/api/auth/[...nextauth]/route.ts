@@ -2,23 +2,6 @@ import type { NextAuthOptions } from "next-auth";
 import { OAuthConfig } from "next-auth/providers/oauth";
 import NextAuth from "next-auth";
 
-declare module "next-auth" {
-  interface Session {
-    user: {
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
-      accessToken?: string;
-      refreshToken?: string;
-    };
-  }
-
-  interface JWT {
-    accessToken?: string;
-    refreshToken?: string;
-  }
-}
-
 const nextcloudProvider: OAuthConfig<any> = {
   id: "nextcloud",
   name: "Nextcloud",
