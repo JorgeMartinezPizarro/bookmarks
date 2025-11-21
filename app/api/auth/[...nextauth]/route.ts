@@ -64,9 +64,6 @@ const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       session.user = {
         ...session.user,
-        id: token.id,
-        name: token.name,
-        email: token.email,
         accessToken: token.accessToken,
         refreshToken: token.refreshToken,
       };
