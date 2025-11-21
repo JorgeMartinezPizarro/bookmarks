@@ -54,13 +54,13 @@ const Monitor = () => {
 						}, 0)
 						let truncatedMem = Math.floor(sumMem * 100) / 100;
 						let truncatedCPU = Math.floor(sumCPU / cores * 100) / 100;
-						return <p key={id} className="my-chart" style={{display: showProjects ? "block" : "none"}}>
+						return <div key={id} className="my-chart" style={{display: showProjects ? "block" : "none"}}>
 							<div className="project-line">
 								<div className="name">{row} ({dockerProjects[row].length})</div>
 								<div className="bar cpu"><div className="fill" style={{width: truncatedCPU + "%"}}></div></div>
 								<div className="bar ram"><div className="fill" style={{width: truncatedMem + "%"}}></div></div>
 							</div>
-						</p>						
+						</div>						
 					})}
 					<p>
 						<Button onClick={
@@ -74,14 +74,14 @@ const Monitor = () => {
 						if (!rawStatus.includes("("))
 							rawStatus = rawStatus + " 🟢"
 						const status = rawStatus.replace("Up ", "").replace("(unhealthy)", "🔴").replace("(healthy)", "🟢").replace("(Paused)", "🟡");
-						return <p key={id} className="my-chart" style={{display: showDocker ? "block" : "none"}}>
+						return <div key={id} className="my-chart" style={{display: showDocker ? "block" : "none"}}>
 						<div style={{marginLeft: "5%", display: "inline-block", width: "45%", textAlign: "left"}}>
 							{row.name}
 						</div>
 						<div style={{marginRight: "5%", display: "inline-block", width: "45%", textAlign: "right"}}>
 							{status}
 						</div>
-						</p>
+						</div>
 					})}
 			</div>
 		)}

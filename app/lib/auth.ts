@@ -16,7 +16,7 @@ export async function requireAuth(request: Request) {
   }
 
   let accessToken = token.accessToken as string;
-  const refreshToken = token.refreshToken as string | undefined;
+  const refreshToken = token.refreshToken as string | undefined; // ← ya viene del JWT
   const now = Date.now();
 
   if (!accessToken || typeof accessToken !== "string") {
@@ -39,16 +39,14 @@ export async function requireAuth(request: Request) {
     }
   );
 
-  // Si token expiró o es inválido, intentamos usar refreshToken
+  // Si token expiró, intentamos refresh
   if (!res.ok && refreshToken) {
     const refreshed = await refreshAccessToken(refreshToken);
-    if (!refreshed?.accessToken) {
-      throw new Error("Failed to refresh access token");
-    }
+    if (!refreshed?.accessToken) throw new Error("Failed to refresh access token");
 
     accessToken = refreshed.accessToken;
 
-    // Reintentar con el nuevo token
+    // Reintento con el token nuevo
     const retryRes = await fetch(
       `${process.env.NEXTCLOUD_URL}/ocs/v2.php/cloud/user?format=json`,
       {
@@ -60,40 +58,20 @@ export async function requireAuth(request: Request) {
       }
     );
 
-    if (!retryRes.ok) {
-      throw new Error("Invalid refreshed token");
-    }
+    if (!retryRes.ok) throw new Error("Invalid refreshed token");
 
     const user = (await retryRes.json()).ocs?.data;
-    const userData = {
-      id: user.id,
-      name: user.displayname,
-      email: user.email,
-    };
+    const userData = { id: user.id, name: user.displayname, email: user.email };
 
-    tokenCache.set(accessToken, {
-      user: userData,
-      expires: now + 60_000,
-    });
-
+    tokenCache.set(accessToken, { user: userData, expires: now + 60_000 });
     return userData;
   }
 
-  if (!res.ok) {
-    throw new Error("Invalid token and no refresh token available");
-  }
+  if (!res.ok) throw new Error("Invalid token and no refresh token available");
 
   const user = (await res.json()).ocs?.data;
-  const userData = {
-    id: user.id,
-    name: user.displayname,
-    email: user.email,
-  };
-
-  tokenCache.set(accessToken, {
-    user: userData,
-    expires: now + 60_000,
-  });
+  const userData = { id: user.id, name: user.displayname, email: user.email };
+  tokenCache.set(accessToken, { user: userData, expires: now + 60_000 });
 
   return userData;
 }
@@ -106,11 +84,8 @@ async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: 
   });
 
   if (!res.ok) return null;
-
   const data = await res.json();
-  return {
-    accessToken: data.accessToken,
-  };
+  return { accessToken: data.accessToken };
 }
 
 export const withAuth = (handler: (req: Request, user: any) => Response | Promise<Response>) =>
