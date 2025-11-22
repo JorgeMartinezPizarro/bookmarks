@@ -25,6 +25,7 @@
 	padding: 4px;
 	color: white;
 }
+
 pre {
 	color: white;
 }
@@ -53,6 +54,7 @@ pre {
 	border: 2px solid silver;
 	margin: 4px;
 }
+
 .my-grid {
 	width: 100%;
 	max-width: 600px;
@@ -75,35 +77,35 @@ table tr td {
 }
 
 .project-line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 24px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 24px;
 }
 
 .name {
-  min-width: 120px;
-  margin-left: 5%;
-  text-align: left;
-  text-transform: lowercase;
+	min-width: 120px;
+	margin-left: 5%;
+	text-align: left;
+	text-transform: lowercase;
 }
 
 .bar {
-  flex: 1;
-  background: #333;
-  border-radius: 4px;
-  overflow: hidden;
-  height: 100%;
-  position: relative;
+	flex: 1;
+	background: #333;
+	border-radius: 4px;
+	overflow: hidden;
+	height: 100%;
+	position: relative;
 }
 
 .fill {
-  background: linear-gradient(90deg, #2196f3, #64b5f6);
-  height: 100%;
-  width: 0;
-  transition: width 0.3s ease;
+	background: linear-gradient(90deg, #2196f3, #64b5f6);
+	height: 100%;
+	width: 0;
+	transition: width 0.3s ease;
 }
 
 .bar.ram .fill {
-  background: linear-gradient(90deg, #2196f3, #64b5f6);
+  	background: linear-gradient(90deg, #2196f3, #64b5f6);
 }
