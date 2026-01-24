@@ -1,8 +1,93 @@
 button span {
     display: none;
 }
+
 button {
-    display: inline-block!important;
-    min-width: 0!important;
-    
-}   
+    display: inline-block !important;
+    min-width: 0 !important;
+}
+
+.tetris-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background-color: #121212;
+    margin-top: 50px;
+}
+
+.tetris-menu {
+    display: flex;
+    justify-content: space-between;
+    width: 400px;
+    max-width: 100%;
+    margin: 0;
+}
+
+.tetris-lines {
+    margin: 0;
+}
+
+.tetris-board {
+    display: grid;
+    grid-template-rows: repeat(20, 30px);
+    grid-template-columns: repeat(10, 30px);
+    margin: 0;
+}
+
+.tetris-cell {
+    width: 30px;
+    height: 30px;
+    border: 1px solid grey;
+}
+
+.tetris-controls {
+    width: 400px;
+    max-width: 100%;
+    height: auto;
+}
+
+.tetris-controls-left {
+    width: 57%;
+    display: inline-block;
+}
+
+.tetris-controls-right {
+    width: 43%;
+    text-align: right;
+    display: inline-block;
+}
+
+.control-btn {
+    width: 32% !important;
+    height: 48px !important;
+    padding: 0 !important;
+}
+
+.rotate-btn {
+    width: 45% !important;
+    height: 48px !important;
+    padding: 0 !important;
+}
+
+.scores-title {
+    color: white;
+}
+
+.scores-table {
+    width: 70%;
+    border: 2px solid white;
+    color: white;
+    border-collapse: collapse;
+}
+
+.scores-table th,
+.scores-table td {
+    padding: 6px;
+    border: 1px solid white;
+}
+
+.scores-table th {
+    background-color: #333;
+}
