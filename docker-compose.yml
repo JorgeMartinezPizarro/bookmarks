@@ -14,7 +14,7 @@ services:
     ports:
       - 1009:5000
     volumes:
-      - ./audio/:/app/audio
+      - ./cache/audio/:/app/audio
   stockfish:
     image: jorgemartinezpizarro/stockfish:latest
     # Exposed to comunicate node, remove later to use docker network communication

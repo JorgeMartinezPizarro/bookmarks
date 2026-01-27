@@ -21,7 +21,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     }
 
     // Construir la ruta absoluta del archivo dentro de la carpeta "top"
-    const filePath = path.join(process.cwd(), 'audio', fileName);
+    const filePath = path.join(process.cwd(), 'cache', 'audio', fileName);
 
     // Leer el archivo
     const fileData = await fs.readFile(filePath);
