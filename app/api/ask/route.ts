@@ -43,9 +43,9 @@ export async function GET(request: NextRequest): Promise<Response> {
     }
 
     // 🔹 Procesar el output antes de enviarlo a la UI
-    const data = await response.text();
+    const data = await response.json();
     
-    return Response.json({ response: data }, { status: 200 });
+    return Response.json({ response: data.response }, { status: 200 });
 
   } catch (error) {
     return Response.json({ error: errorMessage(error) }, { status: 500 });
