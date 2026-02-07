@@ -14,7 +14,7 @@
 	    <navigation>
             <route>helloworld.page.index</route>
             <name>Example APP</name>
-            <icon>/custom_apps/helloworld/img/icon.svg</icon>
+            <icon>/custom_apps/gaming/img/icon.svg</icon>
         </navigation>
     </navigations>
 </info>

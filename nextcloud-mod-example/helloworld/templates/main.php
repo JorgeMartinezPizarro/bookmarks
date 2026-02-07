@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hello World</title>
     <?php
-        script('helloworld', 'index'); // Esto carga tu JS
+        script('helloworld', 'index');
     ?>
 
 </head>
