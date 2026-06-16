@@ -9,7 +9,6 @@ import MainMenu from "@/app/components/MainMenu";
 import { errorMessage } from "@/app/helpers";
 
 const GamesComponent = () => {
-
   const [start, setStart] = useState(Date.now())
   const [scores, setScores] = useState(true)  
   const [loading, setLoading] = useState(false)
@@ -21,13 +20,17 @@ const GamesComponent = () => {
   const [topScores, setTopScores] = useState<any>([])
   const [error, setError] = useState(undefined)
   const [scoreSaved, setScoreSaved] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   const currentScore = time - start === 0 ?
     0 : 
     Math.round(score**3 * 1000 / (time - start))
 
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const Cell = (props: CellProps) => {
-    
     const isCrossed = props?.values.b
     
     return props !== undefined && 
@@ -42,12 +45,9 @@ const GamesComponent = () => {
   }
 
   const Square = (props: CellProps) => {
-      return <Box
-          key={props.values.i}
-          className="cell"
-      >
-          {props && <Cell {...props} />}
-      </Box>
+    return <Box key={props.values.i} className="cell">
+      {props && <Cell {...props} />}
+    </Box>
   }
 
   const saveScore = async () => {
@@ -94,7 +94,6 @@ const GamesComponent = () => {
   }, []);
 
   const handleClick = useCallback((cell: CellValues): boolean => {
-    
     const clickIsRight = !cell.values.b && isRight && (
         last === undefined ||
         (20 + last.values.i - cell.values.i) % 20 === last.values.n || 
@@ -112,11 +111,11 @@ const GamesComponent = () => {
       return r.values.i !== cell.values.i
         ? {...r}
         : {
-        values: {
-          ...r.values,
-          b: true,
+          values: {
+            ...r.values,
+            b: true,
+          }
         }
-      }
     })
 
     if (last === undefined)
@@ -127,7 +126,6 @@ const GamesComponent = () => {
     setLast({...cell})
 
     return false
-    
   }, [last, score, numbers, setIsRight, setNumbers, setLast, setScore, currentScore, isRight, saveScore])
 
   const newNumbers = [...numbers]
@@ -160,207 +158,148 @@ const GamesComponent = () => {
     }
   }, [loadScores, newGame])
 
-  return (<>
-  <MainMenu />
-  <Button className="game-menu" variant="contained" onClick={() => setScores(!scores)}>
-    {!scores ? "Play" : "Scores"}
-  </Button>
-  <Box
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      minHeight: "calc(100vh - 140px)",
-      textAlign: "center",
-      width: "100%",
-      padding: "8px"
-    }}
-  >
-    {error && <pre style={{color: "red"}}>{errorMessage(error)}</pre>}
-    {scores && <>
-    {numbers.length === 20 && <Box
-      className={"box" + (loading ? " loading" : "")}
-    > 
-      {/* Controls line */}
-      <Box>
-        <Button className={isRight ? undefined : "danger"} onClick={newGame}>Reset</Button>
-        <Button disabled>Score</Button>
-        <Button disabled>{currentScore}</Button>
-        <Button disabled>Steps</Button>
-        <Button disabled>{score}</Button>
-        {isRight ?
-          <Button disabled>{}</Button> :
-          <Button disabled className="danger">💀</Button>          
-        }
+  // No renderizar nada hasta que el componente esté montado en el cliente
+  if (!mounted) {
+    return (
+      <>
+        <MainMenu />
+        <Box sx={{ color: "white", textAlign: "center", mt: 4 }}>
+          <h4>Loading Numbers Game...</h4>
+        </Box>
+      </>
+    )
+  }
+
+  // Función para determinar el texto del botón central
+  const getCenterButtonText = (rowIndex: number, colIndex: number) => {
+    if (score === 0 && rowIndex === 1 && colIndex === 1) return "Let's"
+    if (score === 0 && rowIndex === 1 && colIndex === 2) return "Play"
+    if (!isRight && rowIndex === 1 && colIndex === 1) return "GAME"
+    if (!isRight && rowIndex === 1 && colIndex === 2) return "OVER"
+    return ""
+  }
+
+  return (
+    <>
+      <MainMenu />
+      <Button className="game-menu" variant="contained" onClick={() => setScores(!scores)}>
+        {!scores ? "Play" : "Scores"}
+      </Button>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "calc(100vh - 140px)",
+          textAlign: "center",
+          width: "100%",
+          padding: "8px"
+        }}
+      >
+        {error && <pre style={{color: "red"}}>{errorMessage(error)}</pre>}
+        
+        {scores && numbers.length === 20 && (
+          <Box className={"box" + (loading ? " loading" : "")}>
+            {/* Controls line */}
+            <Box>
+              <Button className={isRight ? undefined : "danger"} onClick={newGame}>Reset</Button>
+              <Button disabled>Score</Button>
+              <Button disabled>{currentScore}</Button>
+              <Button disabled>Steps</Button>
+              <Button disabled>{score}</Button>
+              {isRight ? (
+                <Button disabled>{}</Button>
+              ) : (
+                <Button disabled className="danger">💀</Button>
+              )}
+            </Box>
+            
+            {/* First row */}
+            {top.map(number => (
+              <Square key={number.values.i + "-top"} values={number.values} handleClick={handleClick} />
+            ))}
+            
+            {/* Middle rows */}
+            {Array.from({ length: 4 }).map((_, rowIndex) => (
+              <React.Fragment key={`row-${rowIndex}`}>
+                <Square values={left[rowIndex].values} handleClick={handleClick} />
+                {Array.from({ length: 4 }).map((_, colIndex) => (
+                  <Box key={`empty-${rowIndex}-${colIndex}`}>
+                    <Button disabled className={isRight ? undefined : "danger"}>
+                      {getCenterButtonText(rowIndex, colIndex)}
+                    </Button>
+                  </Box>
+                ))}
+                <Square values={right[rowIndex].values} handleClick={handleClick} />
+              </React.Fragment>
+            ))}
+            
+            {/* Bottom rows */}
+            {bottom.map(number => (
+              <Square key={number.values.i + "-bot"} values={number.values} handleClick={handleClick} />
+            ))}
+          </Box>
+        )}
+
+        {!scores && topScores.length > 0 && (
+          <>
+            <h4>Highest scores</h4>
+            <table style={{width: "70%", maxWidth: "400px", margin: "auto"}} border={2}>
+              <thead>
+                <tr>
+                  <th>Pos</th>
+                  <th>User</th>
+                  <th>Score</th>
+                  <th>Steps</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topScores
+                  .sort((a: any, b: any) => b.score - a.score)
+                  .slice(0, 10)
+                  .map((a: any, i: number) => (
+                    <tr key={i}>
+                      <td style={{padding: "6px"}}>{i+1}</td>
+                      <td style={{padding: "6px"}}>{a.name}</td>
+                      <td style={{padding: "6px"}}>{a.score}</td>
+                      <td style={{padding: "6px"}}>{a.steps}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+
+            <h4>Longer games</h4>
+            <table style={{marginBottom: "24px", width: "70%", maxWidth: "400px", margin: "auto"}} border={2}>
+              <thead>
+                <tr>
+                  <th>Pos</th>
+                  <th>User</th>
+                  <th>Score</th>
+                  <th>Steps</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topScores
+                  .sort((a: any, b: any) => b.steps - a.steps)
+                  .slice(0, 10)
+                  .map((a: any, i: number) => (
+                    <tr key={i}>
+                      <td style={{padding: "6px"}}>{i+1}</td>
+                      <td style={{padding: "6px"}}>{a.name}</td>
+                      <td style={{padding: "6px"}}>{a.score}</td>
+                      <td style={{padding: "6px"}}>{a.steps}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </>
+        )}
       </Box>
-      {/* First row */}
-      {top.map(number => <Square key={number.values.i + "-top"} values={number.values} handleClick={handleClick} />)}
-      {/* Middle rows */}
-      {Array.from({ length: 4 }).map((_, rowIndex) => (
-        <React.Fragment key={`row-${rowIndex}`}>
-            <Square values={left[rowIndex].values} handleClick={handleClick} />
-            {Array.from({ length: 4 }).map((_, colIndex) => (
-              <Box key={`empty-${rowIndex}-${colIndex}`}>
-                <Button disabled className={isRight ? undefined : "danger"}>
-                  {score === 0 && rowIndex === 1 && colIndex === 1 && "Let's"}
-                  {score === 0 && rowIndex === 1 && colIndex === 2 && "Play"}
-                  {!isRight && rowIndex === 1 && colIndex === 1 && "GAME"}
-                  {!isRight && rowIndex === 1 && colIndex === 2 && "OVER"}
-                </Button>
-              </Box>
-            ))}
-            <Square values={right[rowIndex].values} handleClick={handleClick} />
-        </React.Fragment>
-      ))}
-      {/* Bottom rows */}
-      {bottom.map(number => <Square key={number.values.i + "-bot"} values={number.values} handleClick={handleClick} />)}
-    </Box>}
-    </>}
-    {!scores && topScores.length > 0 && <h4>Highest scores</h4>}
-    {!scores && topScores.length > 0 && <table style={{width: "70%", maxWidth: "400px", margin: "auto"}} border={2}>
-      <thead>
-        <tr>
-          <th>Pos</th>
-          <th>User</th>
-          <th>Score</th>
-          <th>Steps</th>
-        </tr>
-      </thead>
-      <tbody>
-        {topScores
-          .sort((a: any, b: any) => b.score - a.score)
-          .slice(0, 10)
-          .map((a: any, i: number) => (
-            <tr key={i}>
-              <td style={{padding: "6px"}}>{i+1}</td>
-              <td style={{padding: "6px"}}>{a.name}</td>
-              <td style={{padding: "6px"}}>{a.score}</td>
-              <td style={{padding: "6px"}}>{a.steps}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>}
-    {!scores && topScores.length > 0 && <h4>Longer games</h4>}
-    {!scores && topScores.length > 0 && <table style={{marginBottom: "24px", width: "70%", maxWidth: "400px", margin: "auto"}} border={2}>
-      <thead>
-        <tr>
-          <th>Pos</th>
-          <th>User</th>
-          <th>Score</th>
-          <th>Steps</th>
-        </tr>
-      </thead>
-      <tbody>
-        {topScores
-          .sort((a: any, b: any) => b.steps - a.steps)
-          .slice(0, 10)
-          .map((a: any, i: number) => (
-            <tr key={i}>
-              <td style={{padding: "6px"}}>{i+1}</td>
-              <td style={{padding: "6px"}}>{a.name}</td>
-              <td style={{padding: "6px"}}>{a.score}</td>
-              <td style={{padding: "6px"}}>{a.steps}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>}
-  </Box></>);
-}
-
-export default GamesComponent
-                  {score === 0 && rowIndex === 1 && colIndex === 2 && "Play"}
-                  {!isRight && rowIndex === 1 && colIndex === 1 && "GAME"}
-                  {!isRight && rowIndex === 1 && colIndex === 2 && "OVER"}
-                </Button>
-              </Box>
-            ))}
-            <Square values={right[rowIndex].values} handleClick={handleClick} />
-        </React.Fragment>
-      ))}
-      {/* Bottom rows */}
-      {bottom.map(number => <Square key={number.values.i + "-bot"} values={number.values} handleClick={handleClick} />)}
-    </Box>}
-    </>}
-
-
-
-
-
-
-
-
-
-
-
-
-
-    {!scores && topScores.length > 0 && <h4>Highest scores</h4>}
-    {!scores && topScores.length > 0 && <table style={{width: "70%", maxWidth: "400px", margin: "auto"}} border={2}>
-      <thead>
-        <tr>
-          <th>Pos</th>
-          <th>User</th>
-          <th>Score</th>
-          <th>Steps</th>
-        </tr>
-      </thead>
-      <tbody>
-        {topScores
-          .sort((a: any, b: any) => b.score - a.score)
-          .slice(0, 10)
-          .map((a: any, i: number) => (
-            <tr key={i}>
-              <td style={{padding: "6px"}}>{i+1}</td>
-              <td style={{padding: "6px"}}>{a.name}</td>
-              <td style={{padding: "6px"}}>{a.score}</td>
-              <td style={{padding: "6px"}}>{a.steps}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>}
-
-
-
-
-
-
-
-
-
-
-
-
-
-    {!scores && topScores.length > 0 && <h4>Longer games</h4>}
-    {!scores && topScores.length > 0 && <table style={{marginBottom: "24px", width: "70%", maxWidth: "400px", margin: "auto"}} border={2}>
-      <thead>
-        <tr>
-          <th>Pos</th>
-          <th>User</th>
-          <th>Score</th>
-          <th>Steps</th>
-        </tr>
-      </thead>
-      <tbody>
-        {topScores
-          .sort((a: any, b: any) => b.steps - a.steps)
-          .slice(0, 10)
-          .map((a: any, i: number) => (
-            <tr key={i}>
-              <td style={{padding: "6px"}}>{i+1}</td>
-              <td style={{padding: "6px"}}>{a.name}</td>
-              <td style={{padding: "6px"}}>{a.score}</td>
-              <td style={{padding: "6px"}}>{a.steps}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>}
-  </Box></>);
+    </>
+  );
 }
 
 export default GamesComponent
