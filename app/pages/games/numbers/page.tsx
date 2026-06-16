@@ -45,9 +45,10 @@ const GamesComponent = () => {
   }
 
   const Square = (props: CellProps) => {
-    return <Box key={props.values.i} className="cell">
-      {props && <Cell {...props} />}
-    </Box>
+
+
+
+    return props && <Cell {...props} />
   }
 
   const saveScore = async () => {
@@ -129,7 +130,8 @@ const GamesComponent = () => {
   }, [last, score, numbers, setIsRight, setNumbers, setLast, setScore, currentScore, isRight, saveScore])
 
   const newNumbers = [...numbers]
-  const [top, right, bottom, left] = [
+
+  const [topRow, rightCol, bottomRow, leftCol] = [
     newNumbers.slice(0, 6),
     newNumbers.slice(6, 10),
     newNumbers.slice(10, 16).reverse(),
@@ -158,7 +160,7 @@ const GamesComponent = () => {
     }
   }, [loadScores, newGame])
 
-  // No renderizar nada hasta que el componente esté montado en el cliente
+
   if (!mounted) {
     return (
       <>
@@ -170,10 +172,12 @@ const GamesComponent = () => {
     )
   }
 
-  // Función para determinar el texto del botón central
+
   const getCenterButtonText = (rowIndex: number, colIndex: number) => {
     if (score === 0 && rowIndex === 0 && colIndex === 0) return "Let's"
     if (score === 0 && rowIndex === 0 && colIndex === 1) return "Play"
+    if (score === 0 && rowIndex === 1 && colIndex === 0) return "Click"
+    if (score === 0 && rowIndex === 1 && colIndex === 1) return "Numbers"
     if (!isRight && rowIndex === 0 && colIndex === 0) return "GAME"
     if (!isRight && rowIndex === 0 && colIndex === 1) return "OVER"
     return ""
@@ -201,7 +205,8 @@ const GamesComponent = () => {
         
         {scores && numbers.length === 20 && (
           <Box className={"box" + (loading ? " loading" : "")}>
-            {/* Controls line - ocupa toda la fila */}
+
+            {/* Controls line - full width */}
             <Box className="controls">
               <Button className={isRight ? undefined : "danger"} onClick={newGame}>Reset</Button>
               <Button disabled>Score</Button>
@@ -215,32 +220,84 @@ const GamesComponent = () => {
               )}
             </Box>
             
-            {/* Fila superior: 6 botones numerados */}
-            {top.map(number => (
-              <Square key={number.values.i} values={number.values} handleClick={handleClick} />
+
+
+
+            {/* Top row: 6 numbers */}
+            {topRow.map(number => (
+              <Box key={`top-${number.values.i}`} className="cell-border">
+                <Button 
+                  className={!isRight ? "danger" : ""}
+                  color={number.values.b ? "secondary" : "primary"}
+                  disabled={loading || !isRight || number.values.b}
+                  onClick={() => handleClick(number)}
+                >
+                  {number.values.n}
+                </Button>
+              </Box>
             ))}
             
-            {/* Filas intermedias: 4 filas de 6 elementos */}
+
+            {/* Middle rows: left number + 4 empty + right number */}
             {[0, 1, 2, 3].map(rowIndex => (
-              <React.Fragment key={`row-${rowIndex}`}>
-                {/* Columna izquierda: un número */}
-                <Square values={left[rowIndex].values} handleClick={handleClick} />
-                {/* Centro: 4 celdas vacías */}
+
+
+
+
+              <React.Fragment key={`mid-row-${rowIndex}`}>
+                {/* Left column number */}
+                <Box key={`left-${rowIndex}`} className="cell-border">
+                  <Button 
+                    className={!isRight ? "danger" : ""}
+                    color={leftCol[rowIndex].values.b ? "secondary" : "primary"}
+                    disabled={loading || !isRight || leftCol[rowIndex].values.b}
+                    onClick={() => handleClick(leftCol[rowIndex])}
+                  >
+                    {leftCol[rowIndex].values.n}
+                  </Button>
+                </Box>
+                
+                {/* 4 empty center cells */}
                 {[0, 1, 2, 3].map(colIndex => (
-                  <Box key={`center-${rowIndex}-${colIndex}`}>
+
+                  <Box key={`center-${rowIndex}-${colIndex}`} className="cell-center">
                     <Button disabled className={isRight ? "" : "danger"}>
                       {getCenterButtonText(rowIndex, colIndex)}
                     </Button>
                   </Box>
                 ))}
-                {/* Columna derecha: un número */}
-                <Square values={right[rowIndex].values} handleClick={handleClick} />
+
+
+                
+                {/* Right column number */}
+                <Box key={`right-${rowIndex}`} className="cell-border">
+                  <Button 
+                    className={!isRight ? "danger" : ""}
+                    color={rightCol[rowIndex].values.b ? "secondary" : "primary"}
+                    disabled={loading || !isRight || rightCol[rowIndex].values.b}
+                    onClick={() => handleClick(rightCol[rowIndex])}
+                  >
+                    {rightCol[rowIndex].values.n}
+                  </Button>
+                </Box>
               </React.Fragment>
             ))}
             
-            {/* Fila inferior: 6 botones numerados */}
-            {bottom.map(number => (
-              <Square key={number.values.i} values={number.values} handleClick={handleClick} />
+
+
+
+            {/* Bottom row: 6 numbers */}
+            {bottomRow.map(number => (
+              <Box key={`bot-${number.values.i}`} className="cell-border">
+                <Button 
+                  className={!isRight ? "danger" : ""}
+                  color={number.values.b ? "secondary" : "primary"}
+                  disabled={loading || !isRight || number.values.b}
+                  onClick={() => handleClick(number)}
+                >
+                  {number.values.n}
+                </Button>
+              </Box>
             ))}
           </Box>
         )}
@@ -251,6 +308,61 @@ const GamesComponent = () => {
             <table style={{width: "70%", maxWidth: "400px", margin: "auto"}} border={2}>
               <thead>
                 <tr>
+                  <th>Pos</th>
+                  <th>User</th>
+                  <th>Score</th>
+                  <th>Steps</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topScores
+                  .sort((a: any, b: any) => b.score - a.score)
+                  .slice(0, 10)
+                  .map((a: any, i: number) => (
+                    <tr key={i}>
+                      <td style={{padding: "6px"}}>{i+1}</td>
+                      <td style={{padding: "6px"}}>{a.name}</td>
+                      <td style={{padding: "6px"}}>{a.score}</td>
+                      <td style={{padding: "6px"}}>{a.steps}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+
+            <h4>Longer games</h4>
+            <table style={{marginBottom: "24px", width: "70%", maxWidth: "400px", margin: "auto"}} border={2}>
+              <thead>
+                <tr>
+                  <th>Pos</th>
+                  <th>User</th>
+                  <th>Score</th>
+                  <th>Steps</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topScores
+                  .sort((a: any, b: any) => b.steps - a.steps)
+                  .slice(0, 10)
+                  .map((a: any, i: number) => (
+                    <tr key={i}>
+                      <td style={{padding: "6px"}}>{i+1}</td>
+                      <td style={{padding: "6px"}}>{a.name}</td>
+                      <td style={{padding: "6px"}}>{a.score}</td>
+                      <td style={{padding: "6px"}}>{a.steps}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </>
+        )}
+      </Box>
+    </>
+  );
+}
+
+export default GamesComponent
                   <th>Pos</th>
                   <th>User</th>
                   <th>Score</th>

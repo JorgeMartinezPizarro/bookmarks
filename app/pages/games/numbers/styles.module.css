@@ -26,17 +26,19 @@
     transition: opacity 0.3s ease-in-out, background-color 0.6s ease-in-out;
 }
 
-.box .cell button.MuiButton-colorSecondary {
+
+.box button.MuiButton-colorSecondary {
     color: #444; 
     background: black;
 }
 
-.box .cell button.MuiButton-colorPrimary {
+
+.box button.MuiButton-colorPrimary {
     background: #319732;
     color: white;
 }
 
-.box button,
+
 .box button[disabled] {
     background: darkolivegreen;
     color: white;
@@ -47,25 +49,69 @@
     background: #b37;
 }
 
-.box .cell {
+
+
+/* Border cells (where numbers appear) */
+.cell-border {
     display: flex;
     align-items: center;
     justify-content: center;
     aspect-ratio: 1;
 }
 
-.box .cell button {
+
+.cell-border button {
     opacity: 1;
     background: grey;
     width: 100%;
     height: 100% !important;
 }
 
-.box .cell button:hover {
+
+.cell-border button:hover {
     opacity: 0.4;
 }
 
-/* Estilos para los controles */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Center cells (empty/display area) */
+.cell-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+.cell-center button {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    font-size: 12px;
+    color: white;
+    font-weight: bold;
+    width: 100%;
+    height: 100% !important;
+    padding: 0;
+}
+
+
+/* Controls row */
 .box .controls {
     grid-column: 1 / -1;
     display: grid;
@@ -78,22 +124,4 @@
     font-size: 11px;
     padding: 4px 2px;
     height: 32px !important;
-}
-
-/* Ajuste para las celdas vacías del centro */
-.box > div:not(.cell):not(.controls) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.box > div:not(.cell):not(.controls) button {
-    background: transparent;
-    border: none;
-    box-shadow: none;
-    font-size: 12px;
-    color: white;
-    font-weight: bold;
-    height: 100% !important;
-    padding: 0;
 }
