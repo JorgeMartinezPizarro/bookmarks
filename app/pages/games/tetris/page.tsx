@@ -2,7 +2,7 @@
 
 import { Box, Button, Stack, Typography } from "@mui/material";
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import "./styles.module.css"
+import "./styles.css"; // <-- Sin .module, asegúrate de tener declaración de tipos o usa require
 import MainMenu from "@/app/components/MainMenu";
 
 type Cell = [string, string]; // [color, state]
@@ -22,10 +22,10 @@ const checkCollision = (board: Board, piece: Piece, x: number, y: number): boole
         const newX = x + colIndex;
         const newY = y + rowIndex;
         if (
-          newY >= board.length || // Fuera del tablero vertical
-          newX < 0 || // Fuera del tablero izquierda
-          newX >= board[0].length || // Fuera del tablero derecha
-          (newY >= 0 && board[newY][newX][1] !== "clear") // Celda ocupada
+          newY >= board.length ||
+          newX < 0 ||
+          newX >= board[0].length ||
+          (newY >= 0 && board[newY][newX][1] !== "clear")
         ) {
           return true;
         }
@@ -36,13 +36,13 @@ const checkCollision = (board: Board, piece: Piece, x: number, y: number): boole
 };
 
 const TETROMINOS = [
-  { shape: [[1, 1, 1], [0, 1, 0]], color: "red" }, // T
-  { shape: [[1, 1], [1, 1]], color: "yellow" }, // Cuadrado
-  { shape: [[1, 1, 0], [0, 1, 1]], color: "green" }, // Z
-  { shape: [[0, 1, 1], [1, 1, 0]], color: "blue" }, // S
-  { shape: [[1, 1, 1, 1]], color: "cyan" }, // Línea
-  { shape: [[1, 1, 1], [1, 0, 0]], color: "orange" }, // L
-  { shape: [[1, 1, 1], [0, 0, 1]], color: "purple" }, // J
+  { shape: [[1, 1, 1], [0, 1, 0]], color: "red" },
+  { shape: [[1, 1], [1, 1]], color: "yellow" },
+  { shape: [[1, 1, 0], [0, 1, 1]], color: "green" },
+  { shape: [[0, 1, 1], [1, 1, 0]], color: "blue" },
+  { shape: [[1, 1, 1, 1]], color: "cyan" },
+  { shape: [[1, 1, 1], [1, 0, 0]], color: "orange" },
+  { shape: [[1, 1, 1], [0, 0, 1]], color: "purple" },
 ];
 
 const getRandomPiece = (): Piece => {
@@ -57,10 +57,10 @@ const Tetris: React.FC = () => {
   const [lines, setLines] = useState(0);
   const [isPaused, setIsPaused] = useState(true);
   const [timer, setTimer] = useState(0);
-  const [topScores, setTopScores] = useState<any>([])
-  const [scores, setScores] = useState(true)
-  const [scoreSaved, setScoreSaved] = useState(false)
-  
+  const [topScores, setTopScores] = useState<any[]>([]);
+  const [scores, setScores] = useState(true);
+  const [scoreSaved, setScoreSaved] = useState(false);
+
   const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const buttonPressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -70,16 +70,18 @@ const Tetris: React.FC = () => {
     }
   }, [board, piece, pos]);
 
+  // ====== NUEVO ENDPOINT ======
   const loadScores = useCallback(async () => {
     try {
-      const response = await fetch("/bookmarks/api/form?gameId=3");
+      const response = await fetch("/api/scores?gameId=3");
       const data = await response.json();
-      
+
       if (data.scores) {
         setTopScores(data.scores.map((score: any) => ({
-          lines: score.score,
+          lines: score.score,                // el campo 'score' del endpoint
           speed: score.gameConfig?.timer || 0,
-          name: score.username
+          name: score.username,
+          time: score.createdAt
         })));
       }
     } catch (error) {
@@ -89,12 +91,12 @@ const Tetris: React.FC = () => {
 
   const saveScore = async () => {
     if (scoreSaved) return;
-    
+
     try {
-      const response = await fetch("/bookmarks/api/form", {
+      const response = await fetch("/api/scores", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           gameId: 3,
           username: "player",
           score: lines,
@@ -114,17 +116,17 @@ const Tetris: React.FC = () => {
   const finishGame = useCallback(() => {
     setIsPaused(true);
     saveScore();
-  }, []);
+  }, [saveScore]);
 
   const resetPiece = useCallback(() => {
     const newPiece = getRandomPiece();
     const initialPos = { x: 3, y: 0 };
-  
+
     if (checkCollision(board, newPiece, initialPos.x, initialPos.y)) {
       finishGame();
       return;
     }
-  
+
     setPiece(newPiece);
     setPos(initialPos);
   }, [board, finishGame]);
@@ -132,7 +134,7 @@ const Tetris: React.FC = () => {
   const clearLines = useCallback((currentBoard: Board) => {
     const clearedBoard = currentBoard.filter(row => row.some(cell => cell[1] === "clear"));
     const clearedLines = currentBoard.length - clearedBoard.length;
-    const newRows = Array(clearedLines).fill(null).map(() => 
+    const newRows = Array(clearedLines).fill(null).map(() =>
       Array(currentBoard[0].length).fill(null).map(() => ["0", "clear"] as Cell)
     );
     const newBoard = [...newRows, ...clearedBoard];
@@ -181,7 +183,7 @@ const Tetris: React.FC = () => {
   // Handlers para mantener presionado (móvil)
   const handleButtonPress = useCallback((action: () => void) => {
     if (isPaused) return;
-    action(); // Ejecutar inmediatamente
+    action();
     buttonPressTimer.current = setTimeout(() => {
       holdIntervalRef.current = setInterval(action, 100);
     }, 300);
@@ -200,7 +202,7 @@ const Tetris: React.FC = () => {
 
   useEffect(() => {
     if (isPaused) return;
-    if (lines >= 40) {    
+    if (lines >= 40) {
       finishGame();
       return;
     }
@@ -219,37 +221,6 @@ const Tetris: React.FC = () => {
     }, speed);
     return () => clearInterval(interval);
   }, [isPaused, board, piece, pos, dropPiece, lines]);
-
-  const renderBoard = () => {
-    return board.map((row, y) =>
-      row.map((cell, x) => {
-        const isActivePiece =
-          piece.shape.some(
-            (pieceRow, pieceY) =>
-              pieceRow.some(
-                (pieceCell, pieceX) =>
-                  pieceCell !== 0 &&
-                  pos.y + pieceY === y &&
-                  pos.x + pieceX === x
-              )
-          );
-
-        const backgroundColor = isActivePiece
-          ? piece.color
-          : cell[1] === "clear"
-          ? "black"
-          : cell[0];
-
-        return (
-          <div
-            key={`${y}-${x}`}
-            className="tetris-cell"
-            style={{ backgroundColor }}
-          />
-        );
-      })
-    );
-  };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -286,6 +257,37 @@ const Tetris: React.FC = () => {
     loadScores();
   }, [loadScores]);
 
+  const renderBoard = () => {
+    return board.map((row, y) =>
+      row.map((cell, x) => {
+        const isActivePiece =
+          piece.shape.some(
+            (pieceRow, pieceY) =>
+              pieceRow.some(
+                (pieceCell, pieceX) =>
+                  pieceCell !== 0 &&
+                  pos.y + pieceY === y &&
+                  pos.x + pieceX === x
+              )
+          );
+
+        const backgroundColor = isActivePiece
+          ? piece.color
+          : cell[1] === "clear"
+          ? "black"
+          : cell[0];
+
+        return (
+          <div
+            key={`${y}-${x}`}
+            className="tetris-cell"
+            style={{ backgroundColor }}
+          />
+        );
+      })
+    );
+  };
+
   return (
     <Box className="tetris-container">
       <MainMenu />
@@ -304,89 +306,91 @@ const Tetris: React.FC = () => {
         </Typography>
       </Box>
 
-      {scores && <Box className="tetris-board">
-        {renderBoard()}
-      </Box>}
+      {scores && (
+        <>
+          <Box className="tetris-board">{renderBoard()}</Box>
+          <Box className="tetris-controls">
+            <div className="tetris-controls-left">
+              <Button
+                variant="contained"
+                className="control-btn"
+                onMouseDown={() => handleButtonPress(() => movePiece(-1, 0))}
+                onMouseUp={handleButtonRelease}
+                onMouseLeave={handleButtonRelease}
+                onTouchStart={() => handleButtonPress(() => movePiece(-1, 0))}
+                onTouchEnd={handleButtonRelease}
+              >
+                {"<"}
+              </Button>
+              <Button
+                variant="contained"
+                className="control-btn"
+                onMouseDown={() => handleButtonPress(dropPiece)}
+                onMouseUp={handleButtonRelease}
+                onMouseLeave={handleButtonRelease}
+                onTouchStart={() => handleButtonPress(dropPiece)}
+                onTouchEnd={handleButtonRelease}
+              >
+                {"v"}
+              </Button>
+              <Button
+                variant="contained"
+                className="control-btn"
+                onMouseDown={() => handleButtonPress(() => movePiece(1, 0))}
+                onMouseUp={handleButtonRelease}
+                onMouseLeave={handleButtonRelease}
+                onTouchStart={() => handleButtonPress(() => movePiece(1, 0))}
+                onTouchEnd={handleButtonRelease}
+              >
+                {">"}
+              </Button>
+            </div>
+            <div className="tetris-controls-right">
+              <Button
+                variant="contained"
+                className="control-btn rotate-btn"
+                onClick={() => rotatePiece(-1)}
+              >
+                O
+              </Button>
+              <Button
+                variant="contained"
+                className="control-btn rotate-btn"
+                onClick={() => rotatePiece(1)}
+              >
+                P
+              </Button>
+            </div>
+          </Box>
+        </>
+      )}
 
-      {scores && <Box className="tetris-controls">
-        <div className="tetris-controls-left">
-          <Button 
-            variant="contained" 
-            className="control-btn"
-            onMouseDown={() => handleButtonPress(() => movePiece(-1, 0))}
-            onMouseUp={handleButtonRelease}
-            onMouseLeave={handleButtonRelease}
-            onTouchStart={() => handleButtonPress(() => movePiece(-1, 0))}
-            onTouchEnd={handleButtonRelease}
-          >
-            {"<"}
-          </Button>
-          <Button 
-            variant="contained" 
-            className="control-btn"
-            onMouseDown={() => handleButtonPress(dropPiece)}
-            onMouseUp={handleButtonRelease}
-            onMouseLeave={handleButtonRelease}
-            onTouchStart={() => handleButtonPress(dropPiece)}
-            onTouchEnd={handleButtonRelease}
-          >
-            {"v"}
-          </Button>
-          <Button 
-            variant="contained" 
-            className="control-btn"
-            onMouseDown={() => handleButtonPress(() => movePiece(1, 0))}
-            onMouseUp={handleButtonRelease}
-            onMouseLeave={handleButtonRelease}
-            onTouchStart={() => handleButtonPress(() => movePiece(1, 0))}
-            onTouchEnd={handleButtonRelease}
-          >
-            {">"}
-          </Button>
-        </div>
-        <div className="tetris-controls-right">
-          <Button 
-            variant="contained" 
-            className="control-btn rotate-btn"
-            onClick={() => rotatePiece(-1)}
-          >
-            O
-          </Button>
-          <Button 
-            variant="contained" 
-            className="control-btn rotate-btn"
-            onClick={() => rotatePiece(1)}
-          >
-            P
-          </Button>
-        </div>
-      </Box>}
-      
       {!scores && topScores.length > 0 && <h4 className="scores-title">Highest scores</h4>}
-      {!scores && topScores.length > 0 && <table className="scores-table">
-        <thead>
-          <tr>
-            <th>Pos</th>
-            <th>User</th>
-            <th>Lines</th>
-            <th>Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          {topScores
-            .sort((a: any, b: any) => b.lines - a.lines)
-            .slice(0, 10)
-            .map((a: any, i: number) => (
-              <tr key={i}>
-                <td>{i + 1}</td>
-                <td>{a.name}</td>
-                <td>{a.lines}</td>
-                <td>{a.speed}</td>
-              </tr>
-            ))
-          }
-        </tbody>
-      </table>}
+      {!scores && topScores.length > 0 && (
+        <table className="scores-table">
+          <thead>
+            <tr>
+              <th>Pos</th>
+              <th>User</th>
+              <th>Lines</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {topScores
+              .sort((a: any, b: any) => b.lines - a.lines)
+              .slice(0, 10)
+              .map((a: any, i: number) => (
+                <tr key={i}>
+                  <td>{i + 1}</td>
+                  <td>{a.name}</td>
+                  <td>{a.lines}</td>
+                  <td>{a.speed}s</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      )}
     </Box>
   );
 };

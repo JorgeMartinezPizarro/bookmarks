@@ -75,11 +75,12 @@ const ChessGame: React.FC = () => {
     return elo;
   };
 
+  // *** CAMBIO 1: saveScore usa el nuevo endpoint y envía gameId, username, score, gameConfig ***
   const saveScore = async () => {
     if (scoreSaved) return;
     
     try {
-      const response = await fetch("/bookmarks/api/form", {
+      const response = await fetch("/api/scores", {   // <-- NUEVA URL
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -130,16 +131,17 @@ const ChessGame: React.FC = () => {
     }
   };
 
+  // *** CAMBIO 2: loadScores usa el nuevo endpoint y mapea correctamente ***
   const loadScores = useCallback(async () => {
     try {
-      const response = await fetch("/bookmarks/api/form?gameId=1");
+      const response = await fetch("/api/scores?gameId=1");   // <-- NUEVA URL
       const data = await response.json();
       
       if (data.scores) {
         setTopScores(data.scores.map((score: any) => ({
-          elo: score.score,
-          time: score.createdAt,
-          name: score.username
+          elo: score.score,                // el campo 'score' del endpoint
+          time: score.createdAt,           // el campo 'createdAt'
+          name: score.username             // el campo 'username'
         })));
       }
     } catch (error) {
@@ -177,7 +179,7 @@ const ChessGame: React.FC = () => {
     import("chess.js").then((module) => {
       setGame(new Chess());
     });
-  }, [loadScores]); // Añadir loadScores a las dependencias
+  }, [loadScores]);
 
   return (
     <>
@@ -233,6 +235,7 @@ const ChessGame: React.FC = () => {
             {gameResult}
           </Typography>
         )}
+        {/* Pestaña de scores: se muestra cuando scores es false */}
         {!scores && topScores.length > 0 && <h4>Highest scores</h4>}
         {!scores && topScores.length > 0 && (
           <table style={{ width: "70%" }} border={2}>
