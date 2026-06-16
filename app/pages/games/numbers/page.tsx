@@ -7,7 +7,7 @@ import { CellProps, CellValues } from "./types";
 import { randomArrayCellValues } from "./helpers";
 import MainMenu from "@/app/components/MainMenu";
 import { errorMessage } from "@/app/helpers";
-// TODO: fix layout mobile. Fix buttons menu
+
 const GamesComponent = () => {
 
   const [start, setStart] = useState(Date.now())
@@ -20,6 +20,7 @@ const GamesComponent = () => {
   const [time, setTime] = useState<number>(Date.now())
   const [topScores, setTopScores] = useState<any>([])
   const [error, setError] = useState(undefined)
+  const [scoreSaved, setScoreSaved] = useState(false)
 
   const currentScore = time - start === 0 ?
     0 : 
@@ -34,9 +35,10 @@ const GamesComponent = () => {
         className={!isRight ? " danger" : ""}
         color={isCrossed ? "secondary" : "primary"}
         disabled={loading || !isRight || props.values.b}
-
-        onClick={() => props.handleClick(props)}>{props.values.n}
-    </Button>
+        onClick={() => props.handleClick(props)}
+      >
+        {props.values.n}
+      </Button>
   }
 
   const Square = (props: CellProps) => {
@@ -48,19 +50,48 @@ const GamesComponent = () => {
       </Box>
   }
 
-  const loadScores = useCallback(() => {
-    setError(undefined)
-    fetch("/bookmarks/api/form?gameId=1").then(a => a.json()).then(a => {
-      const topScores = a.ocs.data.submissions.map((e: any) => {
-        return {
-          score: e.answers[0].text,
-          steps: e.answers[1].text,
-          name: e.answers[2].text
-        }
-      })
-      setTopScores(topScores)
-    }).catch(e => setError(e))
-  }, [setTopScores])
+  const saveScore = async () => {
+    if (scoreSaved) return;
+    
+    try {
+      const response = await fetch("/bookmarks/api/form", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          gameId: 2,
+          username: "player",
+          score: currentScore,
+          gameConfig: { steps: score }
+        }),
+      });
+
+      if (response.ok) {
+        setScoreSaved(true);
+        await loadScores();
+      }
+    } catch (error) {
+      console.error("Error saving score:", error);
+    }
+  };
+
+  const loadScores = useCallback(async () => {
+    setError(undefined);
+    try {
+      const response = await fetch("/bookmarks/api/form?gameId=2");
+      const data = await response.json();
+      
+      if (data.scores) {
+        setTopScores(data.scores.map((score: any) => ({
+          score: score.score,
+          steps: score.gameConfig?.steps || 0,
+          name: score.username,
+          time: score.createdAt
+        })));
+      }
+    } catch (e: any) {
+      setError(e.message || "Error loading scores");
+    }
+  }, []);
 
   const handleClick = useCallback((cell: CellValues): boolean => {
     
@@ -71,22 +102,10 @@ const GamesComponent = () => {
     )
     
     if (!clickIsRight) {
-      setError(undefined)
-      fetch("/bookmarks/api/form", {
-        method: "POST",
-        body: JSON.stringify({ 
-          form: 1, // form to save the progress
-          answers: {
-            1: [currentScore],
-            4: [score],
-          },
-          user: 5
-        }),
-      }).then(a => a.json()).then(a => loadScores())
-      .catch(e => setError(e))
-      setIsRight(false)
-      setLast(undefined)
-      return true
+      saveScore();
+      setIsRight(false);
+      setLast(undefined);
+      return true;
     }
     
     const newNumbers = [...numbers].map(r => {
@@ -109,7 +128,7 @@ const GamesComponent = () => {
 
     return false
     
-  }, [last, score, numbers, setIsRight, setNumbers, setLast, setScore, currentScore, isRight, loadScores])
+  }, [last, score, numbers, setIsRight, setNumbers, setLast, setScore, currentScore, isRight, saveScore])
 
   const newNumbers = [...numbers]
   const [top, right, bottom, left] = [
@@ -119,13 +138,13 @@ const GamesComponent = () => {
     newNumbers.slice(16, 20).reverse()
   ]
 
-  
   const newGame = useCallback(() => {
     setLoading(true)
     setIsRight(true)
     setLast(undefined)
     setNumbers(randomArrayCellValues(20))
     setScore(0)
+    setScoreSaved(false)
     setTimeout(() => {
       setStart(Date.now())
       setLoading(false)
@@ -134,22 +153,18 @@ const GamesComponent = () => {
   }, [setIsRight, setLast, setNumbers, setScore])
 
   useEffect(() => {
-    // Start load game on component mount
-    
-
     loadScores()
     const startGameSoon = setTimeout(() => newGame(), 25)
     return () => {
-      // Clear load action on component unmount
       clearTimeout(startGameSoon)
     }
   }, [loadScores, newGame])
 
-  
-
   return (<>
   <MainMenu />
-  <Button className="game-menu" variant="contained" onClick={() => setScores(!scores)}>{!scores ? "Play" : "Scores"}</Button>
+  <Button className="game-menu" variant="contained" onClick={() => setScores(!scores)}>
+    {!scores ? "Play" : "Scores"}
+  </Button>
   <Box
     style={{
       display: "flex",
@@ -158,25 +173,27 @@ const GamesComponent = () => {
       justifyContent: "center",
       minHeight: "calc(100vh - 140px)",
       textAlign: "center",
-      width: "100%"
+      width: "100%",
+      padding: "8px"
     }}
   >
     {error && <pre style={{color: "red"}}>{errorMessage(error)}</pre>}
     {scores && <>
-    {/* Render The Game Board */}
     {numbers.length === 20 && <Box
       className={"box" + (loading ? " loading" : "")}
     > 
       {/* Controls line */}
-      <Box><Button className={isRight ? undefined : "danger"} onClick={newGame}>Reset</Button></Box>
-      <Box><Button className={isRight ? undefined : "danger"} disabled>Score</Button></Box>
-      <Box><Button className={isRight ? undefined : "danger"} disabled>{currentScore}</Button></Box>
-      <Box><Button className={isRight ? undefined : "danger"} disabled>Steps</Button></Box>
-      <Box><Button className={isRight ? undefined : "danger"} disabled>{score}</Button></Box>
-      <Box>{isRight ?
+      <Box>
+        <Button className={isRight ? undefined : "danger"} onClick={newGame}>Reset</Button>
+        <Button disabled>Score</Button>
+        <Button disabled>{currentScore}</Button>
+        <Button disabled>Steps</Button>
+        <Button disabled>{score}</Button>
+        {isRight ?
           <Button disabled>{}</Button> :
           <Button disabled className="danger">💀</Button>          
-      }</Box>
+        }
+      </Box>
       {/* First row */}
       {top.map(number => <Square key={number.values.i + "-top"} values={number.values} handleClick={handleClick} />)}
       {/* Middle rows */}
@@ -184,13 +201,13 @@ const GamesComponent = () => {
         <React.Fragment key={`row-${rowIndex}`}>
             <Square values={left[rowIndex].values} handleClick={handleClick} />
             {Array.from({ length: 4 }).map((_, colIndex) => (
-              <Box key={`empty-${rowIndex}-${colIndex}`} >
-                <Button disabled className={isRight ? undefined : "danger"}>{
-                  score === 0 && rowIndex === 1 && colIndex === 1 && "Lets" ||
-                  score === 0 && rowIndex === 1 && colIndex === 2 && "Play" ||
-                  !isRight && rowIndex === 1 && colIndex === 1 && "GAME" ||
-                  !isRight && rowIndex === 1 && colIndex === 2 && "OVER"
-                }</Button>
+              <Box key={`empty-${rowIndex}-${colIndex}`}>
+                <Button disabled className={isRight ? undefined : "danger"}>
+                  {score === 0 && rowIndex === 1 && colIndex === 1 && "Let's"}
+                  {score === 0 && rowIndex === 1 && colIndex === 2 && "Play"}
+                  {!isRight && rowIndex === 1 && colIndex === 1 && "GAME"}
+                  {!isRight && rowIndex === 1 && colIndex === 2 && "OVER"}
+                </Button>
               </Box>
             ))}
             <Square values={right[rowIndex].values} handleClick={handleClick} />
@@ -200,33 +217,148 @@ const GamesComponent = () => {
       {bottom.map(number => <Square key={number.values.i + "-bot"} values={number.values} handleClick={handleClick} />)}
     </Box>}
     </>}
-    {!scores && topScores && <h4>Highest scores</h4>}
-    {!scores && topScores && <table style={{width: "70%" }} border={2}>
-      <tr><th>Pos</th><th>User</th><th>Score</th><th>Steps</th></tr>
-      {topScores
-        .sort((a: any, b: any) => b.score - a.score)
-        .slice(0, 10)
-        .map((a: any, i: number) => <tr key={i} style={{padding: ""}}>
-          <td style={{padding: "6px"}}>{i+1}</td>
-          <td style={{padding: "6px"}}>{a.name}</td>
-          <td  style={{padding: "6px"}}>{a.score}</td>
-          <td  style={{padding: "6px"}}>{a.steps}</td>
-        </tr>)
-      }
+    {!scores && topScores.length > 0 && <h4>Highest scores</h4>}
+    {!scores && topScores.length > 0 && <table style={{width: "70%", maxWidth: "400px", margin: "auto"}} border={2}>
+      <thead>
+        <tr>
+          <th>Pos</th>
+          <th>User</th>
+          <th>Score</th>
+          <th>Steps</th>
+        </tr>
+      </thead>
+      <tbody>
+        {topScores
+          .sort((a: any, b: any) => b.score - a.score)
+          .slice(0, 10)
+          .map((a: any, i: number) => (
+            <tr key={i}>
+              <td style={{padding: "6px"}}>{i+1}</td>
+              <td style={{padding: "6px"}}>{a.name}</td>
+              <td style={{padding: "6px"}}>{a.score}</td>
+              <td style={{padding: "6px"}}>{a.steps}</td>
+            </tr>
+          ))
+        }
+      </tbody>
     </table>}
-    {!scores && topScores && <h4>Longer games</h4>}
-    {!scores && topScores && <table style={{marginBottom: "24px", width: "70%" }} border={2}>
-      <tr><th>Pos</th><th>User</th><th>Score</th><th>Steps</th></tr>
-      {topScores
-        .sort((a: any, b: any) => b.steps - a.steps)
-        .slice(0, 10)
-        .map((a: any, i: number) => <tr key={i} style={{padding: ""}}>
-          <td style={{padding: "6px"}}>{i+1}</td>
-          <td style={{padding: "6px"}}>{a.name}</td>
-          <td  style={{padding: "6px"}}>{a.score}</td>
-          <td  style={{padding: "6px"}}>{a.steps}</td>
-        </tr>)
-      }
+    {!scores && topScores.length > 0 && <h4>Longer games</h4>}
+    {!scores && topScores.length > 0 && <table style={{marginBottom: "24px", width: "70%", maxWidth: "400px", margin: "auto"}} border={2}>
+      <thead>
+        <tr>
+          <th>Pos</th>
+          <th>User</th>
+          <th>Score</th>
+          <th>Steps</th>
+        </tr>
+      </thead>
+      <tbody>
+        {topScores
+          .sort((a: any, b: any) => b.steps - a.steps)
+          .slice(0, 10)
+          .map((a: any, i: number) => (
+            <tr key={i}>
+              <td style={{padding: "6px"}}>{i+1}</td>
+              <td style={{padding: "6px"}}>{a.name}</td>
+              <td style={{padding: "6px"}}>{a.score}</td>
+              <td style={{padding: "6px"}}>{a.steps}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>}
+  </Box></>);
+}
+
+export default GamesComponent
+                  {score === 0 && rowIndex === 1 && colIndex === 2 && "Play"}
+                  {!isRight && rowIndex === 1 && colIndex === 1 && "GAME"}
+                  {!isRight && rowIndex === 1 && colIndex === 2 && "OVER"}
+                </Button>
+              </Box>
+            ))}
+            <Square values={right[rowIndex].values} handleClick={handleClick} />
+        </React.Fragment>
+      ))}
+      {/* Bottom rows */}
+      {bottom.map(number => <Square key={number.values.i + "-bot"} values={number.values} handleClick={handleClick} />)}
+    </Box>}
+    </>}
+
+
+
+
+
+
+
+
+
+
+
+
+
+    {!scores && topScores.length > 0 && <h4>Highest scores</h4>}
+    {!scores && topScores.length > 0 && <table style={{width: "70%", maxWidth: "400px", margin: "auto"}} border={2}>
+      <thead>
+        <tr>
+          <th>Pos</th>
+          <th>User</th>
+          <th>Score</th>
+          <th>Steps</th>
+        </tr>
+      </thead>
+      <tbody>
+        {topScores
+          .sort((a: any, b: any) => b.score - a.score)
+          .slice(0, 10)
+          .map((a: any, i: number) => (
+            <tr key={i}>
+              <td style={{padding: "6px"}}>{i+1}</td>
+              <td style={{padding: "6px"}}>{a.name}</td>
+              <td style={{padding: "6px"}}>{a.score}</td>
+              <td style={{padding: "6px"}}>{a.steps}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>}
+
+
+
+
+
+
+
+
+
+
+
+
+
+    {!scores && topScores.length > 0 && <h4>Longer games</h4>}
+    {!scores && topScores.length > 0 && <table style={{marginBottom: "24px", width: "70%", maxWidth: "400px", margin: "auto"}} border={2}>
+      <thead>
+        <tr>
+          <th>Pos</th>
+          <th>User</th>
+          <th>Score</th>
+          <th>Steps</th>
+        </tr>
+      </thead>
+      <tbody>
+        {topScores
+          .sort((a: any, b: any) => b.steps - a.steps)
+          .slice(0, 10)
+          .map((a: any, i: number) => (
+            <tr key={i}>
+              <td style={{padding: "6px"}}>{i+1}</td>
+              <td style={{padding: "6px"}}>{a.name}</td>
+              <td style={{padding: "6px"}}>{a.score}</td>
+              <td style={{padding: "6px"}}>{a.steps}</td>
+            </tr>
+          ))
+        }
+      </tbody>
     </table>}
   </Box></>);
 }

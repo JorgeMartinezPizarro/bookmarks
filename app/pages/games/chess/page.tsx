@@ -19,7 +19,6 @@ const ChessGame: React.FC = () => {
   const [topScores, setTopScores] = useState<any[]>([]);
   const [scores, setScores] = useState(true);
   const [gameStarted, setGameStarted] = useState(false);
-
   const [scoreSaved, setScoreSaved] = useState(false);
 
   const handleChange = (event: any) => {
@@ -77,7 +76,6 @@ const ChessGame: React.FC = () => {
   };
 
   const saveScore = async () => {
-
     if (scoreSaved) return;
     
     try {
@@ -94,19 +92,12 @@ const ChessGame: React.FC = () => {
 
       if (response.ok) {
         setScoreSaved(true);
-
         await loadScores(); // Recargar scores después de guardar
       }
     } catch (error) {
       console.error("Error saving score:", error);
     }
   };
-
-
-
-
-
-
 
   const onDrop = async ({ sourceSquare, targetSquare }: any) => {
     if (!game || gameResult) return;
@@ -186,7 +177,6 @@ const ChessGame: React.FC = () => {
     import("chess.js").then((module) => {
       setGame(new Chess());
     });
-
   }, [loadScores]); // Añadir loadScores a las dependencias
 
   return (

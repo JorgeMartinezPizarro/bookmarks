@@ -59,6 +59,7 @@ const Tetris: React.FC = () => {
   const [timer, setTimer] = useState(0);
   const [topScores, setTopScores] = useState<any>([])
   const [scores, setScores] = useState(true)
+  const [scoreSaved, setScoreSaved] = useState(false)
   
   const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const buttonPressTimer = useRef<NodeJS.Timeout | null>(null);
@@ -69,40 +70,58 @@ const Tetris: React.FC = () => {
     }
   }, [board, piece, pos]);
 
-  const loadScores = useCallback(() => {
-    fetch("/bookmarks/api/form?gameId=3").then(a => a.json()).then(a => {
-      const topScores = a.ocs.data.submissions.map((e: any) => {
-        return {
-          lines: e.answers[0].text,
-          speed: e.answers[1].text,
-          name: e.answers[2].text
-        }
-      })
-      setTopScores(topScores)
-    })
+  const loadScores = useCallback(async () => {
+    try {
+      const response = await fetch("/bookmarks/api/form?gameId=3");
+      const data = await response.json();
+      
+      if (data.scores) {
+        setTopScores(data.scores.map((score: any) => ({
+          lines: score.score,
+          speed: score.gameConfig?.timer || 0,
+          name: score.username
+        })));
+      }
+    } catch (error) {
+      console.error("Error loading scores:", error);
+    }
   }, []);
 
+  const saveScore = async () => {
+    if (scoreSaved) return;
+    
+    try {
+      const response = await fetch("/bookmarks/api/form", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          gameId: 3,
+          username: "player",
+          score: lines,
+          gameConfig: { timer }
+        }),
+      });
+
+      if (response.ok) {
+        setScoreSaved(true);
+        await loadScores();
+      }
+    } catch (error) {
+      console.error("Error saving score:", error);
+    }
+  };
+
   const finishGame = useCallback(() => {
-    setIsPaused(true)
-    fetch("/bookmarks/api/form", {
-      method: "POST",
-      body: JSON.stringify({ 
-        form: 3,
-        answers: {
-          9: [lines],
-          10: [timer],
-        },
-        user: 11
-      }),
-    }).then(_ => loadScores())
-  }, [loadScores, lines, timer]);
+    setIsPaused(true);
+    saveScore();
+  }, []);
 
   const resetPiece = useCallback(() => {
     const newPiece = getRandomPiece();
     const initialPos = { x: 3, y: 0 };
   
     if (checkCollision(board, newPiece, initialPos.x, initialPos.y)) {
-      finishGame()
+      finishGame();
       return;
     }
   
@@ -149,6 +168,7 @@ const Tetris: React.FC = () => {
     setLines(0);
     setIsPaused(false);
     setTimer(0);
+    setScoreSaved(false);
   };
 
   const rotatePiece = useCallback((direction: number) => {
@@ -181,7 +201,7 @@ const Tetris: React.FC = () => {
   useEffect(() => {
     if (isPaused) return;
     if (lines >= 40) {    
-      finishGame()
+      finishGame();
       return;
     }
 
@@ -263,7 +283,7 @@ const Tetris: React.FC = () => {
   }, [isPaused, dropPiece, movePiece, rotatePiece]);
 
   useEffect(() => {
-    loadScores()
+    loadScores();
   }, [loadScores]);
 
   return (
@@ -342,8 +362,8 @@ const Tetris: React.FC = () => {
         </div>
       </Box>}
       
-      {!scores && topScores && <h4 className="scores-title">Highest scores</h4>}
-      {!scores && topScores && <table className="scores-table">
+      {!scores && topScores.length > 0 && <h4 className="scores-title">Highest scores</h4>}
+      {!scores && topScores.length > 0 && <table className="scores-table">
         <thead>
           <tr>
             <th>Pos</th>
