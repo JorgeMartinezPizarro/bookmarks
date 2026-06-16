@@ -2,7 +2,7 @@
 
 import { Box, Button } from "@mui/material";
 import React, { useCallback, useEffect, useState } from "react";
-import "./styles.css"; // <-- Cambiado a .css (sin module)
+import "./styles.module.css"; // <-- Cambiado a .css (sin module)
 import { CellProps, CellValues } from "./types";
 import { randomArrayCellValues } from "./helpers";
 import MainMenu from "@/app/components/MainMenu";
