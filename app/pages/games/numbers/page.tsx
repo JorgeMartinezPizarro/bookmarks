@@ -2,7 +2,7 @@
 
 import { Box, Button } from "@mui/material";
 import React, { useCallback, useEffect, useState } from "react";
-import "./styles.css"
+import "./styles.module.css"
 import { CellProps, CellValues } from "./types";
 import { randomArrayCellValues } from "./helpers";
 import MainMenu from "@/app/components/MainMenu";
@@ -50,7 +50,7 @@ const GamesComponent = () => {
 
   const loadScores = useCallback(() => {
     setError(undefined)
-    fetch("/bookmarks/api/form?formId=1").then(a => a.json()).then(a => {
+    fetch("/bookmarks/api/form?gameId=1").then(a => a.json()).then(a => {
       const topScores = a.ocs.data.submissions.map((e: any) => {
         return {
           score: e.answers[0].text,

@@ -1,117 +1,111 @@
-import { cookies } from "next/headers"; // Importa cookies desde next/headers
 import { errorMessage } from "@/app/helpers";
 import { requireAuth } from "@/app/lib/auth";
 import { NextRequest } from "next/server";
+import Database from 'better-sqlite3';
 
-// TODO: Save SQLlite information to a custom DB
+// Inicializar conexión a la base de datos
+const db = new Database('scores.db');
+
+// Crear tabla si no existe
+db.exec(`
+  CREATE TABLE IF NOT EXISTS scores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    gameId INTEGER NOT NULL,
+    username TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    gameConfig TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Crear índices para mejorar el rendimiento de las consultas
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_gameId ON scores(gameId);
+  CREATE INDEX IF NOT EXISTS idx_gameId_score ON scores(gameId, score DESC);
+`);
+
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    const u = await requireAuth(request);
-
-
+    await requireAuth(request);
     const params = await request.json();
-    const { form, answers, user } = params;
+    const { gameId, username, score, gameConfig } = params;
 
-    const apiKey = process.env.NEXTCLOUD_API_KEY;
-    const username = process.env.NEXTCLOUD_USERNAME;
-
-    const cookieStore = cookies();
-    const sessionCookie = cookieStore.get('nc_session_id')?.value;
-
-    if (!sessionCookie) {
-      throw new Error('No session cookie found.');
+    // Validar parámetros requeridos
+    if (!gameId || !username || score === undefined) {
+      return Response.json(
+        { error: "gameId, username and score are required." },
+        { status: 400 }
+      );
     }
 
-    // Endpoint de Nextcloud para obtener la información del usuario
-    const nextcloudUserInfoEndpoint = `${process.env.NEXTCLOUD_URL}/ocs/v2.php/cloud/user`;
+    // Insertar el puntaje en la base de datos
+    const insertStmt = db.prepare(`
+      INSERT INTO scores (gameId, username, score, gameConfig)
+      VALUES (?, ?, ?, ?)
+    `);
 
-    // Realiza la solicitud al API de Nextcloud con la cookie
-    const responseX = await fetch(nextcloudUserInfoEndpoint, {
-      headers: {
-        'Authorization': `Bearer ${sessionCookie}`,
-        'OCS-APIREQUEST': 'true', // Header necesario para el API de Nextcloud
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    });
+    const result = insertStmt.run(
+      Number(gameId),
+      username,
+      Number(score),
+      gameConfig ? JSON.stringify(gameConfig) : null
+    );
 
-    // Verifica si la solicitud fue exitosa
-    if (!responseX.ok) {
-      const errorText = await responseX.text();
-      throw new Error(`Failed to fetch user info. Status: ${responseX.status}. Response: ${errorText}`);
-    }
-
-    // Devuelve la información del usuario como JSON
-    const userInfo = await responseX.json();
-    
-    const x = {...answers}
-    x[user] = [userInfo?.ocs?.data?.id]
-
-    const body = { 
-      answers: x
-    } 
-
-    // Guardar resultados en el formulario de Nextcloud
-    const response = await fetch(`${process.env.NEXTCLOUD_URL}/ocs/v2.php/apps/forms/api/v3/forms/${form}/submissions`, {
-      method: "POST",
-      headers: {
-        'Authorization': `Bearer ${sessionCookie}`,
-        "OCS-APIRequest": "true",
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to save data to Nextcloud form." + response.statusText);
-    }
-
-    return Response.json({ message: "Data saved successfully." }, { status: 200 });
+    return Response.json(
+      { 
+        message: "Score saved successfully.",
+        id: result.lastInsertRowid 
+      }, 
+      { status: 200 }
+    );
   } catch (error) {
-    return Response.json({ error: errorMessage(error) }, { status: 500 });
+    return Response.json(
+      { error: errorMessage(error) }, 
+      { status: 500 }
+    );
   }
 }
 
-// Load SQL information from a Nextcloud Form by ID
 export async function GET(request: NextRequest): Promise<Response> {
   try {
     const { searchParams } = new URL(request.url);
-    const formId = searchParams.get("formId");
+    const gameId = searchParams.get("gameId");
 
-    if (!formId) {
-      return Response.json({ error: "Form ID is required." }, { status: 400 });
+    if (!gameId) {
+      return Response.json(
+        { error: "gameId is required." },
+        { status: 400 }
+      );
     }
 
-    const user = requireAuth(request)
+    await requireAuth(request);
 
-    // Usa la API Key almacenada en variables de entorno
-    const url = `${process.env.NEXTCLOUD_URL}/ocs/v2.php/apps/forms/api/v3/forms/${formId}/submissions`;
+    // Obtener los 100 mejores puntajes para el gameId especificado
+    const selectStmt = db.prepare(`
+      SELECT username, score, gameConfig, createdAt
+      FROM scores
+      WHERE gameId = ?
+      ORDER BY score DESC
+      LIMIT 100
+    `);
 
-    const cookie = request.cookies.get('nc_session_id')?.value;
+    const scores = selectStmt.all(Number(gameId));
 
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${cookie}`,
-        "OCS-APIRequest": "true", // Necesario para las solicitudes OCS
-        "Accept": "application/json", // Aceptar JSON como respuesta
-      },
-      method: "GET"
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to fetch form responses. Status: ${response.status}, Response: ${errorText}`);
-    }
-
-    // Convertir la respuesta a JSON
-    const data = await response.json();
-    
-    // Devolver las respuestas al cliente
-    return Response.json(data, { status: 200 })
-   
+    return Response.json(
+      { 
+        gameId: Number(gameId),
+        total: scores.length,
+        scores: scores.map((s: any) => ({
+          ...s,
+          gameConfig: s.gameConfig ? JSON.parse(s.gameConfig) : null
+        }))
+      }, 
+      { status: 200 }
+    );
   } catch (error) {
-    //console.error("Error in GET handler:", error);
-    return Response.json({ error: errorMessage(error) }, { status: 500 });
+    return Response.json(
+      { error: errorMessage(error) }, 
+      { status: 500 }
+    );
   }
 }

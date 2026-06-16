@@ -2,7 +2,7 @@
 
 import { Box, Button, Stack, Typography } from "@mui/material";
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import "./style.css"
+import "./styles.module.css"
 import MainMenu from "@/app/components/MainMenu";
 
 type Cell = [string, string]; // [color, state]
@@ -70,7 +70,7 @@ const Tetris: React.FC = () => {
   }, [board, piece, pos]);
 
   const loadScores = useCallback(() => {
-    fetch("/bookmarks/api/form?formId=3").then(a => a.json()).then(a => {
+    fetch("/bookmarks/api/form?gameId=3").then(a => a.json()).then(a => {
       const topScores = a.ocs.data.submissions.map((e: any) => {
         return {
           lines: e.answers[0].text,
