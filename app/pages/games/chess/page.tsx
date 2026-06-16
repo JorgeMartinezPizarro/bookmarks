@@ -80,7 +80,7 @@ const ChessGame: React.FC = () => {
     if (scoreSaved) return;
     
     try {
-      const response = await fetch("/api/scores", {   // <-- NUEVA URL
+      const response = await fetch("/bookmarks/api/scores", {   // <-- NUEVA URL
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -134,7 +134,7 @@ const ChessGame: React.FC = () => {
   // *** CAMBIO 2: loadScores usa el nuevo endpoint y mapea correctamente ***
   const loadScores = useCallback(async () => {
     try {
-      const response = await fetch("/api/scores?gameId=1");   // <-- NUEVA URL
+      const response = await fetch("/bookmarks/api/scores?gameId=1");   // <-- NUEVA URL
       const data = await response.json();
       
       if (data.scores) {

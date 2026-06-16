@@ -19,7 +19,7 @@ const Wording = () => {
   const saveScore = useCallback(async () => {
     if (scoreSaved) return;
     try {
-      const response = await fetch("/api/scores", {
+      const response = await fetch("/bookmarks/api/scores", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -41,7 +41,7 @@ const Wording = () => {
   // ====== NUEVO ENDPOINT: cargar scores ======
   const loadScores = useCallback(async () => {
     try {
-      const response = await fetch("/api/scores?gameId=4");
+      const response = await fetch("/bookmarks/api/scores?gameId=4");
       const data = await response.json();
       if (data.scores) {
         setTopScores(

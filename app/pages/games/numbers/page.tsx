@@ -35,7 +35,7 @@ const GamesComponent = () => {
     if (scoreSaved) return
 
     try {
-      const response = await fetch("/api/scores", {
+      const response = await fetch("/bookmarks/api/scores", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -58,7 +58,7 @@ const GamesComponent = () => {
   const loadScores = useCallback(async () => {
     setError(undefined)
     try {
-      const response = await fetch("/api/scores?gameId=2")
+      const response = await fetch("/bookmarks/api/scores?gameId=2")
       const data = await response.json()
 
       if (data.scores) {

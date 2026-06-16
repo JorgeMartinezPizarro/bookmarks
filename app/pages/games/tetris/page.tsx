@@ -73,7 +73,7 @@ const Tetris: React.FC = () => {
   // ====== NUEVO ENDPOINT ======
   const loadScores = useCallback(async () => {
     try {
-      const response = await fetch("/api/scores?gameId=3");
+      const response = await fetch("/bookmarks/api/scores?gameId=3");
       const data = await response.json();
 
       if (data.scores) {
@@ -93,7 +93,7 @@ const Tetris: React.FC = () => {
     if (scoreSaved) return;
 
     try {
-      const response = await fetch("/api/scores", {
+      const response = await fetch("/bookmarks/api/scores", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
