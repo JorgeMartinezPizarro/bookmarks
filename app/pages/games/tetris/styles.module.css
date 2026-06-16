@@ -1,8 +1,8 @@
-button span {
+.tetris-container button span {
     display: none;
 }
 
-button {
+.tetris-container button {
     display: inline-block !important;
     min-width: 0 !important;
 }
