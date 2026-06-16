@@ -35,7 +35,7 @@ const GamesComponent = () => {
     
     return props !== undefined && 
       <Button 
-        className={!isRight ? " danger" : ""}
+        className={!isRight ? "danger" : ""}
         color={isCrossed ? "secondary" : "primary"}
         disabled={loading || !isRight || props.values.b}
         onClick={() => props.handleClick(props)}
@@ -172,10 +172,10 @@ const GamesComponent = () => {
 
   // Función para determinar el texto del botón central
   const getCenterButtonText = (rowIndex: number, colIndex: number) => {
-    if (score === 0 && rowIndex === 1 && colIndex === 1) return "Let's"
-    if (score === 0 && rowIndex === 1 && colIndex === 2) return "Play"
-    if (!isRight && rowIndex === 1 && colIndex === 1) return "GAME"
-    if (!isRight && rowIndex === 1 && colIndex === 2) return "OVER"
+    if (score === 0 && rowIndex === 0 && colIndex === 0) return "Let's"
+    if (score === 0 && rowIndex === 0 && colIndex === 1) return "Play"
+    if (!isRight && rowIndex === 0 && colIndex === 0) return "GAME"
+    if (!isRight && rowIndex === 0 && colIndex === 1) return "OVER"
     return ""
   }
 
@@ -201,8 +201,8 @@ const GamesComponent = () => {
         
         {scores && numbers.length === 20 && (
           <Box className={"box" + (loading ? " loading" : "")}>
-            {/* Controls line */}
-            <Box>
+            {/* Controls line - ocupa toda la fila */}
+            <Box className="controls">
               <Button className={isRight ? undefined : "danger"} onClick={newGame}>Reset</Button>
               <Button disabled>Score</Button>
               <Button disabled>{currentScore}</Button>
@@ -215,29 +215,32 @@ const GamesComponent = () => {
               )}
             </Box>
             
-            {/* First row */}
+            {/* Fila superior: 6 botones numerados */}
             {top.map(number => (
-              <Square key={number.values.i + "-top"} values={number.values} handleClick={handleClick} />
+              <Square key={number.values.i} values={number.values} handleClick={handleClick} />
             ))}
             
-            {/* Middle rows */}
-            {Array.from({ length: 4 }).map((_, rowIndex) => (
+            {/* Filas intermedias: 4 filas de 6 elementos */}
+            {[0, 1, 2, 3].map(rowIndex => (
               <React.Fragment key={`row-${rowIndex}`}>
+                {/* Columna izquierda: un número */}
                 <Square values={left[rowIndex].values} handleClick={handleClick} />
-                {Array.from({ length: 4 }).map((_, colIndex) => (
-                  <Box key={`empty-${rowIndex}-${colIndex}`}>
-                    <Button disabled className={isRight ? undefined : "danger"}>
+                {/* Centro: 4 celdas vacías */}
+                {[0, 1, 2, 3].map(colIndex => (
+                  <Box key={`center-${rowIndex}-${colIndex}`}>
+                    <Button disabled className={isRight ? "" : "danger"}>
                       {getCenterButtonText(rowIndex, colIndex)}
                     </Button>
                   </Box>
                 ))}
+                {/* Columna derecha: un número */}
                 <Square values={right[rowIndex].values} handleClick={handleClick} />
               </React.Fragment>
             ))}
             
-            {/* Bottom rows */}
+            {/* Fila inferior: 6 botones numerados */}
             {bottom.map(number => (
-              <Square key={number.values.i + "-bot"} values={number.values} handleClick={handleClick} />
+              <Square key={number.values.i} values={number.values} handleClick={handleClick} />
             ))}
           </Box>
         )}
