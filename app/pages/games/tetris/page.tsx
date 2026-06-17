@@ -138,11 +138,9 @@ const initialGameState = (): GameState => ({
   scoreSaved: false,
 });
 
-// Hook personalizado para evitar parpadeo en el render del tablero
 function useBoardRenderer(board: Board, piece: Piece, pos: { x: number; y: number }) {
   const boardRef = useRef<HTMLDivElement>(null);
   
-  // Renderizar solo cuando cambie el tablero, pieza o posición
   const getCellColor = useCallback((y: number, x: number) => {
     const isActivePiece = piece.shape.some((pieceRow, pieceY) =>
       pieceRow.some(
@@ -191,7 +189,7 @@ const Tetris: React.FC = () => {
       setIsMobile(mobile);
       
       if (mobile && gameContainerRef.current) {
-        const containerWidth = gameContainerRef.current.clientWidth - 20; // padding
+        const containerWidth = gameContainerRef.current.clientWidth - 20;
         const calculatedCellSize = Math.floor(containerWidth / COLS);
         setCellSize(Math.min(calculatedCellSize, 30));
       } else {
@@ -385,10 +383,10 @@ const Tetris: React.FC = () => {
     updateState({ isPaused: true });
   };
 
-  const rotatePiece = useCallback(() => {
+  const rotatePiece = useCallback((direction: number = 1) => {
     if (isPaused || gameCompleted || gameOver) return;
     
-    const rotatedShape = rotate(piece.shape);
+    const rotatedShape = direction > 0 ? rotate(piece.shape) : rotate(rotate(rotate(piece.shape)));
     if (!checkCollision(board, { ...piece, shape: rotatedShape }, pos.x, pos.y)) {
       updateState({ piece: { ...piece, shape: rotatedShape } });
     }
@@ -446,7 +444,7 @@ const Tetris: React.FC = () => {
   // Keyboard handler effect - optimizado
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat) return; // Prevenir repetición automática
+      if (event.repeat) return;
       
       switch (event.key.toLowerCase()) {
         case "a":
@@ -460,10 +458,15 @@ const Tetris: React.FC = () => {
           movePiece(1, 0);
           break;
         case "o":
-        case "p":
+        case "q":
         case "arrowup":
           event.preventDefault();
-          rotatePiece();
+          rotatePiece(-1);
+          break;
+        case "p":
+        case "e":
+          event.preventDefault();
+          rotatePiece(1);
           break;
         case "s":
         case "arrowdown":
@@ -509,21 +512,11 @@ const Tetris: React.FC = () => {
         <Button
           variant="contained"
           className="mobile-btn mobile-btn-rotate"
-          onTouchStart={(e) => { e.preventDefault(); rotatePiece(); }}
-          onClick={() => rotatePiece()}
+          onTouchStart={(e) => { e.preventDefault(); rotatePiece(-1); }}
+          onClick={() => rotatePiece(-1)}
         >
-          ↻
+          ↺
         </Button>
-        <Button
-          variant="contained"
-          className="mobile-btn mobile-btn-harddrop"
-          onTouchStart={(e) => { e.preventDefault(); hardDrop(); }}
-          onClick={() => hardDrop()}
-        >
-          ⬇⬇
-        </Button>
-      </Box>
-      <Box className="mobile-controls-row">
         <Button
           variant="contained"
           className="mobile-btn mobile-btn-left"
@@ -556,6 +549,14 @@ const Tetris: React.FC = () => {
           onMouseLeave={handleButtonRelease}
         >
           ▶
+        </Button>
+        <Button
+          variant="contained"
+          className="mobile-btn mobile-btn-rotate"
+          onTouchStart={(e) => { e.preventDefault(); rotatePiece(1); }}
+          onClick={() => rotatePiece(1)}
+        >
+          ↻
         </Button>
       </Box>
     </Box>
@@ -626,7 +627,7 @@ const Tetris: React.FC = () => {
             {!isMobile && (
               <Box className="tetris-controls-desktop">
                 <Typography variant="caption" className="controls-hint">
-                  A/D: Move | O/P: Rotate | S: Drop | Space: Hard Drop
+                  A/D: Move | O/Q: Rotate Left | P/E: Rotate Right | S: Drop | Space: Hard Drop
                 </Typography>
               </Box>
             )}

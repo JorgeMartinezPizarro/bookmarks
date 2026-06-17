@@ -231,3 +231,85 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+
+.mobile-controls {
+  width: 100%;
+  max-width: 100%;
+  padding: 4px 8px;
+  margin-top: 4px;
+  position: sticky;
+  bottom: 0;
+  background: #1a1a2e;
+  z-index: 100;
+}
+
+.mobile-controls-row {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.mobile-btn {
+  min-width: 0 !important;
+  height: 44px !important;
+  font-size: 1.3rem !important;
+  padding: 0 8px !important;
+  background: linear-gradient(45deg, #667eea 0%, #764ba2 100%) !important;
+  border-radius: 6px !important;
+  touch-action: manipulation !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  flex: 1;
+  max-width: 60px;
+}
+
+.mobile-btn:active {
+  transform: scale(0.92);
+  background: linear-gradient(45deg, #764ba2 0%, #667eea 100%) !important;
+}
+
+.mobile-btn-rotate {
+  flex: 1;
+  max-width: 50px;
+  font-size: 1.1rem !important;
+}
+
+.mobile-btn-left,
+.mobile-btn-right {
+  flex: 1.2;
+}
+
+.mobile-btn-drop {
+  flex: 1.5;
+}
+
+/* Sticky controls for mobile */
+.tetris-container.mobile {
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.tetris-container.mobile .tetris-game-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 4px 10px;
+}
+
+.tetris-container.mobile .tetris-board-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.tetris-container.mobile .tetris-board-container.mobile {
+  max-height: calc(100vh - 200px);
+}
