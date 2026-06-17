@@ -138,17 +138,38 @@ const initialGameState = (): GameState => ({
   scoreSaved: false,
 });
 
+// Hook personalizado para evitar parpadeo en el render del tablero
+function useBoardRenderer(board: Board, piece: Piece, pos: { x: number; y: number }) {
+  const boardRef = useRef<HTMLDivElement>(null);
+  
+  // Renderizar solo cuando cambie el tablero, pieza o posición
+  const getCellColor = useCallback((y: number, x: number) => {
+    const isActivePiece = piece.shape.some((pieceRow, pieceY) =>
+      pieceRow.some(
+        (pieceCell, pieceX) =>
+          pieceCell !== 0 && pos.y + pieceY === y && pos.x + pieceX === x
+      )
+    );
+
+    return isActivePiece ? piece.color : board[y][x][1] === "clear" ? "black" : board[y][x][0];
+  }, [board, piece, pos]);
+
+  return { boardRef, getCellColor };
+}
+
 const Tetris: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [topScores, setTopScores] = useState<LeaderboardEntry[]>([]);
   const [showGame, setShowGame] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [cellSize, setCellSize] = useState(30);
 
   const startTimeRef = useRef<number | null>(null);
   const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const buttonPressTimer = useRef<NodeJS.Timeout | null>(null);
   const scoreSavedRef = useRef(false);
   const gameCompletedRef = useRef(false);
+  const gameContainerRef = useRef<HTMLDivElement>(null);
 
   const {
     board,
@@ -161,14 +182,26 @@ const Tetris: React.FC = () => {
     gameOver,
   } = gameState;
 
-  // Detect mobile on mount
+  const { boardRef, getCellColor } = useBoardRenderer(board, piece, pos);
+
+  // Detect mobile and calculate cell size on mount and resize
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+    const checkMobileAndResize = () => {
+      const mobile = window.innerWidth <= 768 || 'ontouchstart' in window;
+      setIsMobile(mobile);
+      
+      if (mobile && gameContainerRef.current) {
+        const containerWidth = gameContainerRef.current.clientWidth - 20; // padding
+        const calculatedCellSize = Math.floor(containerWidth / COLS);
+        setCellSize(Math.min(calculatedCellSize, 30));
+      } else {
+        setCellSize(30);
+      }
     };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    
+    checkMobileAndResize();
+    window.addEventListener('resize', checkMobileAndResize);
+    return () => window.removeEventListener('resize', checkMobileAndResize);
   }, []);
 
   const updateState = useCallback((updates: Partial<GameState>) => {
@@ -177,12 +210,13 @@ const Tetris: React.FC = () => {
 
   const movePiece = useCallback(
     (x: number, y: number) => {
+      if (isPaused || gameCompleted || gameOver) return;
       if (checkCollision(board, piece, pos.x + x, pos.y + y)) {
         return;
       }
       updateState({ pos: { x: pos.x + x, y: pos.y + y } });
     },
-    [board, piece, pos, updateState]
+    [board, piece, pos, updateState, isPaused, gameCompleted, gameOver]
   );
 
   const loadScores = useCallback(async () => {
@@ -305,6 +339,8 @@ const Tetris: React.FC = () => {
   }, [board, piece, pos]);
 
   const dropPiece = useCallback(() => {
+    if (isPaused || gameCompleted || gameOver) return;
+    
     if (!checkCollision(board, piece, pos.x, pos.y + 1)) {
       updateState({ pos: { ...pos, y: pos.y + 1 } });
       return;
@@ -313,9 +349,11 @@ const Tetris: React.FC = () => {
     const newBoard = placePieceOnBoard();
     clearLines(newBoard);
     resetPiece();
-  }, [board, piece, pos, updateState, placePieceOnBoard, clearLines, resetPiece]);
+  }, [board, piece, pos, updateState, placePieceOnBoard, clearLines, resetPiece, isPaused, gameCompleted, gameOver]);
 
   const hardDrop = useCallback(() => {
+    if (isPaused || gameCompleted || gameOver) return;
+    
     let dropDistance = 0;
     while (!checkCollision(board, piece, pos.x, pos.y + dropDistance + 1)) {
       dropDistance++;
@@ -328,7 +366,7 @@ const Tetris: React.FC = () => {
       clearLines(newBoard);
       resetPiece();
     }
-  }, [board, piece, pos, updateState, placePieceOnBoard, clearLines, resetPiece]);
+  }, [board, piece, pos, updateState, placePieceOnBoard, clearLines, resetPiece, isPaused, gameCompleted, gameOver]);
 
   const restartGame = () => {
     gameCompletedRef.current = false;
@@ -348,21 +386,22 @@ const Tetris: React.FC = () => {
   };
 
   const rotatePiece = useCallback(() => {
+    if (isPaused || gameCompleted || gameOver) return;
+    
     const rotatedShape = rotate(piece.shape);
     if (!checkCollision(board, { ...piece, shape: rotatedShape }, pos.x, pos.y)) {
       updateState({ piece: { ...piece, shape: rotatedShape } });
     }
-  }, [piece, board, pos, updateState]);
+  }, [piece, board, pos, updateState, isPaused, gameCompleted, gameOver]);
 
   const handleButtonPress = useCallback(
     (action: () => void) => {
-      if (isPaused || gameCompleted || gameOver) return;
       action();
       buttonPressTimer.current = setTimeout(() => {
         holdIntervalRef.current = setInterval(action, 100);
       }, 300);
     },
-    [isPaused, gameCompleted, gameOver]
+    []
   );
 
   const handleButtonRelease = useCallback(() => {
@@ -404,11 +443,11 @@ const Tetris: React.FC = () => {
     return () => clearInterval(interval);
   }, [isPaused, dropPiece, lines, gameCompleted, gameOver]);
 
-  // Keyboard handler effect
+  // Keyboard handler effect - optimizado
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isPaused || gameCompleted || gameOver) return;
-
+      if (event.repeat) return; // Prevenir repetición automática
+      
       switch (event.key.toLowerCase()) {
         case "a":
         case "arrowleft":
@@ -442,7 +481,7 @@ const Tetris: React.FC = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPaused, dropPiece, hardDrop, movePiece, rotatePiece, gameCompleted, gameOver]);
+  }, [movePiece, rotatePiece, dropPiece, hardDrop]);
 
   // Load scores on mount
   useEffect(() => {
@@ -451,28 +490,17 @@ const Tetris: React.FC = () => {
 
   const renderBoard = () =>
     board.map((row, y) =>
-      row.map((cell, x) => {
-        const isActivePiece = piece.shape.some((pieceRow, pieceY) =>
-          pieceRow.some(
-            (pieceCell, pieceX) =>
-              pieceCell !== 0 && pos.y + pieceY === y && pos.x + pieceX === x
-          )
-        );
-
-        const backgroundColor = isActivePiece
-          ? piece.color
-          : cell[1] === "clear"
-            ? "black"
-            : cell[0];
-
-        return (
-          <div
-            key={`${y}-${x}`}
-            className={`tetris-cell ${isActivePiece ? 'active' : ''}`}
-            style={{ backgroundColor }}
-          />
-        );
-      })
+      row.map((cell, x) => (
+        <div
+          key={`${y}-${x}`}
+          className="tetris-cell"
+          style={{
+            backgroundColor: getCellColor(y, x),
+            width: isMobile ? cellSize : 30,
+            height: isMobile ? cellSize : 30,
+          }}
+        />
+      ))
     );
 
   const renderMobileControls = () => (
@@ -481,7 +509,7 @@ const Tetris: React.FC = () => {
         <Button
           variant="contained"
           className="mobile-btn mobile-btn-rotate"
-          onTouchStart={() => rotatePiece()}
+          onTouchStart={(e) => { e.preventDefault(); rotatePiece(); }}
           onClick={() => rotatePiece()}
         >
           ↻
@@ -489,7 +517,7 @@ const Tetris: React.FC = () => {
         <Button
           variant="contained"
           className="mobile-btn mobile-btn-harddrop"
-          onTouchStart={() => hardDrop()}
+          onTouchStart={(e) => { e.preventDefault(); hardDrop(); }}
           onClick={() => hardDrop()}
         >
           ⬇⬇
@@ -498,8 +526,8 @@ const Tetris: React.FC = () => {
       <Box className="mobile-controls-row">
         <Button
           variant="contained"
-          className="mobile-btn"
-          onTouchStart={() => handleButtonPress(() => movePiece(-1, 0))}
+          className="mobile-btn mobile-btn-left"
+          onTouchStart={(e) => { e.preventDefault(); handleButtonPress(() => movePiece(-1, 0)); }}
           onTouchEnd={handleButtonRelease}
           onMouseDown={() => handleButtonPress(() => movePiece(-1, 0))}
           onMouseUp={handleButtonRelease}
@@ -510,7 +538,7 @@ const Tetris: React.FC = () => {
         <Button
           variant="contained"
           className="mobile-btn mobile-btn-drop"
-          onTouchStart={() => handleButtonPress(dropPiece)}
+          onTouchStart={(e) => { e.preventDefault(); handleButtonPress(dropPiece); }}
           onTouchEnd={handleButtonRelease}
           onMouseDown={() => handleButtonPress(dropPiece)}
           onMouseUp={handleButtonRelease}
@@ -520,8 +548,8 @@ const Tetris: React.FC = () => {
         </Button>
         <Button
           variant="contained"
-          className="mobile-btn"
-          onTouchStart={() => handleButtonPress(() => movePiece(1, 0))}
+          className="mobile-btn mobile-btn-right"
+          onTouchStart={(e) => { e.preventDefault(); handleButtonPress(() => movePiece(1, 0)); }}
           onTouchEnd={handleButtonRelease}
           onMouseDown={() => handleButtonPress(() => movePiece(1, 0))}
           onMouseUp={handleButtonRelease}
@@ -536,7 +564,7 @@ const Tetris: React.FC = () => {
   return (
     <Box className={`tetris-container ${isMobile ? 'mobile' : ''}`}>
       <MainMenu />
-      <Box className="tetris-game-wrapper">
+      <Box className="tetris-game-wrapper" ref={gameContainerRef}>
         <Box className="tetris-header">
           <Box className="tetris-menu">
             <Button
@@ -569,7 +597,7 @@ const Tetris: React.FC = () => {
 
         {showGame && (
           <>
-            <Box className="tetris-stats">
+            <Box className={`tetris-stats ${isMobile ? 'mobile' : ''}`}>
               <Typography variant="body2" className="tetris-stat">
                 Lines: {Math.min(lines, LINES_TARGET)} / {LINES_TARGET}
               </Typography>
@@ -590,7 +618,7 @@ const Tetris: React.FC = () => {
             )}
 
             <Box className={`tetris-board-container ${isMobile ? 'mobile' : ''}`}>
-              <Box className="tetris-board">{renderBoard()}</Box>
+              <Box className="tetris-board" ref={boardRef}>{renderBoard()}</Box>
             </Box>
 
             {isMobile && renderMobileControls()}
