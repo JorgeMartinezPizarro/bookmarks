@@ -1,111 +1,86 @@
-import { errorMessage } from "@/app/helpers";
 import { requireAuth } from "@/app/lib/auth";
+import { getScoresForGame, insertScore } from "@/app/lib/scores/db";
+import {
+  GetScoresResponse,
+  SaveScoreResponse,
+  ScoresErrorResponse,
+  getErrorResponseMessage,
+  getErrorStatus,
+  parseGameIdBody,
+  parseGameIdParam,
+  parseScoreValue,
+  serializeGameConfig,
+} from "@/app/lib/scores/types";
 import { NextRequest } from "next/server";
-import Database from 'better-sqlite3';
 
-// Inicializar conexión a la base de datos
-const db = new Database('scores.db');
-
-// Crear tabla si no existe
-db.exec(`
-  CREATE TABLE IF NOT EXISTS scores (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    gameId INTEGER NOT NULL,
-    username TEXT NOT NULL,
-    score INTEGER NOT NULL,
-    gameConfig TEXT,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
-
-// Crear índices para mejorar el rendimiento de las consultas
-db.exec(`
-  CREATE INDEX IF NOT EXISTS idx_gameId ON scores(gameId);
-  CREATE INDEX IF NOT EXISTS idx_gameId_score ON scores(gameId, score DESC);
-`);
+function errorResponse(error: unknown): Response {
+  const body: ScoresErrorResponse = { error: getErrorResponseMessage(error) };
+  return Response.json(body, { status: getErrorStatus(error) });
+}
 
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    await requireAuth(request);
+    const user = await requireAuth(request);
     const params = await request.json();
-    const { gameId, username, score, gameConfig } = params;
+    const { gameId, score, gameConfig } = params;
 
-    // Validar parámetros requeridos
-    if (!gameId || !username || score === undefined) {
+    const parsedGameId = parseGameIdBody(gameId);
+    if (parsedGameId === null) {
       return Response.json(
-        { error: "gameId, username and score are required." },
+        { error: "gameId must be a valid game identifier (1-4)." },
         { status: 400 }
       );
     }
 
-    // Insertar el puntaje en la base de datos
-    const insertStmt = db.prepare(`
-      INSERT INTO scores (gameId, username, score, gameConfig)
-      VALUES (?, ?, ?, ?)
-    `);
+    const parsedScore = parseScoreValue(score);
+    if (parsedScore === null) {
+      return Response.json(
+        { error: "score is required and must be a number." },
+        { status: 400 }
+      );
+    }
 
-    const result = insertStmt.run(
-      Number(gameId),
-      username,
-      Number(score),
-      gameConfig ? JSON.stringify(gameConfig) : null
-    );
+    const serializedConfig = serializeGameConfig(gameConfig);
+    if (!serializedConfig.ok) {
+      return Response.json({ error: serializedConfig.error }, { status: 400 });
+    }
 
-    return Response.json(
-      { 
-        message: "Score saved successfully.",
-        id: result.lastInsertRowid 
-      }, 
-      { status: 200 }
-    );
+    const id = insertScore(user, parsedGameId, parsedScore, serializedConfig.value);
+
+    const body: SaveScoreResponse = {
+      message: "Score saved successfully.",
+      id,
+    };
+
+    return Response.json(body, { status: 200 });
   } catch (error) {
-    return Response.json(
-      { error: errorMessage(error) }, 
-      { status: 500 }
-    );
+    return errorResponse(error);
   }
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
   try {
     const { searchParams } = new URL(request.url);
-    const gameId = searchParams.get("gameId");
+    const parsedGameId = parseGameIdParam(searchParams.get("gameId"));
 
-    if (!gameId) {
+    if (parsedGameId === null) {
       return Response.json(
-        { error: "gameId is required." },
+        { error: "gameId is required and must be a valid game identifier (1-4)." },
         { status: 400 }
       );
     }
 
     await requireAuth(request);
 
-    // Obtener los 100 mejores puntajes para el gameId especificado
-    const selectStmt = db.prepare(`
-      SELECT username, score, gameConfig, createdAt
-      FROM scores
-      WHERE gameId = ?
-      ORDER BY score DESC
-      LIMIT 100
-    `);
+    const body: GetScoresResponse = {
+      gameId: parsedGameId,
+      total: 0,
+      scores: getScoresForGame(parsedGameId),
+    };
+    body.total = body.scores.length;
 
-    const scores = selectStmt.all(Number(gameId));
-
-    return Response.json(
-      { 
-        gameId: Number(gameId),
-        total: scores.length,
-        scores: scores.map((s: any) => ({
-          ...s,
-          gameConfig: s.gameConfig ? JSON.parse(s.gameConfig) : null
-        }))
-      }, 
-      { status: 200 }
-    );
+    return Response.json(body, { status: 200 });
   } catch (error) {
-    return Response.json(
-      { error: errorMessage(error) }, 
-      { status: 500 }
-    );
+    return errorResponse(error);
   }
 }

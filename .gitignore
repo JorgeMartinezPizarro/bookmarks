@@ -38,4 +38,4 @@ volume/
 # environment variables
 .env
 
-cache
+cachedata/

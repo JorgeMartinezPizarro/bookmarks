@@ -25,7 +25,42 @@
     margin: 0;
 }
 
-.tetris-lines {
+.tetris-settings,
+.tetris-stats {
+    width: 400px;
+    max-width: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: white;
+}
+
+.tetris-settings-label {
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.tetris-settings-value,
+.tetris-stat {
+    margin: 0;
+    font-weight: 600;
+}
+
+.tetris-status {
+    margin: 0;
+}
+
+.tetris-status-win {
+    color: #8bc34a;
+}
+
+.tetris-status-over {
+    color: #ef5350;
+}
+
+.scores-empty {
+    color: white;
     margin: 0;
 }
 
