@@ -441,41 +441,31 @@ const Tetris: React.FC = () => {
     return () => clearInterval(interval);
   }, [isPaused, dropPiece, lines, gameCompleted, gameOver]);
 
-  // Keyboard handler effect - optimizado
+  // Keyboard handler effect - solo teclas: A, S, D, O, P
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return;
       
       switch (event.key.toLowerCase()) {
         case "a":
-        case "arrowleft":
           event.preventDefault();
           movePiece(-1, 0);
           break;
         case "d":
-        case "arrowright":
           event.preventDefault();
           movePiece(1, 0);
           break;
         case "o":
-        case "q":
-        case "arrowup":
           event.preventDefault();
           rotatePiece(-1);
           break;
         case "p":
-        case "e":
           event.preventDefault();
           rotatePiece(1);
           break;
         case "s":
-        case "arrowdown":
           event.preventDefault();
           dropPiece();
-          break;
-        case " ":
-          event.preventDefault();
-          hardDrop();
           break;
         default:
           break;
@@ -484,7 +474,7 @@ const Tetris: React.FC = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [movePiece, rotatePiece, dropPiece, hardDrop]);
+  }, [movePiece, rotatePiece, dropPiece]);
 
   // Load scores on mount
   useEffect(() => {
@@ -507,58 +497,56 @@ const Tetris: React.FC = () => {
     );
 
   const renderMobileControls = () => (
-    <Box className="mobile-controls">
-      <Box className="mobile-controls-row">
-        <Button
-          variant="contained"
-          className="mobile-btn mobile-btn-rotate"
-          onTouchStart={(e) => { e.preventDefault(); rotatePiece(-1); }}
-          onClick={() => rotatePiece(-1)}
-        >
-          ↺
-        </Button>
-        <Button
-          variant="contained"
-          className="mobile-btn mobile-btn-left"
-          onTouchStart={(e) => { e.preventDefault(); handleButtonPress(() => movePiece(-1, 0)); }}
-          onTouchEnd={handleButtonRelease}
-          onMouseDown={() => handleButtonPress(() => movePiece(-1, 0))}
-          onMouseUp={handleButtonRelease}
-          onMouseLeave={handleButtonRelease}
-        >
-          ◀
-        </Button>
-        <Button
-          variant="contained"
-          className="mobile-btn mobile-btn-drop"
-          onTouchStart={(e) => { e.preventDefault(); handleButtonPress(dropPiece); }}
-          onTouchEnd={handleButtonRelease}
-          onMouseDown={() => handleButtonPress(dropPiece)}
-          onMouseUp={handleButtonRelease}
-          onMouseLeave={handleButtonRelease}
-        >
-          ▼
-        </Button>
-        <Button
-          variant="contained"
-          className="mobile-btn mobile-btn-right"
-          onTouchStart={(e) => { e.preventDefault(); handleButtonPress(() => movePiece(1, 0)); }}
-          onTouchEnd={handleButtonRelease}
-          onMouseDown={() => handleButtonPress(() => movePiece(1, 0))}
-          onMouseUp={handleButtonRelease}
-          onMouseLeave={handleButtonRelease}
-        >
-          ▶
-        </Button>
-        <Button
-          variant="contained"
-          className="mobile-btn mobile-btn-rotate"
-          onTouchStart={(e) => { e.preventDefault(); rotatePiece(1); }}
-          onClick={() => rotatePiece(1)}
-        >
-          ↻
-        </Button>
-      </Box>
+    <Box className="mobile-controls-row">
+      <Button
+        variant="contained"
+        className="mobile-btn-rotate"
+        onTouchStart={(e) => { e.preventDefault(); rotatePiece(-1); }}
+        onClick={() => rotatePiece(-1)}
+      >
+        ↺
+      </Button>
+      <Button
+        variant="contained"
+        className="mobile-btn"
+        onTouchStart={(e) => { e.preventDefault(); handleButtonPress(() => movePiece(-1, 0)); }}
+        onTouchEnd={handleButtonRelease}
+        onMouseDown={() => handleButtonPress(() => movePiece(-1, 0))}
+        onMouseUp={handleButtonRelease}
+        onMouseLeave={handleButtonRelease}
+      >
+        ◀
+      </Button>
+      <Button
+        variant="contained"
+        className="mobile-btn"
+        onTouchStart={(e) => { e.preventDefault(); handleButtonPress(dropPiece); }}
+        onTouchEnd={handleButtonRelease}
+        onMouseDown={() => handleButtonPress(dropPiece)}
+        onMouseUp={handleButtonRelease}
+        onMouseLeave={handleButtonRelease}
+      >
+        ▼
+      </Button>
+      <Button
+        variant="contained"
+        className="mobile-btn"
+        onTouchStart={(e) => { e.preventDefault(); handleButtonPress(() => movePiece(1, 0)); }}
+        onTouchEnd={handleButtonRelease}
+        onMouseDown={() => handleButtonPress(() => movePiece(1, 0))}
+        onMouseUp={handleButtonRelease}
+        onMouseLeave={handleButtonRelease}
+      >
+        ▶
+      </Button>
+      <Button
+        variant="contained"
+        className="mobile-btn-rotate"
+        onTouchStart={(e) => { e.preventDefault(); rotatePiece(1); }}
+        onClick={() => rotatePiece(1)}
+      >
+        ↻
+      </Button>
     </Box>
   );
 
@@ -627,7 +615,7 @@ const Tetris: React.FC = () => {
             {!isMobile && (
               <Box className="tetris-controls-desktop">
                 <Typography variant="caption" className="controls-hint">
-                  A/D: Move | O/Q: Rotate Left | P/E: Rotate Right | S: Drop | Space: Hard Drop
+                  A: Izquierda | S: Abajo | D: Derecha | O: Rotar Izquierda | P: Rotar Derecha
                 </Typography>
               </Box>
             )}
