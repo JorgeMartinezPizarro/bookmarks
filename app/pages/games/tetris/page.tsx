@@ -23,6 +23,8 @@ type LeaderboardEntry = {
 const LINES_TARGET = 25;
 const DROP_SPEED_MS = 184;
 const TIMER_TICK_MS = 10;
+const HOLD_INITIAL_DELAY = 170;
+const HOLD_REPEAT_RATE = 50;
 
 const ROWS = 20;
 const COLS = 10;
@@ -163,11 +165,11 @@ const Tetris: React.FC = () => {
   const [cellSize, setCellSize] = useState(30);
 
   const startTimeRef = useRef<number | null>(null);
-  const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const buttonPressTimer = useRef<NodeJS.Timeout | null>(null);
   const scoreSavedRef = useRef(false);
   const gameCompletedRef = useRef(false);
   const gameContainerRef = useRef<HTMLDivElement>(null);
+  const activeKeysRef = useRef<Set<string>>(new Set());
+  const holdIntervalRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   const {
     board,
@@ -370,6 +372,9 @@ const Tetris: React.FC = () => {
     gameCompletedRef.current = false;
     scoreSavedRef.current = false;
     startTimeRef.current = Date.now();
+    holdIntervalRef.current.forEach((interval) => clearInterval(interval));
+    holdIntervalRef.current.clear();
+    activeKeysRef.current.clear();
     updateState({ ...initialGameState(), isPaused: false });
   };
 
@@ -392,80 +397,100 @@ const Tetris: React.FC = () => {
     }
   }, [piece, board, pos, updateState, isPaused, gameCompleted, gameOver]);
 
-  const handleButtonPress = useCallback(
-    (action: () => void) => {
-      action();
-      buttonPressTimer.current = setTimeout(() => {
-        holdIntervalRef.current = setInterval(action, 100);
-      }, 300);
-    },
-    []
-  );
+  // Improved key handling with repeat support
+  const startKeyRepeat = useCallback((key: string, action: () => void) => {
+    if (activeKeysRef.current.has(key)) return;
+    
+    activeKeysRef.current.add(key);
+    action();
+    
+    const interval = setInterval(action, HOLD_REPEAT_RATE);
+    holdIntervalRef.current.set(key, interval);
+  }, []);
 
-  const handleButtonRelease = useCallback(() => {
-    if (buttonPressTimer.current) {
-      clearTimeout(buttonPressTimer.current);
-      buttonPressTimer.current = null;
-    }
-    if (holdIntervalRef.current) {
-      clearInterval(holdIntervalRef.current);
-      holdIntervalRef.current = null;
+  const stopKeyRepeat = useCallback((key: string) => {
+    activeKeysRef.current.delete(key);
+    const interval = holdIntervalRef.current.get(key);
+    if (interval) {
+      clearInterval(interval);
+      holdIntervalRef.current.delete(key);
     }
   }, []);
 
-  // Timer effect
-  useEffect(() => {
-    if (isPaused || gameCompleted || gameOver || lines >= LINES_TARGET) return;
-
-    if (startTimeRef.current === null) {
-      startTimeRef.current = Date.now();
-    }
-
-    const interval = setInterval(() => {
-      if (startTimeRef.current !== null) {
-        updateState({ elapsedMs: Date.now() - startTimeRef.current });
-      }
-    }, TIMER_TICK_MS);
-
-    return () => clearInterval(interval);
-  }, [isPaused, gameCompleted, gameOver, lines, updateState]);
-
-  // Drop piece effect
-  useEffect(() => {
-    if (isPaused || gameCompleted || gameOver || lines >= LINES_TARGET) return;
-
-    const interval = setInterval(() => {
-      dropPiece();
-    }, DROP_SPEED_MS);
-
-    return () => clearInterval(interval);
-  }, [isPaused, dropPiece, lines, gameCompleted, gameOver]);
-
-  // Keyboard handler effect - solo teclas: A, S, D, O, P
+  // Keyboard handler effect - Full controls with arrow keys and ASD+OP
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return;
       
-      switch (event.key.toLowerCase()) {
-        case "a":
+      switch (event.key) {
+        case "ArrowLeft":
           event.preventDefault();
-          movePiece(-1, 0);
+          startKeyRepeat("left", () => movePiece(-1, 0));
+          break;
+        case "ArrowRight":
+          event.preventDefault();
+          startKeyRepeat("right", () => movePiece(1, 0));
+          break;
+        case "ArrowDown":
+          event.preventDefault();
+          startKeyRepeat("down", () => dropPiece());
+          break;
+        case "ArrowUp":
+          event.preventDefault();
+          rotatePiece(1);
+          break;
+        case "a":
+        case "A":
+          event.preventDefault();
+          startKeyRepeat("a", () => movePiece(-1, 0));
           break;
         case "d":
+        case "D":
           event.preventDefault();
-          movePiece(1, 0);
+          startKeyRepeat("d", () => movePiece(1, 0));
+          break;
+        case "s":
+        case "S":
+          event.preventDefault();
+          startKeyRepeat("s", () => dropPiece());
           break;
         case "o":
+        case "O":
           event.preventDefault();
           rotatePiece(-1);
           break;
         case "p":
+        case "P":
           event.preventDefault();
           rotatePiece(1);
           break;
+        default:
+          break;
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      switch (event.key) {
+        case "ArrowLeft":
+          stopKeyRepeat("left");
+          break;
+        case "ArrowRight":
+          stopKeyRepeat("right");
+          break;
+        case "ArrowDown":
+          stopKeyRepeat("down");
+          break;
+        case "a":
+        case "A":
+          stopKeyRepeat("a");
+          break;
+        case "d":
+        case "D":
+          stopKeyRepeat("d");
+          break;
         case "s":
-          event.preventDefault();
-          dropPiece();
+        case "S":
+          stopKeyRepeat("s");
           break;
         default:
           break;
@@ -473,8 +498,12 @@ const Tetris: React.FC = () => {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [movePiece, rotatePiece, dropPiece]);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [movePiece, dropPiece, rotatePiece, startKeyRepeat, stopKeyRepeat]);
 
   // Load scores on mount
   useEffect(() => {
@@ -496,6 +525,7 @@ const Tetris: React.FC = () => {
       ))
     );
 
+  // Enhanced mobile controls with proper repeat handling
   const renderMobileControls = () => (
     <Box className="mobile-controls-row">
       <Button
@@ -509,33 +539,42 @@ const Tetris: React.FC = () => {
       <Button
         variant="contained"
         className="mobile-btn"
-        onTouchStart={(e) => { e.preventDefault(); handleButtonPress(() => movePiece(-1, 0)); }}
-        onTouchEnd={handleButtonRelease}
-        onMouseDown={() => handleButtonPress(() => movePiece(-1, 0))}
-        onMouseUp={handleButtonRelease}
-        onMouseLeave={handleButtonRelease}
+        onTouchStart={(e) => { 
+          e.preventDefault(); 
+          startKeyRepeat("mobileLeft", () => movePiece(-1, 0)); 
+        }}
+        onTouchEnd={() => stopKeyRepeat("mobileLeft")}
+        onMouseDown={() => startKeyRepeat("mobileLeft", () => movePiece(-1, 0))}
+        onMouseUp={() => stopKeyRepeat("mobileLeft")}
+        onMouseLeave={() => stopKeyRepeat("mobileLeft")}
       >
         ◀
       </Button>
       <Button
         variant="contained"
         className="mobile-btn"
-        onTouchStart={(e) => { e.preventDefault(); handleButtonPress(dropPiece); }}
-        onTouchEnd={handleButtonRelease}
-        onMouseDown={() => handleButtonPress(dropPiece)}
-        onMouseUp={handleButtonRelease}
-        onMouseLeave={handleButtonRelease}
+        onTouchStart={(e) => { 
+          e.preventDefault(); 
+          startKeyRepeat("mobileDown", () => dropPiece()); 
+        }}
+        onTouchEnd={() => stopKeyRepeat("mobileDown")}
+        onMouseDown={() => startKeyRepeat("mobileDown", () => dropPiece())}
+        onMouseUp={() => stopKeyRepeat("mobileDown")}
+        onMouseLeave={() => stopKeyRepeat("mobileDown")}
       >
         ▼
       </Button>
       <Button
         variant="contained"
         className="mobile-btn"
-        onTouchStart={(e) => { e.preventDefault(); handleButtonPress(() => movePiece(1, 0)); }}
-        onTouchEnd={handleButtonRelease}
-        onMouseDown={() => handleButtonPress(() => movePiece(1, 0))}
-        onMouseUp={handleButtonRelease}
-        onMouseLeave={handleButtonRelease}
+        onTouchStart={(e) => { 
+          e.preventDefault(); 
+          startKeyRepeat("mobileRight", () => movePiece(1, 0)); 
+        }}
+        onTouchEnd={() => stopKeyRepeat("mobileRight")}
+        onMouseDown={() => startKeyRepeat("mobileRight", () => movePiece(1, 0))}
+        onMouseUp={() => stopKeyRepeat("mobileRight")}
+        onMouseLeave={() => stopKeyRepeat("mobileRight")}
       >
         ▶
       </Button>
@@ -615,7 +654,7 @@ const Tetris: React.FC = () => {
             {!isMobile && (
               <Box className="tetris-controls-desktop">
                 <Typography variant="caption" className="controls-hint">
-                  A: Izquierda | S: Abajo | D: Derecha | O: Rotar Izquierda | P: Rotar Derecha
+                  ← → ↓: Movimiento | ↑: Rotar | A/D: Izq/Der | S: Abajo | O/P: Rotar
                 </Typography>
               </Box>
             )}
