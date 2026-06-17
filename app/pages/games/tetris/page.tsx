@@ -41,7 +41,7 @@ const checkCollision = (
   x: number,
   y: number
 ): boolean => {
-  if (y < 0) return false; // Allow pieces above the board
+  if (y < 0) return false;
   
   return piece.shape.some((row, rowIndex) =>
     row.some((cell, colIndex) => {
@@ -142,6 +142,7 @@ const Tetris: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [topScores, setTopScores] = useState<LeaderboardEntry[]>([]);
   const [showGame, setShowGame] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   const startTimeRef = useRef<number | null>(null);
   const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -158,8 +159,17 @@ const Tetris: React.FC = () => {
     elapsedMs,
     gameCompleted,
     gameOver,
-    scoreSaved,
   } = gameState;
+
+  // Detect mobile on mount
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const updateState = useCallback((updates: Partial<GameState>) => {
     setGameState(prev => ({ ...prev, ...updates }));
@@ -168,7 +178,7 @@ const Tetris: React.FC = () => {
   const movePiece = useCallback(
     (x: number, y: number) => {
       if (checkCollision(board, piece, pos.x + x, pos.y + y)) {
-        return; // Can't move in this direction
+        return;
       }
       updateState({ pos: { x: pos.x + x, y: pos.y + y } });
     },
@@ -192,9 +202,7 @@ const Tetris: React.FC = () => {
 
   const saveScore = useCallback(
     async (timeMs: number) => {
-      if (scoreSavedRef.current) {
-        return;
-      }
+      if (scoreSavedRef.current) return;
 
       scoreSavedRef.current = true;
 
@@ -225,9 +233,7 @@ const Tetris: React.FC = () => {
 
   const completeGame = useCallback(
     (finalMs: number) => {
-      if (gameCompletedRef.current) {
-        return;
-      }
+      if (gameCompletedRef.current) return;
 
       gameCompletedRef.current = true;
       updateState({ elapsedMs: finalMs, gameCompleted: true, isPaused: true });
@@ -299,13 +305,11 @@ const Tetris: React.FC = () => {
   }, [board, piece, pos]);
 
   const dropPiece = useCallback(() => {
-    // Check if piece can move down
     if (!checkCollision(board, piece, pos.x, pos.y + 1)) {
       updateState({ pos: { ...pos, y: pos.y + 1 } });
       return;
     }
 
-    // Piece has landed, place it on the board
     const newBoard = placePieceOnBoard();
     clearLines(newBoard);
     resetPiece();
@@ -320,7 +324,6 @@ const Tetris: React.FC = () => {
     if (dropDistance > 0) {
       updateState({ pos: { ...pos, y: pos.y + dropDistance } });
       
-      // Place piece and reset
       const newBoard = placePieceOnBoard();
       clearLines(newBoard);
       resetPiece();
@@ -331,7 +334,7 @@ const Tetris: React.FC = () => {
     gameCompletedRef.current = false;
     scoreSavedRef.current = false;
     startTimeRef.current = Date.now();
-    updateState(initialGameState());
+    updateState({ ...initialGameState(), isPaused: false });
   };
 
   const togglePause = () => {
@@ -353,9 +356,7 @@ const Tetris: React.FC = () => {
 
   const handleButtonPress = useCallback(
     (action: () => void) => {
-      if (isPaused || gameCompleted || gameOver) {
-        return;
-      }
+      if (isPaused || gameCompleted || gameOver) return;
       action();
       buttonPressTimer.current = setTimeout(() => {
         holdIntervalRef.current = setInterval(action, 100);
@@ -377,9 +378,7 @@ const Tetris: React.FC = () => {
 
   // Timer effect
   useEffect(() => {
-    if (isPaused || gameCompleted || gameOver || lines >= LINES_TARGET) {
-      return;
-    }
+    if (isPaused || gameCompleted || gameOver || lines >= LINES_TARGET) return;
 
     if (startTimeRef.current === null) {
       startTimeRef.current = Date.now();
@@ -396,9 +395,7 @@ const Tetris: React.FC = () => {
 
   // Drop piece effect
   useEffect(() => {
-    if (isPaused || gameCompleted || gameOver || lines >= LINES_TARGET) {
-      return;
-    }
+    if (isPaused || gameCompleted || gameOver || lines >= LINES_TARGET) return;
 
     const interval = setInterval(() => {
       dropPiece();
@@ -410,36 +407,26 @@ const Tetris: React.FC = () => {
   // Keyboard handler effect
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isPaused || gameCompleted || gameOver) {
-        return;
-      }
+      if (isPaused || gameCompleted || gameOver) return;
 
       switch (event.key.toLowerCase()) {
         case "a":
-          movePiece(-1, 0);
-          break;
-        case "d":
-          movePiece(1, 0);
-          break;
-        case "o":
-        case "p":
-          rotatePiece();
-          break;
-        case "s":
-          hardDrop(); // Changed from dropPiece to hardDrop for better feel
-          break;
         case "arrowleft":
           event.preventDefault();
           movePiece(-1, 0);
           break;
+        case "d":
         case "arrowright":
           event.preventDefault();
           movePiece(1, 0);
           break;
+        case "o":
+        case "p":
         case "arrowup":
           event.preventDefault();
           rotatePiece();
           break;
+        case "s":
         case "arrowdown":
           event.preventDefault();
           dropPiece();
@@ -481,157 +468,176 @@ const Tetris: React.FC = () => {
         return (
           <div
             key={`${y}-${x}`}
-            className="tetris-cell"
-            style={{ backgroundColor, border: "1px solid #333" }}
+            className={`tetris-cell ${isActivePiece ? 'active' : ''}`}
+            style={{ backgroundColor }}
           />
         );
       })
     );
 
-  return (
-    <Box className="tetris-container">
-      <MainMenu />
-      <Box className="tetris-menu">
+  const renderMobileControls = () => (
+    <Box className="mobile-controls">
+      <Box className="mobile-controls-row">
         <Button
-          className="game-menu"
           variant="contained"
-          onClick={() => setShowGame(!showGame)}
+          className="mobile-btn mobile-btn-rotate"
+          onTouchStart={() => rotatePiece()}
+          onClick={() => rotatePiece()}
         >
-          {!showGame ? "Play" : "Scores"}
-        </Button>
-        <Button className="game-menu" variant="contained" onClick={restartGame}>
-          Reiniciar
+          ↻
         </Button>
         <Button
-          className="game-menu"
           variant="contained"
-          onClick={togglePause}
-          disabled={gameCompleted || gameOver}
+          className="mobile-btn mobile-btn-harddrop"
+          onTouchStart={() => hardDrop()}
+          onClick={() => hardDrop()}
         >
-          {isPaused ? "Reanudar" : "Pausar"}
+          ⬇⬇
         </Button>
       </Box>
+      <Box className="mobile-controls-row">
+        <Button
+          variant="contained"
+          className="mobile-btn"
+          onTouchStart={() => handleButtonPress(() => movePiece(-1, 0))}
+          onTouchEnd={handleButtonRelease}
+          onMouseDown={() => handleButtonPress(() => movePiece(-1, 0))}
+          onMouseUp={handleButtonRelease}
+          onMouseLeave={handleButtonRelease}
+        >
+          ◀
+        </Button>
+        <Button
+          variant="contained"
+          className="mobile-btn mobile-btn-drop"
+          onTouchStart={() => handleButtonPress(dropPiece)}
+          onTouchEnd={handleButtonRelease}
+          onMouseDown={() => handleButtonPress(dropPiece)}
+          onMouseUp={handleButtonRelease}
+          onMouseLeave={handleButtonRelease}
+        >
+          ▼
+        </Button>
+        <Button
+          variant="contained"
+          className="mobile-btn"
+          onTouchStart={() => handleButtonPress(() => movePiece(1, 0))}
+          onTouchEnd={handleButtonRelease}
+          onMouseDown={() => handleButtonPress(() => movePiece(1, 0))}
+          onMouseUp={handleButtonRelease}
+          onMouseLeave={handleButtonRelease}
+        >
+          ▶
+        </Button>
+      </Box>
+    </Box>
+  );
 
-      {showGame && (
-        <>
-          <Box className="tetris-settings">
-            <Typography variant="body2" className="tetris-settings-label">
-              Settings
-            </Typography>
-            <Typography variant="body1" className="tetris-settings-value">
-              {LINES_TARGET} lines
-            </Typography>
+  return (
+    <Box className={`tetris-container ${isMobile ? 'mobile' : ''}`}>
+      <MainMenu />
+      <Box className="tetris-game-wrapper">
+        <Box className="tetris-header">
+          <Box className="tetris-menu">
+            <Button
+              className="game-menu"
+              variant="contained"
+              size="small"
+              onClick={() => setShowGame(!showGame)}
+            >
+              {!showGame ? "Play" : "Scores"}
+            </Button>
+            <Button
+              className="game-menu"
+              variant="contained"
+              size="small"
+              onClick={restartGame}
+            >
+              Reiniciar
+            </Button>
+            <Button
+              className="game-menu"
+              variant="contained"
+              size="small"
+              onClick={togglePause}
+              disabled={gameCompleted || gameOver}
+            >
+              {isPaused ? "Reanudar" : "Pausar"}
+            </Button>
           </Box>
+        </Box>
 
-          <Box className="tetris-stats">
-            <Typography variant="body1" className="tetris-stat">
-              Lines: {Math.min(lines, LINES_TARGET)} / {LINES_TARGET}
-            </Typography>
-            <Typography variant="body1" className="tetris-stat">
-              Time: {formatTimeMs(elapsedMs)}
-            </Typography>
+        {showGame && (
+          <>
+            <Box className="tetris-stats">
+              <Typography variant="body2" className="tetris-stat">
+                Lines: {Math.min(lines, LINES_TARGET)} / {LINES_TARGET}
+              </Typography>
+              <Typography variant="body2" className="tetris-stat">
+                Time: {formatTimeMs(elapsedMs)}
+              </Typography>
+            </Box>
+
+            {gameCompleted && (
+              <Typography variant="h6" className="tetris-status tetris-status-win">
+                Completed in {formatTimeMs(elapsedMs)}
+              </Typography>
+            )}
+            {gameOver && (
+              <Typography variant="h6" className="tetris-status tetris-status-over">
+                Game over
+              </Typography>
+            )}
+
+            <Box className={`tetris-board-container ${isMobile ? 'mobile' : ''}`}>
+              <Box className="tetris-board">{renderBoard()}</Box>
+            </Box>
+
+            {isMobile && renderMobileControls()}
+
+            {!isMobile && (
+              <Box className="tetris-controls-desktop">
+                <Typography variant="caption" className="controls-hint">
+                  A/D: Move | O/P: Rotate | S: Drop | Space: Hard Drop
+                </Typography>
+              </Box>
+            )}
+          </>
+        )}
+
+        {!showGame && (
+          <Box className="tetris-scores">
+            <h4 className="scores-title">Best times</h4>
+            {topScores.length === 0 ? (
+              <p className="scores-empty">No scores yet</p>
+            ) : (
+              <table className="scores-table">
+                <thead>
+                  <tr>
+                    <th>Pos</th>
+                    <th>User</th>
+                    <th>Time</th>
+                    <th>Lines</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...topScores]
+                    .sort((a, b) => a.timeMs - b.timeMs)
+                    .slice(0, 10)
+                    .map((entry, i) => (
+                      <tr key={`${entry.name}-${entry.timeMs}-${i}`}>
+                        <td>{i + 1}</td>
+                        <td>{entry.name}</td>
+                        <td>{formatTimeMs(entry.timeMs)}</td>
+                        <td>{entry.linesTarget}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            )}
           </Box>
-
-          {gameCompleted && (
-            <Typography variant="h6" className="tetris-status tetris-status-win">
-              Completed in {formatTimeMs(elapsedMs)}
-            </Typography>
-          )}
-          {gameOver && (
-            <Typography variant="h6" className="tetris-status tetris-status-over">
-              Game over
-            </Typography>
-          )}
-
-          <Box className="tetris-board">{renderBoard()}</Box>
-          <Box className="tetris-controls">
-            <div className="tetris-controls-left">
-              <Button
-                variant="contained"
-                className="control-btn"
-                onMouseDown={() => handleButtonPress(() => movePiece(-1, 0))}
-                onMouseUp={handleButtonRelease}
-                onMouseLeave={handleButtonRelease}
-                onTouchStart={() => handleButtonPress(() => movePiece(-1, 0))}
-                onTouchEnd={handleButtonRelease}
-              >
-                {"<"}
-              </Button>
-              <Button
-                variant="contained"
-                className="control-btn"
-                onMouseDown={() => handleButtonPress(dropPiece)}
-                onMouseUp={handleButtonRelease}
-                onMouseLeave={handleButtonRelease}
-                onTouchStart={() => handleButtonPress(dropPiece)}
-                onTouchEnd={handleButtonRelease}
-              >
-                {"v"}
-              </Button>
-              <Button
-                variant="contained"
-                className="control-btn"
-                onMouseDown={() => handleButtonPress(() => movePiece(1, 0))}
-                onMouseUp={handleButtonRelease}
-                onMouseLeave={handleButtonRelease}
-                onTouchStart={() => handleButtonPress(() => movePiece(1, 0))}
-                onTouchEnd={handleButtonRelease}
-              >
-                {">"}
-              </Button>
-            </div>
-            <div className="tetris-controls-right">
-              <Button
-                variant="contained"
-                className="control-btn rotate-btn"
-                onClick={() => rotatePiece()}
-              >
-                O
-              </Button>
-              <Button
-                variant="contained"
-                className="control-btn rotate-btn"
-                onClick={() => rotatePiece()}
-              >
-                P
-              </Button>
-            </div>
-          </Box>
-        </>
-      )}
-
-      {!showGame && (
-        <>
-          <h4 className="scores-title">Best times</h4>
-          {topScores.length === 0 ? (
-            <p className="scores-empty">No scores yet</p>
-          ) : (
-            <table className="scores-table">
-              <thead>
-                <tr>
-                  <th>Pos</th>
-                  <th>User</th>
-                  <th>Time</th>
-                  <th>Lines</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...topScores]
-                  .sort((a, b) => a.timeMs - b.timeMs)
-                  .slice(0, 10)
-                  .map((entry, i) => (
-                    <tr key={`${entry.name}-${entry.timeMs}-${i}`}>
-                      <td>{i + 1}</td>
-                      <td>{entry.name}</td>
-                      <td>{formatTimeMs(entry.timeMs)}</td>
-                      <td>{entry.linesTarget}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          )}
-        </>
-      )}
+        )}
+      </Box>
     </Box>
   );
 };
