@@ -24,11 +24,12 @@ const LINES_TARGET = 25;
 const DROP_SPEED_MS = 184;
 const TIMER_TICK_MS = 10;
 
-const createBoard = (rows: number, cols: number): Board =>
-  Array.from(Array(rows), () =>
-    Array(cols)
-      .fill(null)
-      .map(() => ["0", "clear"] as Cell)
+const ROWS = 20;
+const COLS = 10;
+
+const createBoard = (rows: number = ROWS, cols: number = COLS): Board =>
+  Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => ["0", "clear"] as Cell)
   );
 
 const rotate = (matrix: number[][]): number[][] =>
@@ -39,8 +40,10 @@ const checkCollision = (
   piece: Piece,
   x: number,
   y: number
-): boolean =>
-  piece.shape.some((row, rowIndex) =>
+): boolean => {
+  if (y < 0) return false; // Allow pieces above the board
+  
+  return piece.shape.some((row, rowIndex) =>
     row.some((cell, colIndex) => {
       if (cell !== 0) {
         const newX = x + colIndex;
@@ -57,6 +60,7 @@ const checkCollision = (
       return false;
     })
   );
+};
 
 const TETROMINOS: Piece[] = [
   { shape: [[1, 1, 1], [0, 1, 0]], color: "red" },
@@ -110,30 +114,65 @@ function parseLeaderboardEntry(entry: ScoreEntry): LeaderboardEntry {
   };
 }
 
+interface GameState {
+  board: Board;
+  piece: Piece;
+  pos: { x: number; y: number };
+  lines: number;
+  isPaused: boolean;
+  elapsedMs: number;
+  gameCompleted: boolean;
+  gameOver: boolean;
+  scoreSaved: boolean;
+}
+
+const initialGameState = (): GameState => ({
+  board: createBoard(),
+  piece: getRandomPiece(),
+  pos: { x: Math.floor(COLS / 2) - 1, y: 0 },
+  lines: 0,
+  isPaused: true,
+  elapsedMs: 0,
+  gameCompleted: false,
+  gameOver: false,
+  scoreSaved: false,
+});
+
 const Tetris: React.FC = () => {
-  const [board, setBoard] = useState<Board>(createBoard(20, 10));
-  const [piece, setPiece] = useState<Piece>(getRandomPiece());
-  const [pos, setPos] = useState({ x: 3, y: 0 });
-  const [lines, setLines] = useState(0);
-  const [isPaused, setIsPaused] = useState(true);
-  const [elapsedMs, setElapsedMs] = useState(0);
+  const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [topScores, setTopScores] = useState<LeaderboardEntry[]>([]);
   const [showGame, setShowGame] = useState(true);
-  const [scoreSaved, setScoreSaved] = useState(false);
-  const [gameCompleted, setGameCompleted] = useState(false);
-  const [gameOver, setGameOver] = useState(false);
 
   const startTimeRef = useRef<number | null>(null);
   const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const buttonPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const scoreSavedRef = useRef(false);
+  const gameCompletedRef = useRef(false);
+
+  const {
+    board,
+    piece,
+    pos,
+    lines,
+    isPaused,
+    elapsedMs,
+    gameCompleted,
+    gameOver,
+    scoreSaved,
+  } = gameState;
+
+  const updateState = useCallback((updates: Partial<GameState>) => {
+    setGameState(prev => ({ ...prev, ...updates }));
+  }, []);
 
   const movePiece = useCallback(
     (x: number, y: number) => {
-      if (!checkCollision(board, piece, pos.x + x, pos.y + y)) {
-        setPos((prev) => ({ x: prev.x + x, y: prev.y + y }));
+      if (checkCollision(board, piece, pos.x + x, pos.y + y)) {
+        return; // Can't move in this direction
       }
+      updateState({ pos: { x: pos.x + x, y: pos.y + y } });
     },
-    [board, piece, pos]
+    [board, piece, pos, updateState]
   );
 
   const loadScores = useCallback(async () => {
@@ -153,9 +192,11 @@ const Tetris: React.FC = () => {
 
   const saveScore = useCallback(
     async (timeMs: number) => {
-      if (scoreSaved) {
+      if (scoreSavedRef.current) {
         return;
       }
+
+      scoreSavedRef.current = true;
 
       try {
         const response = await fetch("/bookmarks/api/scores", {
@@ -169,43 +210,47 @@ const Tetris: React.FC = () => {
         });
 
         if (response.ok) {
-          setScoreSaved(true);
+          updateState({ scoreSaved: true });
           await loadScores();
+        } else {
+          scoreSavedRef.current = false;
         }
       } catch (error) {
         console.error("Error saving score:", error);
+        scoreSavedRef.current = false;
       }
     },
-    [scoreSaved, loadScores]
+    [loadScores, updateState]
   );
 
   const completeGame = useCallback(
     (finalMs: number) => {
-      setElapsedMs(finalMs);
-      setGameCompleted(true);
-      setIsPaused(true);
+      if (gameCompletedRef.current) {
+        return;
+      }
+
+      gameCompletedRef.current = true;
+      updateState({ elapsedMs: finalMs, gameCompleted: true, isPaused: true });
       saveScore(finalMs);
     },
-    [saveScore]
+    [saveScore, updateState]
   );
 
   const handleGameOver = useCallback(() => {
-    setGameOver(true);
-    setIsPaused(true);
-  }, []);
+    updateState({ gameOver: true, isPaused: true });
+  }, [updateState]);
 
   const resetPiece = useCallback(() => {
     const newPiece = getRandomPiece();
-    const initialPos = { x: 3, y: 0 };
+    const initialPos = { x: Math.floor(COLS / 2) - 1, y: 0 };
 
     if (checkCollision(board, newPiece, initialPos.x, initialPos.y)) {
       handleGameOver();
       return;
     }
 
-    setPiece(newPiece);
-    setPos(initialPos);
-  }, [board, handleGameOver]);
+    updateState({ piece: newPiece, pos: initialPos });
+  }, [board, handleGameOver, updateState]);
 
   const clearLines = useCallback(
     (currentBoard: Board) => {
@@ -213,83 +258,98 @@ const Tetris: React.FC = () => {
         row.some((cell) => cell[1] === "clear")
       );
       const clearedLines = currentBoard.length - clearedBoard.length;
-      const newRows = Array(clearedLines)
-        .fill(null)
-        .map(() =>
-          Array(currentBoard[0].length)
-            .fill(null)
-            .map(() => ["0", "clear"] as Cell)
-        );
+      
+      if (clearedLines === 0) {
+        updateState({ board: currentBoard });
+        return;
+      }
+      
+      const newRows = Array.from({ length: clearedLines }, () =>
+        Array.from({ length: currentBoard[0].length }, () => ["0", "clear"] as Cell)
+      );
       const newBoard = [...newRows, ...clearedBoard];
-      setBoard(newBoard);
+      const newLines = lines + clearedLines;
 
-      setLines((prev) => {
-        const next = prev + clearedLines;
-        if (
-          next >= LINES_TARGET &&
-          !gameCompleted &&
-          startTimeRef.current !== null
-        ) {
-          const finalMs = Date.now() - startTimeRef.current;
-          queueMicrotask(() => completeGame(finalMs));
-        }
-        return next;
-      });
+      updateState({ board: newBoard, lines: newLines });
+
+      if (newLines >= LINES_TARGET && !gameCompletedRef.current) {
+        const finalMs = Date.now() - (startTimeRef.current ?? Date.now());
+        completeGame(finalMs);
+      }
     },
-    [completeGame, gameCompleted]
+    [lines, completeGame, updateState]
   );
 
-  const dropPiece = useCallback(() => {
-    if (!checkCollision(board, piece, pos.x, pos.y + 1)) {
-      setPos((prev) => ({ ...prev, y: prev.y + 1 }));
-      return;
-    }
-
+  const placePieceOnBoard = useCallback((): Board => {
     const newBoard = board.map((row) => row.map((cell) => [...cell] as Cell));
+    
     piece.shape.forEach((row, rowIndex) =>
       row.forEach((cell, colIndex) => {
         if (cell !== 0) {
           const newY = pos.y + rowIndex;
           const newX = pos.x + colIndex;
-          if (newY >= 0) {
+          if (newY >= 0 && newY < ROWS && newX >= 0 && newX < COLS) {
             newBoard[newY][newX] = [piece.color, "filled"];
           }
         }
       })
     );
+    
+    return newBoard;
+  }, [board, piece, pos]);
+
+  const dropPiece = useCallback(() => {
+    // Check if piece can move down
+    if (!checkCollision(board, piece, pos.x, pos.y + 1)) {
+      updateState({ pos: { ...pos, y: pos.y + 1 } });
+      return;
+    }
+
+    // Piece has landed, place it on the board
+    const newBoard = placePieceOnBoard();
     clearLines(newBoard);
     resetPiece();
-  }, [board, clearLines, piece, pos, resetPiece]);
+  }, [board, piece, pos, updateState, placePieceOnBoard, clearLines, resetPiece]);
+
+  const hardDrop = useCallback(() => {
+    let dropDistance = 0;
+    while (!checkCollision(board, piece, pos.x, pos.y + dropDistance + 1)) {
+      dropDistance++;
+    }
+    
+    if (dropDistance > 0) {
+      updateState({ pos: { ...pos, y: pos.y + dropDistance } });
+      
+      // Place piece and reset
+      const newBoard = placePieceOnBoard();
+      clearLines(newBoard);
+      resetPiece();
+    }
+  }, [board, piece, pos, updateState, placePieceOnBoard, clearLines, resetPiece]);
 
   const restartGame = () => {
-    setBoard(createBoard(20, 10));
-    setPiece(getRandomPiece());
-    setPos({ x: 3, y: 0 });
-    setLines(0);
-    setElapsedMs(0);
-    setScoreSaved(false);
-    setGameCompleted(false);
-    setGameOver(false);
+    gameCompletedRef.current = false;
+    scoreSavedRef.current = false;
     startTimeRef.current = Date.now();
-    setIsPaused(false);
+    updateState(initialGameState());
   };
 
   const togglePause = () => {
     if (isPaused) {
       startTimeRef.current = Date.now() - elapsedMs;
-      setIsPaused(false);
+      updateState({ isPaused: false });
       return;
     }
 
-    setIsPaused(true);
+    updateState({ isPaused: true });
   };
 
   const rotatePiece = useCallback(() => {
     const rotatedShape = rotate(piece.shape);
     if (!checkCollision(board, { ...piece, shape: rotatedShape }, pos.x, pos.y)) {
-      setPiece({ ...piece, shape: rotatedShape });
+      updateState({ piece: { ...piece, shape: rotatedShape } });
     }
-  }, [piece, board, pos]);
+  }, [piece, board, pos, updateState]);
 
   const handleButtonPress = useCallback(
     (action: () => void) => {
@@ -315,6 +375,7 @@ const Tetris: React.FC = () => {
     }
   }, []);
 
+  // Timer effect
   useEffect(() => {
     if (isPaused || gameCompleted || gameOver || lines >= LINES_TARGET) {
       return;
@@ -326,13 +387,14 @@ const Tetris: React.FC = () => {
 
     const interval = setInterval(() => {
       if (startTimeRef.current !== null) {
-        setElapsedMs(Date.now() - startTimeRef.current);
+        updateState({ elapsedMs: Date.now() - startTimeRef.current });
       }
     }, TIMER_TICK_MS);
 
     return () => clearInterval(interval);
-  }, [isPaused, gameCompleted, gameOver, lines]);
+  }, [isPaused, gameCompleted, gameOver, lines, updateState]);
 
+  // Drop piece effect
   useEffect(() => {
     if (isPaused || gameCompleted || gameOver || lines >= LINES_TARGET) {
       return;
@@ -343,8 +405,9 @@ const Tetris: React.FC = () => {
     }, DROP_SPEED_MS);
 
     return () => clearInterval(interval);
-  }, [isPaused, board, piece, pos, dropPiece, lines, gameCompleted, gameOver]);
+  }, [isPaused, dropPiece, lines, gameCompleted, gameOver]);
 
+  // Keyboard handler effect
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isPaused || gameCompleted || gameOver) {
@@ -363,7 +426,27 @@ const Tetris: React.FC = () => {
           rotatePiece();
           break;
         case "s":
+          hardDrop(); // Changed from dropPiece to hardDrop for better feel
+          break;
+        case "arrowleft":
+          event.preventDefault();
+          movePiece(-1, 0);
+          break;
+        case "arrowright":
+          event.preventDefault();
+          movePiece(1, 0);
+          break;
+        case "arrowup":
+          event.preventDefault();
+          rotatePiece();
+          break;
+        case "arrowdown":
+          event.preventDefault();
           dropPiece();
+          break;
+        case " ":
+          event.preventDefault();
+          hardDrop();
           break;
         default:
           break;
@@ -372,8 +455,9 @@ const Tetris: React.FC = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPaused, dropPiece, movePiece, rotatePiece, gameCompleted, gameOver]);
+  }, [isPaused, dropPiece, hardDrop, movePiece, rotatePiece, gameCompleted, gameOver]);
 
+  // Load scores on mount
   useEffect(() => {
     loadScores();
   }, [loadScores]);
@@ -398,7 +482,7 @@ const Tetris: React.FC = () => {
           <div
             key={`${y}-${x}`}
             className="tetris-cell"
-            style={{ backgroundColor }}
+            style={{ backgroundColor, border: "1px solid #333" }}
           />
         );
       })
