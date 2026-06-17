@@ -43,8 +43,6 @@ const checkCollision = (
   x: number,
   y: number
 ): boolean => {
-  if (y < 0) return false;
-  
   return piece.shape.some((row, rowIndex) =>
     row.some((cell, colIndex) => {
       if (cell !== 0) {
@@ -65,13 +63,13 @@ const checkCollision = (
 };
 
 const TETROMINOS: Piece[] = [
-  { shape: [[1, 1, 1], [0, 1, 0]], color: "red" },
-  { shape: [[1, 1], [1, 1]], color: "yellow" },
-  { shape: [[1, 1, 0], [0, 1, 1]], color: "green" },
-  { shape: [[0, 1, 1], [1, 1, 0]], color: "blue" },
-  { shape: [[1, 1, 1, 1]], color: "cyan" },
-  { shape: [[1, 1, 1], [1, 0, 0]], color: "orange" },
-  { shape: [[1, 1, 1], [0, 0, 1]], color: "purple" },
+  { shape: [[1, 1, 1], [0, 1, 0]], color: "#e03030" },   // T - red
+  { shape: [[1, 1], [1, 1]], color: "#e0c030" },          // O - yellow
+  { shape: [[1, 1, 0], [0, 1, 1]], color: "#30c030" },    // S - green
+  { shape: [[0, 1, 1], [1, 1, 0]], color: "#3070e0" },    // Z - blue
+  { shape: [[1, 1, 1, 1]], color: "#30d0d0" },            // I - cyan
+  { shape: [[1, 1, 1], [1, 0, 0]], color: "#e07030" },    // L - orange
+  { shape: [[1, 1, 1], [0, 0, 1]], color: "#a030e0" },    // J - purple
 ];
 
 const getRandomPiece = (): Piece =>
@@ -116,6 +114,50 @@ function parseLeaderboardEntry(entry: ScoreEntry): LeaderboardEntry {
   };
 }
 
+// ─── Pure helpers that don't depend on React state ───────────────────────────
+
+function placePieceOnBoardPure(
+  board: Board,
+  piece: Piece,
+  pos: { x: number; y: number }
+): Board {
+  const newBoard = board.map((row) => row.map((cell) => [...cell] as Cell));
+  piece.shape.forEach((row, rowIndex) =>
+    row.forEach((cell, colIndex) => {
+      if (cell !== 0) {
+        const ny = pos.y + rowIndex;
+        const nx = pos.x + colIndex;
+        if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) {
+          newBoard[ny][nx] = [piece.color, "filled"];
+        }
+      }
+    })
+  );
+  return newBoard;
+}
+
+function clearLinesPure(board: Board): { newBoard: Board; cleared: number } {
+  const kept = board.filter((row) => row.some((cell) => cell[1] === "clear"));
+  const cleared = board.length - kept.length;
+  if (cleared === 0) return { newBoard: board, cleared: 0 };
+  const newRows = Array.from({ length: cleared }, () =>
+    Array.from({ length: board[0].length }, () => ["0", "clear"] as Cell)
+  );
+  return { newBoard: [...newRows, ...kept], cleared };
+}
+
+function hardDropDistance(
+  board: Board,
+  piece: Piece,
+  pos: { x: number; y: number }
+): number {
+  let dist = 0;
+  while (!checkCollision(board, piece, pos.x, pos.y + dist + 1)) dist++;
+  return dist;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface GameState {
   board: Board;
   piece: Piece;
@@ -140,92 +182,48 @@ const initialGameState = (): GameState => ({
   scoreSaved: false,
 });
 
-function useBoardRenderer(board: Board, piece: Piece, pos: { x: number; y: number }) {
-  const boardRef = useRef<HTMLDivElement>(null);
-  
-  const getCellColor = useCallback((y: number, x: number) => {
-    const isActivePiece = piece.shape.some((pieceRow, pieceY) =>
-      pieceRow.some(
-        (pieceCell, pieceX) =>
-          pieceCell !== 0 && pos.y + pieceY === y && pos.x + pieceX === x
-      )
-    );
-
-    return isActivePiece ? piece.color : board[y][x][1] === "clear" ? "black" : board[y][x][0];
-  }, [board, piece, pos]);
-
-  return { boardRef, getCellColor };
-}
-
 const Tetris: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [topScores, setTopScores] = useState<LeaderboardEntry[]>([]);
   const [showGame, setShowGame] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [cellSize, setCellSize] = useState(30);
+  const [cellSize, setCellSize] = useState(28);
+
+  // Refs that hold the *latest* game state for use inside interval callbacks
+  const gsRef = useRef<GameState>(gameState);
+  gsRef.current = gameState;
 
   const startTimeRef = useRef<number | null>(null);
   const scoreSavedRef = useRef(false);
   const gameCompletedRef = useRef(false);
   const gameContainerRef = useRef<HTMLDivElement>(null);
   const activeKeysRef = useRef<Set<string>>(new Set());
-  const holdIntervalRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const holdTimersRef = useRef<Map<string, ReturnType<typeof setTimeout | typeof setInterval>>>(new Map());
 
-  const {
-    board,
-    piece,
-    pos,
-    lines,
-    isPaused,
-    elapsedMs,
-    gameCompleted,
-    gameOver,
-  } = gameState;
+  const { board, piece, pos, lines, isPaused, elapsedMs, gameCompleted, gameOver } = gameState;
 
-  const { boardRef, getCellColor } = useBoardRenderer(board, piece, pos);
-
-  // Detect mobile and calculate cell size on mount and resize
+  // ── Mobile detection ──────────────────────────────────────────────────────
   useEffect(() => {
-    const checkMobileAndResize = () => {
+    const check = () => {
       const mobile = window.innerWidth <= 768 || 'ontouchstart' in window;
       setIsMobile(mobile);
-      
       if (mobile && gameContainerRef.current) {
-        const containerWidth = gameContainerRef.current.clientWidth - 20;
-        const calculatedCellSize = Math.floor(containerWidth / COLS);
-        setCellSize(Math.min(calculatedCellSize, 30));
+        const w = gameContainerRef.current.clientWidth - 20;
+        setCellSize(Math.min(Math.floor(w / COLS), 28));
       } else {
-        setCellSize(30);
+        setCellSize(28);
       }
     };
-    
-    checkMobileAndResize();
-    window.addEventListener('resize', checkMobileAndResize);
-    return () => window.removeEventListener('resize', checkMobileAndResize);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
   }, []);
 
-  const updateState = useCallback((updates: Partial<GameState>) => {
-    setGameState(prev => ({ ...prev, ...updates }));
-  }, []);
-
-  const movePiece = useCallback(
-    (x: number, y: number) => {
-      if (isPaused || gameCompleted || gameOver) return;
-      if (checkCollision(board, piece, pos.x + x, pos.y + y)) {
-        return;
-      }
-      updateState({ pos: { x: pos.x + x, y: pos.y + y } });
-    },
-    [board, piece, pos, updateState, isPaused, gameCompleted, gameOver]
-  );
-
+  // ── Score helpers ─────────────────────────────────────────────────────────
   const loadScores = useCallback(async () => {
     try {
-      const response = await fetch(
-        `/bookmarks/api/scores?gameId=${GAME_IDS.TETRIS}`
-      );
+      const response = await fetch(`/bookmarks/api/scores?gameId=${GAME_IDS.TETRIS}`);
       const data: GetScoresResponse = await response.json();
-
       if (response.ok && data.scores) {
         setTopScores(data.scores.map(parseLeaderboardEntry));
       }
@@ -234,446 +232,501 @@ const Tetris: React.FC = () => {
     }
   }, []);
 
-  const saveScore = useCallback(
-    async (timeMs: number) => {
-      if (scoreSavedRef.current) return;
-
-      scoreSavedRef.current = true;
-
-      try {
-        const response = await fetch("/bookmarks/api/scores", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            gameId: GAME_IDS.TETRIS,
-            score: timeMs,
-            gameConfig: { linesTarget: LINES_TARGET },
-          }),
-        });
-
-        if (response.ok) {
-          updateState({ scoreSaved: true });
-          await loadScores();
-        } else {
-          scoreSavedRef.current = false;
-        }
-      } catch (error) {
-        console.error("Error saving score:", error);
+  const saveScore = useCallback(async (timeMs: number) => {
+    if (scoreSavedRef.current) return;
+    scoreSavedRef.current = true;
+    try {
+      const response = await fetch("/bookmarks/api/scores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gameId: GAME_IDS.TETRIS,
+          score: timeMs,
+          gameConfig: { linesTarget: LINES_TARGET },
+        }),
+      });
+      if (response.ok) {
+        setGameState(prev => ({ ...prev, scoreSaved: true }));
+        await loadScores();
+      } else {
         scoreSavedRef.current = false;
       }
-    },
-    [loadScores, updateState]
-  );
+    } catch (error) {
+      console.error("Error saving score:", error);
+      scoreSavedRef.current = false;
+    }
+  }, [loadScores]);
 
-  const completeGame = useCallback(
-    (finalMs: number) => {
-      if (gameCompletedRef.current) return;
+  useEffect(() => { loadScores(); }, [loadScores]);
 
+  // ── Core game logic (all operate on latest state via gsRef) ───────────────
+
+  /**
+   * Attempt to lock the current piece, clear lines, spawn next piece.
+   * Returns false if the game ended (game over).
+   */
+  const lockAndAdvance = useCallback((
+    board: Board,
+    piece: Piece,
+    pos: { x: number; y: number },
+    currentLines: number,
+    currentElapsed: number
+  ) => {
+    const newBoard = placePieceOnBoardPure(board, piece, pos);
+    const { newBoard: clearedBoard, cleared } = clearLinesPure(newBoard);
+    const totalLines = currentLines + cleared;
+
+    const nextPiece = getRandomPiece();
+    const nextPos = { x: Math.floor(COLS / 2) - 1, y: 0 };
+
+    // Check game-over: new piece immediately collides
+    const isGameOver = checkCollision(clearedBoard, nextPiece, nextPos.x, nextPos.y);
+
+    const isCompleted = !isGameOver && totalLines >= LINES_TARGET && !gameCompletedRef.current;
+    if (isCompleted) {
       gameCompletedRef.current = true;
-      updateState({ elapsedMs: finalMs, gameCompleted: true, isPaused: true });
+      const finalMs = startTimeRef.current != null ? Date.now() - startTimeRef.current : currentElapsed;
+      setGameState(prev => ({
+        ...prev,
+        board: clearedBoard,
+        lines: totalLines,
+        piece: nextPiece,
+        pos: nextPos,
+        isPaused: true,
+        gameCompleted: true,
+        elapsedMs: finalMs,
+      }));
       saveScore(finalMs);
-    },
-    [saveScore, updateState]
-  );
-
-  const handleGameOver = useCallback(() => {
-    updateState({ gameOver: true, isPaused: true });
-  }, [updateState]);
-
-  const resetPiece = useCallback(() => {
-    const newPiece = getRandomPiece();
-    const initialPos = { x: Math.floor(COLS / 2) - 1, y: 0 };
-
-    if (checkCollision(board, newPiece, initialPos.x, initialPos.y)) {
-      handleGameOver();
       return;
     }
 
-    updateState({ piece: newPiece, pos: initialPos });
-  }, [board, handleGameOver, updateState]);
+    if (isGameOver) {
+      setGameState(prev => ({
+        ...prev,
+        board: clearedBoard,
+        lines: totalLines,
+        isPaused: true,
+        gameOver: true,
+      }));
+      return;
+    }
 
-  const clearLines = useCallback(
-    (currentBoard: Board) => {
-      const clearedBoard = currentBoard.filter((row) =>
-        row.some((cell) => cell[1] === "clear")
-      );
-      const clearedLines = currentBoard.length - clearedBoard.length;
-      
-      if (clearedLines === 0) {
-        updateState({ board: currentBoard });
+    setGameState(prev => ({
+      ...prev,
+      board: clearedBoard,
+      lines: totalLines,
+      piece: nextPiece,
+      pos: nextPos,
+    }));
+  }, [saveScore]);
+
+  // ── Timer tick ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (isPaused || gameCompleted || gameOver) return;
+    const id = setInterval(() => {
+      setGameState(prev => {
+        if (prev.isPaused || prev.gameCompleted || prev.gameOver) return prev;
+        return { ...prev, elapsedMs: startTimeRef.current != null ? Date.now() - startTimeRef.current : prev.elapsedMs };
+      });
+    }, TIMER_TICK_MS);
+    return () => clearInterval(id);
+  }, [isPaused, gameCompleted, gameOver]);
+
+  // ── Gravity drop ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (isPaused || gameCompleted || gameOver) return;
+    const id = setInterval(() => {
+      const gs = gsRef.current;
+      if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+      if (!checkCollision(gs.board, gs.piece, gs.pos.x, gs.pos.y + 1)) {
+        setGameState(prev => ({ ...prev, pos: { ...prev.pos, y: prev.pos.y + 1 } }));
+      } else {
+        lockAndAdvance(gs.board, gs.piece, gs.pos, gs.lines, gs.elapsedMs);
+      }
+    }, DROP_SPEED_MS);
+    return () => clearInterval(id);
+  }, [isPaused, gameCompleted, gameOver, lockAndAdvance]);
+
+  // ── Actions exposed to keyboard / buttons ─────────────────────────────────
+  const moveLeft = useCallback(() => {
+    const gs = gsRef.current;
+    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+    if (!checkCollision(gs.board, gs.piece, gs.pos.x - 1, gs.pos.y)) {
+      setGameState(prev => ({ ...prev, pos: { ...prev.pos, x: prev.pos.x - 1 } }));
+    }
+  }, []);
+
+  const moveRight = useCallback(() => {
+    const gs = gsRef.current;
+    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+    if (!checkCollision(gs.board, gs.piece, gs.pos.x + 1, gs.pos.y)) {
+      setGameState(prev => ({ ...prev, pos: { ...prev.pos, x: prev.pos.x + 1 } }));
+    }
+  }, []);
+
+  const softDrop = useCallback(() => {
+    const gs = gsRef.current;
+    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+    if (!checkCollision(gs.board, gs.piece, gs.pos.x, gs.pos.y + 1)) {
+      setGameState(prev => ({ ...prev, pos: { ...prev.pos, y: prev.pos.y + 1 } }));
+    } else {
+      lockAndAdvance(gs.board, gs.piece, gs.pos, gs.lines, gs.elapsedMs);
+    }
+  }, [lockAndAdvance]);
+
+  const doHardDrop = useCallback(() => {
+    const gs = gsRef.current;
+    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+    const dist = hardDropDistance(gs.board, gs.piece, gs.pos);
+    const droppedPos = { ...gs.pos, y: gs.pos.y + dist };
+    lockAndAdvance(gs.board, gs.piece, droppedPos, gs.lines, gs.elapsedMs);
+  }, [lockAndAdvance]);
+
+  const rotatePiece = useCallback((direction: 1 | -1) => {
+    const gs = gsRef.current;
+    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+    const times = direction === 1 ? 1 : 3;
+    let rotated = gs.piece.shape;
+    for (let i = 0; i < times; i++) rotated = rotate(rotated);
+    const rotatedPiece = { ...gs.piece, shape: rotated };
+
+    // Wall-kick: try 0, -1, +1, -2, +2 offsets
+    for (const kick of [0, -1, 1, -2, 2]) {
+      if (!checkCollision(gs.board, rotatedPiece, gs.pos.x + kick, gs.pos.y)) {
+        setGameState(prev => ({
+          ...prev,
+          piece: rotatedPiece,
+          pos: { ...prev.pos, x: prev.pos.x + kick },
+        }));
         return;
       }
-      
-      const newRows = Array.from({ length: clearedLines }, () =>
-        Array.from({ length: currentBoard[0].length }, () => ["0", "clear"] as Cell)
-      );
-      const newBoard = [...newRows, ...clearedBoard];
-      const newLines = lines + clearedLines;
+    }
+  }, []);
 
-      updateState({ board: newBoard, lines: newLines });
+  // ── Key repeat helper ─────────────────────────────────────────────────────
+  const startRepeat = useCallback((key: string, action: () => void) => {
+    if (activeKeysRef.current.has(key)) return;
+    activeKeysRef.current.add(key);
+    action();
+    const timeout = setTimeout(() => {
+      const interval = setInterval(action, HOLD_REPEAT_RATE);
+      holdTimersRef.current.set(key + '_interval', interval);
+    }, HOLD_INITIAL_DELAY);
+    holdTimersRef.current.set(key, timeout);
+  }, []);
 
-      if (newLines >= LINES_TARGET && !gameCompletedRef.current) {
-        const finalMs = Date.now() - (startTimeRef.current ?? Date.now());
-        completeGame(finalMs);
+  const stopRepeat = useCallback((key: string) => {
+    activeKeysRef.current.delete(key);
+    const timeout = holdTimersRef.current.get(key);
+    if (timeout != null) { clearTimeout(timeout as ReturnType<typeof setTimeout>); holdTimersRef.current.delete(key); }
+    const interval = holdTimersRef.current.get(key + '_interval');
+    if (interval != null) { clearInterval(interval as ReturnType<typeof setInterval>); holdTimersRef.current.delete(key + '_interval'); }
+  }, []);
+
+  // ── Keyboard handler ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      switch (e.key) {
+        case 'ArrowLeft':  case 'a': case 'A': e.preventDefault(); startRepeat('left',  moveLeft);   break;
+        case 'ArrowRight': case 'd': case 'D': e.preventDefault(); startRepeat('right', moveRight);  break;
+        case 'ArrowDown':  case 's': case 'S': e.preventDefault(); startRepeat('down',  softDrop);   break;
+        case 'ArrowUp':    case ' ':            e.preventDefault(); doHardDrop();                     break;
+        case 'o': case 'O':                     e.preventDefault(); rotatePiece(-1);                  break;
+        case 'p': case 'P':                     e.preventDefault(); rotatePiece(1);                   break;
+        default: break;
       }
-    },
-    [lines, completeGame, updateState]
-  );
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'ArrowLeft':  case 'a': case 'A': stopRepeat('left');  break;
+        case 'ArrowRight': case 'd': case 'D': stopRepeat('right'); break;
+        case 'ArrowDown':  case 's': case 'S': stopRepeat('down');  break;
+        default: break;
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, [moveLeft, moveRight, softDrop, doHardDrop, rotatePiece, startRepeat, stopRepeat]);
 
-  const placePieceOnBoard = useCallback((): Board => {
-    const newBoard = board.map((row) => row.map((cell) => [...cell] as Cell));
-    
-    piece.shape.forEach((row, rowIndex) =>
-      row.forEach((cell, colIndex) => {
+  // ── Restart / Pause ───────────────────────────────────────────────────────
+  const restartGame = () => {
+    gameCompletedRef.current = false;
+    scoreSavedRef.current = false;
+    holdTimersRef.current.forEach((t, k) => {
+      if (k.includes('interval')) clearInterval(t as ReturnType<typeof setInterval>);
+      else clearTimeout(t as ReturnType<typeof setTimeout>);
+    });
+    holdTimersRef.current.clear();
+    activeKeysRef.current.clear();
+    startTimeRef.current = Date.now();
+    const state = initialGameState();
+    setGameState({ ...state, isPaused: false });
+  };
+
+  const togglePause = () => {
+    setGameState(prev => {
+      if (prev.gameCompleted || prev.gameOver) return prev;
+      if (prev.isPaused) {
+        startTimeRef.current = Date.now() - prev.elapsedMs;
+        return { ...prev, isPaused: false };
+      }
+      return { ...prev, isPaused: true };
+    });
+  };
+
+  // ── Render board ──────────────────────────────────────────────────────────
+  const renderBoard = () => {
+    // Build a display board with the active piece painted on
+    const display: string[][] = board.map((row) =>
+      row.map((cell) => (cell[1] === "clear" ? "black" : cell[0]))
+    );
+    piece.shape.forEach((row, py) =>
+      row.forEach((cell, px) => {
         if (cell !== 0) {
-          const newY = pos.y + rowIndex;
-          const newX = pos.x + colIndex;
-          if (newY >= 0 && newY < ROWS && newX >= 0 && newX < COLS) {
-            newBoard[newY][newX] = [piece.color, "filled"];
+          const ny = pos.y + py;
+          const nx = pos.x + px;
+          if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) {
+            display[ny][nx] = piece.color;
           }
         }
       })
     );
-    
-    return newBoard;
-  }, [board, piece, pos]);
 
-  const dropPiece = useCallback(() => {
-    if (isPaused || gameCompleted || gameOver) return;
-    
-    if (!checkCollision(board, piece, pos.x, pos.y + 1)) {
-      updateState({ pos: { ...pos, y: pos.y + 1 } });
-      return;
-    }
+    // Ghost piece
+    const ghostDist = hardDropDistance(board, piece, pos);
+    piece.shape.forEach((row, py) =>
+      row.forEach((cell, px) => {
+        if (cell !== 0) {
+          const ny = pos.y + ghostDist + py;
+          const nx = pos.x + px;
+          if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS && display[ny][nx] === 'black') {
+            display[ny][nx] = 'ghost';
+          }
+        }
+      })
+    );
 
-    const newBoard = placePieceOnBoard();
-    clearLines(newBoard);
-    resetPiece();
-  }, [board, piece, pos, updateState, placePieceOnBoard, clearLines, resetPiece, isPaused, gameCompleted, gameOver]);
-
-  const hardDrop = useCallback(() => {
-    if (isPaused || gameCompleted || gameOver) return;
-    
-    let dropDistance = 0;
-    while (!checkCollision(board, piece, pos.x, pos.y + dropDistance + 1)) {
-      dropDistance++;
-    }
-    
-    if (dropDistance > 0) {
-      updateState({ pos: { ...pos, y: pos.y + dropDistance } });
-      
-      const newBoard = placePieceOnBoard();
-      clearLines(newBoard);
-      resetPiece();
-    }
-  }, [board, piece, pos, updateState, placePieceOnBoard, clearLines, resetPiece, isPaused, gameCompleted, gameOver]);
-
-  const restartGame = () => {
-    gameCompletedRef.current = false;
-    scoreSavedRef.current = false;
-    startTimeRef.current = Date.now();
-    holdIntervalRef.current.forEach((interval) => clearInterval(interval));
-    holdIntervalRef.current.clear();
-    activeKeysRef.current.clear();
-    updateState({ ...initialGameState(), isPaused: false });
-  };
-
-  const togglePause = () => {
-    if (isPaused) {
-      startTimeRef.current = Date.now() - elapsedMs;
-      updateState({ isPaused: false });
-      return;
-    }
-
-    updateState({ isPaused: true });
-  };
-
-  const rotatePiece = useCallback((direction: number = 1) => {
-    if (isPaused || gameCompleted || gameOver) return;
-    
-    const rotatedShape = direction > 0 ? rotate(piece.shape) : rotate(rotate(rotate(piece.shape)));
-    if (!checkCollision(board, { ...piece, shape: rotatedShape }, pos.x, pos.y)) {
-      updateState({ piece: { ...piece, shape: rotatedShape } });
-    }
-  }, [piece, board, pos, updateState, isPaused, gameCompleted, gameOver]);
-
-  // Improved key handling with repeat support
-  const startKeyRepeat = useCallback((key: string, action: () => void) => {
-    if (activeKeysRef.current.has(key)) return;
-    
-    activeKeysRef.current.add(key);
-    action();
-    
-    const interval = setInterval(action, HOLD_REPEAT_RATE);
-    holdIntervalRef.current.set(key, interval);
-  }, []);
-
-  const stopKeyRepeat = useCallback((key: string) => {
-    activeKeysRef.current.delete(key);
-    const interval = holdIntervalRef.current.get(key);
-    if (interval) {
-      clearInterval(interval);
-      holdIntervalRef.current.delete(key);
-    }
-  }, []);
-
-  // Keyboard handler effect - Full controls with arrow keys and ASD+OP
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat) return;
-      
-      switch (event.key) {
-        case "ArrowLeft":
-          event.preventDefault();
-          startKeyRepeat("left", () => movePiece(-1, 0));
-          break;
-        case "ArrowRight":
-          event.preventDefault();
-          startKeyRepeat("right", () => movePiece(1, 0));
-          break;
-        case "ArrowDown":
-          event.preventDefault();
-          startKeyRepeat("down", () => dropPiece());
-          break;
-        case "ArrowUp":
-          event.preventDefault();
-          rotatePiece(1);
-          break;
-        case "a":
-        case "A":
-          event.preventDefault();
-          startKeyRepeat("a", () => movePiece(-1, 0));
-          break;
-        case "d":
-        case "D":
-          event.preventDefault();
-          startKeyRepeat("d", () => movePiece(1, 0));
-          break;
-        case "s":
-        case "S":
-          event.preventDefault();
-          startKeyRepeat("s", () => dropPiece());
-          break;
-        case "o":
-        case "O":
-          event.preventDefault();
-          rotatePiece(-1);
-          break;
-        case "p":
-        case "P":
-          event.preventDefault();
-          rotatePiece(1);
-          break;
-        default:
-          break;
-      }
-    };
-
-    const handleKeyUp = (event: KeyboardEvent) => {
-      switch (event.key) {
-        case "ArrowLeft":
-          stopKeyRepeat("left");
-          break;
-        case "ArrowRight":
-          stopKeyRepeat("right");
-          break;
-        case "ArrowDown":
-          stopKeyRepeat("down");
-          break;
-        case "a":
-        case "A":
-          stopKeyRepeat("a");
-          break;
-        case "d":
-        case "D":
-          stopKeyRepeat("d");
-          break;
-        case "s":
-        case "S":
-          stopKeyRepeat("s");
-          break;
-        default:
-          break;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, [movePiece, dropPiece, rotatePiece, startKeyRepeat, stopKeyRepeat]);
-
-  // Load scores on mount
-  useEffect(() => {
-    loadScores();
-  }, [loadScores]);
-
-  const renderBoard = () =>
-    board.map((row, y) =>
-      row.map((cell, x) => (
+    const cs = cellSize;
+    return display.map((row, y) =>
+      row.map((color, x) => (
         <div
           key={`${y}-${x}`}
           className="tetris-cell"
           style={{
-            backgroundColor: getCellColor(y, x),
-            width: isMobile ? cellSize : 30,
-            height: isMobile ? cellSize : 30,
+            width: cs,
+            height: cs,
+            backgroundColor: color === 'ghost' ? 'transparent' : color,
+            border: color === 'ghost'
+              ? `1px solid ${piece.color}55`
+              : color === 'black'
+              ? '1px solid #111'
+              : '1px solid rgba(255,255,255,0.18)',
+            boxSizing: 'border-box',
           }}
         />
       ))
     );
+  };
 
-  // Enhanced mobile controls with proper repeat handling
+  // ── Mobile controls ───────────────────────────────────────────────────────
   const renderMobileControls = () => (
-    <Box className="mobile-controls-row">
-      <Button
-        variant="contained"
-        className="mobile-btn-rotate"
+    <Box className="mobile-controls-row" sx={{ display: 'flex', gap: 1, justifyContent: 'center', mt: 1 }}>
+      {/* Rotate CCW */}
+      <Button variant="contained" className="mobile-btn-rotate"
         onTouchStart={(e) => { e.preventDefault(); rotatePiece(-1); }}
         onClick={() => rotatePiece(-1)}
-      >
-        ↺
-      </Button>
-      <Button
-        variant="contained"
-        className="mobile-btn"
-        onTouchStart={(e) => { 
-          e.preventDefault(); 
-          startKeyRepeat("mobileLeft", () => movePiece(-1, 0)); 
-        }}
-        onTouchEnd={() => stopKeyRepeat("mobileLeft")}
-        onMouseDown={() => startKeyRepeat("mobileLeft", () => movePiece(-1, 0))}
-        onMouseUp={() => stopKeyRepeat("mobileLeft")}
-        onMouseLeave={() => stopKeyRepeat("mobileLeft")}
-      >
-        ◀
-      </Button>
-      <Button
-        variant="contained"
-        className="mobile-btn"
-        onTouchStart={(e) => { 
-          e.preventDefault(); 
-          startKeyRepeat("mobileDown", () => dropPiece()); 
-        }}
-        onTouchEnd={() => stopKeyRepeat("mobileDown")}
-        onMouseDown={() => startKeyRepeat("mobileDown", () => dropPiece())}
-        onMouseUp={() => stopKeyRepeat("mobileDown")}
-        onMouseLeave={() => stopKeyRepeat("mobileDown")}
-      >
-        ▼
-      </Button>
-      <Button
-        variant="contained"
-        className="mobile-btn"
-        onTouchStart={(e) => { 
-          e.preventDefault(); 
-          startKeyRepeat("mobileRight", () => movePiece(1, 0)); 
-        }}
-        onTouchEnd={() => stopKeyRepeat("mobileRight")}
-        onMouseDown={() => startKeyRepeat("mobileRight", () => movePiece(1, 0))}
-        onMouseUp={() => stopKeyRepeat("mobileRight")}
-        onMouseLeave={() => stopKeyRepeat("mobileRight")}
-      >
-        ▶
-      </Button>
-      <Button
-        variant="contained"
-        className="mobile-btn-rotate"
+        sx={mobileRotateStyle}
+      >↺</Button>
+
+      {/* Left */}
+      <Button variant="contained" className="mobile-btn"
+        onTouchStart={(e) => { e.preventDefault(); startRepeat('ml', moveLeft); }}
+        onTouchEnd={() => stopRepeat('ml')}
+        onMouseDown={() => startRepeat('ml', moveLeft)}
+        onMouseUp={() => stopRepeat('ml')}
+        onMouseLeave={() => stopRepeat('ml')}
+        sx={mobileBtnStyle}
+      >◀</Button>
+
+      {/* Down */}
+      <Button variant="contained" className="mobile-btn"
+        onTouchStart={(e) => { e.preventDefault(); startRepeat('md', softDrop); }}
+        onTouchEnd={() => stopRepeat('md')}
+        onMouseDown={() => startRepeat('md', softDrop)}
+        onMouseUp={() => stopRepeat('md')}
+        onMouseLeave={() => stopRepeat('md')}
+        sx={mobileBtnStyle}
+      >▼</Button>
+
+      {/* Right */}
+      <Button variant="contained" className="mobile-btn"
+        onTouchStart={(e) => { e.preventDefault(); startRepeat('mr', moveRight); }}
+        onTouchEnd={() => stopRepeat('mr')}
+        onMouseDown={() => startRepeat('mr', moveRight)}
+        onMouseUp={() => stopRepeat('mr')}
+        onMouseLeave={() => stopRepeat('mr')}
+        sx={mobileBtnStyle}
+      >▶</Button>
+
+      {/* Rotate CW */}
+      <Button variant="contained" className="mobile-btn-rotate"
         onTouchStart={(e) => { e.preventDefault(); rotatePiece(1); }}
         onClick={() => rotatePiece(1)}
-      >
-        ↻
-      </Button>
+        sx={mobileRotateStyle}
+      >↻</Button>
     </Box>
   );
 
+  const cs = cellSize;
+  const boardWidth = cs * COLS;
+  const boardHeight = cs * ROWS;
+
   return (
-    <Box className={`tetris-container ${isMobile ? 'mobile' : ''}`}>
+    <Box className={`tetris-container ${isMobile ? 'mobile' : ''}`}
+      sx={{
+        minHeight: '100vh',
+        background: '#0a0a0f',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+      }}
+    >
       <MainMenu />
-      <Box className="tetris-game-wrapper" ref={gameContainerRef}>
-        <Box className="tetris-header">
-          <Box className="tetris-menu">
-            <Button
-              className="game-menu"
-              variant="contained"
-              size="small"
-              onClick={() => setShowGame(!showGame)}
-            >
-              {!showGame ? "Play" : "Scores"}
-            </Button>
-            <Button
-              className="game-menu"
-              variant="contained"
-              size="small"
-              onClick={restartGame}
-            >
-              Reiniciar
-            </Button>
-            <Button
-              className="game-menu"
-              variant="contained"
-              size="small"
-              onClick={togglePause}
-              disabled={gameCompleted || gameOver}
-            >
-              {isPaused ? "Reanudar" : "Pausar"}
-            </Button>
-          </Box>
+
+      {/* ── Arcade cabinet wrapper ── */}
+      <Box ref={gameContainerRef} sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        width: '100%',
+        maxWidth: 520,
+        px: 1,
+        pb: 2,
+      }}>
+
+        {/* Title bar */}
+        <Box sx={{
+          width: '100%',
+          textAlign: 'center',
+          py: 0.5,
+          mb: 0.5,
+          background: 'linear-gradient(90deg, #1a1a2e, #16213e, #1a1a2e)',
+          borderBottom: '2px solid #00ffcc',
+          letterSpacing: 6,
+        }}>
+          <Typography sx={{
+            fontFamily: '"Press Start 2P", "Courier New", monospace',
+            fontSize: isMobile ? 12 : 16,
+            color: '#00ffcc',
+            textShadow: '0 0 10px #00ffcc, 0 0 20px #00ffcc',
+          }}>
+            TETRIS
+          </Typography>
         </Box>
 
+        {/* Stats bar */}
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          width: boardWidth,
+          px: 0.5,
+          mb: 0.5,
+        }}>
+          <Typography sx={statStyle}>
+            LINES: {Math.min(lines, LINES_TARGET)}/{LINES_TARGET}
+          </Typography>
+          <Typography sx={statStyle}>
+            TIME: {formatTimeMs(elapsedMs)}
+          </Typography>
+        </Box>
+
+        {/* Status messages */}
+        {gameCompleted && (
+          <Typography sx={{ ...statusStyle, color: '#00ffcc', textShadow: '0 0 8px #00ffcc' }}>
+            ★ COMPLETE: {formatTimeMs(elapsedMs)} ★
+          </Typography>
+        )}
+        {gameOver && (
+          <Typography sx={{ ...statusStyle, color: '#ff3030', textShadow: '0 0 8px #ff3030' }}>
+            GAME OVER
+          </Typography>
+        )}
+        {isPaused && !gameCompleted && !gameOver && (
+          <Typography sx={{ ...statusStyle, color: '#ffcc00', textShadow: '0 0 8px #ffcc00' }}>
+            PAUSED
+          </Typography>
+        )}
+
+        {/* Menu buttons */}
+        <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+          <Button size="small" variant="outlined" onClick={() => setShowGame(v => !v)} sx={menuBtnStyle}>
+            {showGame ? 'SCORES' : 'PLAY'}
+          </Button>
+          <Button size="small" variant="outlined" onClick={restartGame} sx={menuBtnStyle}>
+            RESTART
+          </Button>
+          <Button size="small" variant="outlined"
+            onClick={togglePause}
+            disabled={gameCompleted || gameOver}
+            sx={menuBtnStyle}
+          >
+            {isPaused ? 'RESUME' : 'PAUSE'}
+          </Button>
+        </Box>
+
+        {/* ── Board ── */}
         {showGame && (
           <>
-            <Box className={`tetris-stats ${isMobile ? 'mobile' : ''}`}>
-              <Typography variant="body2" className="tetris-stat">
-                Lines: {Math.min(lines, LINES_TARGET)} / {LINES_TARGET}
-              </Typography>
-              <Typography variant="body2" className="tetris-stat">
-                Time: {formatTimeMs(elapsedMs)}
-              </Typography>
-            </Box>
-
-            {gameCompleted && (
-              <Typography variant="h6" className="tetris-status tetris-status-win">
-                Completed in {formatTimeMs(elapsedMs)}
-              </Typography>
-            )}
-            {gameOver && (
-              <Typography variant="h6" className="tetris-status tetris-status-over">
-                Game over
-              </Typography>
-            )}
-
-            <Box className={`tetris-board-container ${isMobile ? 'mobile' : ''}`}>
-              <Box className="tetris-board" ref={boardRef}>{renderBoard()}</Box>
+            <Box sx={{
+              width: boardWidth,
+              height: boardHeight,
+              display: 'grid',
+              gridTemplateColumns: `repeat(${COLS}, ${cs}px)`,
+              border: '3px solid #00ffcc',
+              boxShadow: '0 0 18px #00ffcc55, inset 0 0 30px #00001a',
+              background: '#000010',
+              userSelect: 'none',
+            }}>
+              {renderBoard()}
             </Box>
 
             {isMobile && renderMobileControls()}
 
             {!isMobile && (
-              <Box className="tetris-controls-desktop">
-                <Typography variant="caption" className="controls-hint">
-                  ← → ↓: Movimiento | ↑: Rotar | A/D: Izq/Der | S: Abajo | O/P: Rotar
+              <Box sx={{ mt: 1, textAlign: 'center' }}>
+                <Typography sx={{ fontFamily: 'monospace', fontSize: 10, color: '#555', letterSpacing: 1 }}>
+                  A/◀ MOVE LEFT &nbsp;|&nbsp; D/▶ MOVE RIGHT &nbsp;|&nbsp; S/▼ SOFT DROP &nbsp;|&nbsp; ↑/SPACE HARD DROP &nbsp;|&nbsp; O ROTATE ↺ &nbsp;|&nbsp; P ROTATE ↻
                 </Typography>
               </Box>
             )}
           </>
         )}
 
+        {/* ── Leaderboard ── */}
         {!showGame && (
-          <Box className="tetris-scores">
-            <h4 className="scores-title">Best times</h4>
+          <Box sx={{
+            width: boardWidth,
+            background: '#060610',
+            border: '2px solid #00ffcc44',
+            p: 2,
+          }}>
+            <Typography sx={{ ...statStyle, textAlign: 'center', mb: 1, color: '#00ffcc' }}>
+              ─ BEST TIMES ─
+            </Typography>
             {topScores.length === 0 ? (
-              <p className="scores-empty">No scores yet</p>
+              <Typography sx={{ ...statStyle, textAlign: 'center', color: '#444' }}>NO SCORES YET</Typography>
             ) : (
-              <table className="scores-table">
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'monospace', fontSize: 11, color: '#ccc' }}>
                 <thead>
                   <tr>
-                    <th>Pos</th>
-                    <th>User</th>
-                    <th>Time</th>
-                    <th>Lines</th>
+                    {['#', 'USER', 'TIME', 'LINES'].map(h => (
+                      <th key={h} style={{ color: '#00ffcc', textAlign: 'left', paddingBottom: 6, borderBottom: '1px solid #00ffcc44' }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -681,11 +734,11 @@ const Tetris: React.FC = () => {
                     .sort((a, b) => a.timeMs - b.timeMs)
                     .slice(0, 10)
                     .map((entry, i) => (
-                      <tr key={`${entry.name}-${entry.timeMs}-${i}`}>
-                        <td>{i + 1}</td>
-                        <td>{entry.name}</td>
-                        <td>{formatTimeMs(entry.timeMs)}</td>
-                        <td>{entry.linesTarget}</td>
+                      <tr key={`${entry.name}-${entry.timeMs}-${i}`} style={{ color: i === 0 ? '#ffcc00' : '#aaa' }}>
+                        <td style={{ padding: '3px 6px 3px 0' }}>{i + 1}</td>
+                        <td style={{ padding: '3px 6px' }}>{entry.name}</td>
+                        <td style={{ padding: '3px 6px' }}>{formatTimeMs(entry.timeMs)}</td>
+                        <td style={{ padding: '3px 6px' }}>{entry.linesTarget}</td>
                       </tr>
                     ))}
                 </tbody>
@@ -696,6 +749,54 @@ const Tetris: React.FC = () => {
       </Box>
     </Box>
   );
+};
+
+// ── Shared style objects ──────────────────────────────────────────────────────
+
+const statStyle = {
+  fontFamily: '"Press Start 2P", "Courier New", monospace',
+  fontSize: 9,
+  color: '#aaffcc',
+  letterSpacing: 1,
+};
+
+const statusStyle = {
+  fontFamily: '"Press Start 2P", "Courier New", monospace',
+  fontSize: 11,
+  mb: 0.5,
+  letterSpacing: 2,
+};
+
+const menuBtnStyle = {
+  fontFamily: '"Press Start 2P", "Courier New", monospace',
+  fontSize: 8,
+  color: '#00ffcc',
+  borderColor: '#00ffcc55',
+  letterSpacing: 1,
+  py: 0.5,
+  px: 1,
+  minWidth: 0,
+  '&:hover': { borderColor: '#00ffcc', background: '#00ffcc11' },
+  '&:disabled': { color: '#333', borderColor: '#222' },
+};
+
+const mobileBtnStyle = {
+  minWidth: 44,
+  height: 44,
+  fontSize: 18,
+  background: '#1a1a2e',
+  color: '#00ffcc',
+  border: '2px solid #00ffcc55',
+  '&:hover': { background: '#00ffcc22' },
+  '&:active': { background: '#00ffcc44' },
+};
+
+const mobileRotateStyle = {
+  ...mobileBtnStyle,
+  color: '#ffcc00',
+  border: '2px solid #ffcc0055',
+  '&:hover': { background: '#ffcc0022' },
+  '&:active': { background: '#ffcc0044' },
 };
 
 export default Tetris;
