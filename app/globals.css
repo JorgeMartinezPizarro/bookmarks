@@ -1,7 +1,7 @@
 html, body {
 	background: #333!important;
 	color: #e1e1e1;
-	height: calc(100% - 0px);
+	height: calc(100% - 10px);
 	width: calc(100% - 0px);
 	margin: 0;
 	padding: 0;

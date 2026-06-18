@@ -148,8 +148,6 @@ const GamesComponent = () => {
   const getCenterButtonText = (rowIndex: number, colIndex: number) => {
     if (steps === 0 && rowIndex === 0 && colIndex === 0) return "Let's"
     if (steps === 0 && rowIndex === 0 && colIndex === 1) return "Play"
-    if (steps === 0 && rowIndex === 1 && colIndex === 0) return "Click"
-    if (steps === 0 && rowIndex === 1 && colIndex === 1) return "Numbers"
     if (!isRight && rowIndex === 0 && colIndex === 0) return "GAME"
     if (!isRight && rowIndex === 0 && colIndex === 1) return "OVER"
     return ""

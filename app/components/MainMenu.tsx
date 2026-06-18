@@ -49,12 +49,6 @@ const MainMenu = () => {
         <MenuItem  color="primary" onClick={()=>window.location.href="/bookmarks"}><Button>
           <Image alt="" width="24" height="24" src="/bookmarks/icon-test.png" />Home
         </Button></MenuItem>
-        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/code"}><Button>
-          <Image alt="" width="24" height="24" src="/bookmarks/icon-github.png" />Code
-        </Button></MenuItem>
-        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/trainer"}><Button>
-          <Image alt="" width="24" height="24" src="/bookmarks/espada.png" />Trainer
-        </Button></MenuItem>
         <hr />
         <MenuItem onClick={()=>window.location.href="/bookmarks/pages/games/chess"}><Button>
           <Image alt="" width="24" height="24" src="/bookmarks/queen.png" />Chess
@@ -68,10 +62,7 @@ const MainMenu = () => {
         <MenuItem onClick={()=>window.location.href="/bookmarks/pages/games/tetris"}><Button>
           <Image alt="" width="24" height="24" src="/bookmarks/tetris.png" />Tetris
         </Button></MenuItem>
-		<MenuItem onClick={()=>window.location.href="/bookmarks/pages/monitor"}><Button>
-          <Image alt="" width="24" height="24" src="/bookmarks/icon-math.png" />System
-        </Button></MenuItem>
-        <hr />
+		<hr />
         {<MenuItem onClick={() => {
 				  signIn("nextcloud", {callbackUrl: window.location.href, redirect: true})
 			  }}><Button 

@@ -566,41 +566,65 @@ const Tetris: React.FC = () => {
   };
 
   // ── Mobile controls ───────────────────────────────────────────────────────
+  // ── Mobile controls ───────────────────────────────────────────────────────
+  // Layout (8 cols x 3 rows):
+  //   A A D D O O P P
+  //   A A D D O O P P
+  //   S S S S O O P P
   const renderMobileControls = () => (
-    <Box sx={{ display: 'flex', width: boardWidth, mt: 1 }}>
+    <Box sx={{
+	  display: 'grid',
+      gridTemplateColumns: 'repeat(8, 1fr)',
+      gridTemplateRows: 'repeat(3, 64px)',
+      gap: '4px',
+      width: '100vw',
+      position: 'relative',
+      left: '50%',
+      right: '50%',
+      marginLeft: '-50vw',
+      marginRight: '-50vw',
+      px: '6px',
+      boxSizing: 'border-box',
+      mt: 1,
+    }}>
+      <Button variant="contained"
+        onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('ml', moveLeft); }}
+        onTouchEnd={() => stopRepeat('ml')}
+        onMouseDown={mouseGuard(() => startRepeat('ml', moveLeft))}
+        onMouseUp={() => stopRepeat('ml')}
+        onMouseLeave={() => stopRepeat('ml')}
+        sx={{ ...mobileBtnStyle, gridColumn: '1 / 3', gridRow: '1 / 3' }}
+      >◀</Button>
 
-      {/* Left 50%: ◀ ▼ ▶ */}
-      <Box sx={{ display: 'flex', width: '50%' }}>
-        {([
-          { key: 'ml', label: '◀', action: moveLeft },
-          { key: 'md', label: '▼', action: softDrop },
-          { key: 'mr', label: '▶', action: moveRight },
-        ] as const).map(({ key, label, action }) => (
-          <Button key={key} variant="contained"
-            onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat(key, action); }}
-            onTouchEnd={() => stopRepeat(key)}
-            onMouseDown={mouseGuard(() => startRepeat(key, action))}
-            onMouseUp={() => stopRepeat(key)}
-            onMouseLeave={() => stopRepeat(key)}
-            sx={{ ...mobileBtnStyle, flex: 1, minWidth: 0 }}
-          >{label}</Button>
-        ))}
-      </Box>
+      <Button variant="contained"
+        onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('mr', moveRight); }}
+        onTouchEnd={() => stopRepeat('mr')}
+        onMouseDown={mouseGuard(() => startRepeat('mr', moveRight))}
+        onMouseUp={() => stopRepeat('mr')}
+        onMouseLeave={() => stopRepeat('mr')}
+        sx={{ ...mobileBtnStyle, gridColumn: '3 / 5', gridRow: '1 / 3' }}
+      >▶</Button>
 
-      {/* Right 50%: ↺ ↻ */}
-      <Box sx={{ display: 'flex', width: '50%' }}>
-        {([
-          { label: '↺', dir: -1 as const },
-          { label: '↻', dir:  1 as const },
-        ]).map(({ label, dir }) => (
-          <Button key={label} variant="contained"
-            onTouchStart={touchGuard(() => rotatePiece(dir))}
-            onMouseDown={mouseGuard(() => rotatePiece(dir))}
-            sx={{ ...mobileRotateStyle, flex: 1, minWidth: 0 }}
-          >{label}</Button>
-        ))}
-      </Box>
+      <Button variant="contained"
+        onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('md', softDrop); }}
+        onTouchEnd={() => stopRepeat('md')}
+        onMouseDown={mouseGuard(() => startRepeat('md', softDrop))}
+        onMouseUp={() => stopRepeat('md')}
+        onMouseLeave={() => stopRepeat('md')}
+        sx={{ ...mobileBtnStyle, gridColumn: '1 / 5', gridRow: '3 / 4' }}
+      >▼</Button>
 
+      <Button variant="contained"
+        onTouchStart={touchGuard(() => rotatePiece(-1))}
+        onMouseDown={mouseGuard(() => rotatePiece(-1))}
+        sx={{ ...mobileRotateStyle, gridColumn: '5 / 7', gridRow: '1 / 4' }}
+      >↺</Button>
+
+      <Button variant="contained"
+        onTouchStart={touchGuard(() => rotatePiece(1))}
+        onMouseDown={mouseGuard(() => rotatePiece(1))}
+        sx={{ ...mobileRotateStyle, gridColumn: '7 / 9', gridRow: '1 / 4' }}
+      >↻</Button>
     </Box>
   );
 
@@ -803,18 +827,21 @@ const menuBtnStyle = {
 };
 
 const mobileBtnStyle = {
-  minWidth: 44,
-  height: 44,
-  fontSize: 18,
+  width: '100%',
+  height: '100%',
+  minWidth: 0,
+  fontSize: 28,
   background: '#1a1a2e',
   color: '#00ffcc',
   border: '2px solid #00ffcc55',
+  borderRadius: '8px',
   '&:hover': { background: '#00ffcc22' },
   '&:active': { background: '#00ffcc44' },
 };
 
 const mobileRotateStyle = {
   ...mobileBtnStyle,
+  fontSize: 26,
   color: '#ffcc00',
   border: '2px solid #ffcc0055',
   '&:hover': { background: '#ffcc0022' },
