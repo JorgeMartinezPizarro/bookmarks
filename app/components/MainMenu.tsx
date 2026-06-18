@@ -29,7 +29,7 @@ const MainMenu = () => {
           color: "grey",
           position: "absolute",
           left: "5px",
-          top: "58px",
+          top: "5px",
           zIndex: "14000",
           padding: "8px",
           minWidth: "0",
