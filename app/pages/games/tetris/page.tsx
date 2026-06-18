@@ -183,7 +183,17 @@ const initialGameState = (): GameState => ({
 });
 
 const Tetris: React.FC = () => {
-  const [gameState, setGameState] = useState<GameState>(initialGameState);
+  const [gameState, setGameState] = useState<GameState>({
+	board: createBoard(),
+	piece: TETROMINOS[0], // cualquier pieza fija
+	pos: { x: Math.floor(COLS / 2) - 1, y: 0 },
+	lines: 0,
+	isPaused: true,
+	elapsedMs: 0,
+	gameCompleted: false,
+	gameOver: false,
+	scoreSaved: false,
+  });
   const [topScores, setTopScores] = useState<LeaderboardEntry[]>([]);
   const [showGame, setShowGame] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -202,6 +212,9 @@ const Tetris: React.FC = () => {
 
   const { board, piece, pos, lines, isPaused, elapsedMs, gameCompleted, gameOver } = gameState;
 
+  useEffect(() => {
+    setGameState(initialGameState());
+  }, []);
   // ── Mobile detection ──────────────────────────────────────────────────────
   useEffect(() => {
     const check = () => {
