@@ -42,7 +42,17 @@ const AgePage = () => {
     
    const size = 64;
 
-   const box = <Box className="intro" style={{ justifyContent: "center", height: '100vh'}} display="flex" flexDirection="column" alignItems="center" gap={2}>
+   const box = <Box 
+    className="intro" 
+	sx={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      height: "100vh",
+      gap: 2,
+    }}
+   >
     <p>Enter your birthdate as <i>dd-mm-yyyy</i></p>
     <TextField style={{background: "white", color: "black"}} value={birthDate} onChange={(e: any) => {setBirthDate(e.target.value)}} />
     <p>Dear <i>{session?.user?.name || "user"}</i>, you are since {days} days on planet Earth, congratulations!</p>
