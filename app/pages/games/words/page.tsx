@@ -1,15 +1,17 @@
 'use client';
 
 import MainMenu from "@/app/components/MainMenu";
-import { TextField, Button, InputLabel } from "@mui/material";
-import { useCallback, useEffect, useState } from "react";
+import { TextField, Button } from "@mui/material";
+import { useCallback, useEffect, useState, useRef } from "react";
 
 const Wording = () => {
+
+    
   const [word, setWord] = useState("");
   const [score, setScore] = useState(0);
   const [text, setText] = useState("");
   const [showWord, setShowWord] = useState(true);
-  const [time, setTime] = useState(25); // Cambiado de 60 a 25
+  const [time, setTime] = useState(25);
   const [playing, setPlaying] = useState(false);
   const [showScores, setShowScores] = useState(true);
   const [topScores, setTopScores] = useState<any[]>([]);
@@ -25,7 +27,7 @@ const Wording = () => {
           gameId: 4,
           username: "player",
           score: score,
-          gameConfig: { time: 25 } // Cambiado de 60 a 25
+          gameConfig: { time: 25 }
         }),
       });
       if (response.ok) {
@@ -36,6 +38,16 @@ const Wording = () => {
       console.error("Error saving score:", error);
     }
   }, [score, scoreSaved]);
+  // Guardamos la función saveScore en una referencia para evitar
+  // que el useEffect del temporizador dependa de ella y se reinicie
+  const saveScoreRef = useRef(saveScore);
+
+  // Actualizamos la referencia cada vez que saveScore cambie
+  useEffect(() => {
+    saveScoreRef.current = saveScore;
+  }, [saveScore]);
+
+  
 
   const loadScores = useCallback(async () => {
     try {
@@ -46,7 +58,7 @@ const Wording = () => {
           data.scores.map((s: any) => ({
             score: s.score,
             name: s.username,
-            time: s.gameConfig?.time || 25, // Cambiado default a 25
+            time: s.gameConfig?.time || 25,
             createdAt: s.createdAt,
           }))
         );
@@ -71,20 +83,25 @@ const Wording = () => {
     if (playing) audio?.play();
   }, [word, playing]);
 
+  // Efecto del temporizador: solo depende de 'playing'
   useEffect(() => {
+    // Reiniciar el juego solo cuando se inicia (playing pasa a true)
     if (playing) {
-      setTime(25); // Cambiado de 60 a 25
+      setTime(25);
       setScore(0);
       setScoreSaved(false);
     }
 
     let interval: NodeJS.Timeout | null = null;
+
     if (playing) {
       interval = setInterval(() => {
         setTime((prevTime) => {
           if (prevTime <= 1) {
+            // Tiempo agotado: detener juego y guardar puntuación
             setPlaying(false);
-            saveScore();
+            // Llamamos a la última versión de saveScore mediante la referencia
+            saveScoreRef.current();
             clearInterval(interval!);
             return 0;
           }
@@ -96,7 +113,7 @@ const Wording = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [playing, saveScore]);
+  }, [playing]); // <--- Solo depende de 'playing', no de 'saveScore'
 
   useEffect(() => {
     requestWord();
