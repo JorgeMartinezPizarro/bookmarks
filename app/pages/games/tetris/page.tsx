@@ -568,13 +568,11 @@ const Tetris: React.FC = () => {
 	  {/* Rotate CCW */}
       <Button variant="contained" className="mobile-btn-rotate"
         onTouchStart={(e) => { rotatePiece(-1); }}
-        onClick={() => rotatePiece(-1)}
         sx={mobileRotateStyle}
       >↺</Button>	
       {/* Rotate CW */}
       <Button variant="contained" className="mobile-btn-rotate"
         onTouchStart={(e) => { rotatePiece(1); }}
-        onClick={() => rotatePiece(1)}
         sx={mobileRotateStyle}
       >↻</Button>
     </Box>
