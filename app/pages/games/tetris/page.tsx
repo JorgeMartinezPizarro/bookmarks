@@ -24,7 +24,7 @@ const LINES_TARGET = 25;
 const DROP_SPEED_MS = 184;
 const TIMER_TICK_MS = 10;
 const HOLD_INITIAL_DELAY = 170;
-const HOLD_REPEAT_RATE = 50;
+const HOLD_REPEAT_RATE = 300;
 
 const ROWS = 20;
 const COLS = 10;
@@ -186,7 +186,11 @@ const Tetris: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [topScores, setTopScores] = useState<LeaderboardEntry[]>([]);
   const [showGame, setShowGame] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined'
+      ? window.innerWidth <= 768 || 'ontouchstart' in window
+      : false
+  );
   const [cellSize, setCellSize] = useState(28);
 
   // Refs that hold the *latest* game state for use inside interval callbacks
@@ -428,12 +432,12 @@ const Tetris: React.FC = () => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
       switch (e.key) {
-        case 'ArrowLeft':  case 'a': case 'A': startRepeat('left',  moveLeft);   break;
-        case 'ArrowRight': case 'd': case 'D': startRepeat('right', moveRight);  break;
-        case 'ArrowDown':  case 's': case 'S': startRepeat('down',  softDrop);   break;
-        case 'ArrowUp':    case 'w': case ' ': doHardDrop();                     break;
-        case 'o': case 'O':                    rotatePiece(-1);                  break;
-        case 'p': case 'P':                    rotatePiece(1);                   break;
+        case 'ArrowLeft':  case 'a': case 'A': e.preventDefault(); startRepeat('left',  moveLeft);   break;
+        case 'ArrowRight': case 'd': case 'D': e.preventDefault(); startRepeat('right', moveRight);  break;
+        case 'ArrowDown':  case 's': case 'S': e.preventDefault(); startRepeat('down',  softDrop);   break;
+        case 'ArrowUp':    case ' ':            e.preventDefault(); doHardDrop();                     break;
+        case 'o': case 'O':                     e.preventDefault(); rotatePiece(-1);                  break;
+        case 'p': case 'P':                     e.preventDefault(); rotatePiece(1);                   break;
         default: break;
       }
     };
@@ -533,14 +537,40 @@ const Tetris: React.FC = () => {
     );
   };
 
+  // Track whether the last interaction was touch, to suppress the synthetic
+  // mouse events that mobile browsers fire after touchend (~300 ms later).
+  const lastWasTouchRef = useRef(false);
+
+  const touchGuard = (action: () => void) => (e: React.TouchEvent) => {
+    e.preventDefault();           // suppress the synthetic mouse/click events
+    lastWasTouchRef.current = true;
+    action();
+  };
+
+  const mouseGuard = (action: () => void) => () => {
+    if (lastWasTouchRef.current) {
+      // Reset flag so the next genuine mouse interaction works normally
+      lastWasTouchRef.current = false;
+      return;
+    }
+    action();
+  };
+
   // ── Mobile controls ───────────────────────────────────────────────────────
   const renderMobileControls = () => (
     <Box className="mobile-controls-row" sx={{ display: 'flex', gap: 1, justifyContent: 'center', mt: 1 }}>
+      {/* Rotate CCW */}
+      <Button variant="contained" className="mobile-btn-rotate"
+        onTouchStart={touchGuard(() => rotatePiece(-1))}
+        onMouseDown={mouseGuard(() => rotatePiece(-1))}
+        sx={mobileRotateStyle}
+      >↺</Button>
+
       {/* Left */}
       <Button variant="contained" className="mobile-btn"
-        onTouchStart={(e) => { e.preventDefault(); startRepeat('ml', moveLeft); }}
+        onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('ml', moveLeft); }}
         onTouchEnd={() => stopRepeat('ml')}
-        onMouseDown={() => startRepeat('ml', moveLeft)}
+        onMouseDown={mouseGuard(() => startRepeat('ml', moveLeft))}
         onMouseUp={() => stopRepeat('ml')}
         onMouseLeave={() => stopRepeat('ml')}
         sx={mobileBtnStyle}
@@ -548,9 +578,9 @@ const Tetris: React.FC = () => {
 
       {/* Down */}
       <Button variant="contained" className="mobile-btn"
-        onTouchStart={(e) => { e.preventDefault(); startRepeat('md', softDrop); }}
+        onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('md', softDrop); }}
         onTouchEnd={() => stopRepeat('md')}
-        onMouseDown={() => startRepeat('md', softDrop)}
+        onMouseDown={mouseGuard(() => startRepeat('md', softDrop))}
         onMouseUp={() => stopRepeat('md')}
         onMouseLeave={() => stopRepeat('md')}
         sx={mobileBtnStyle}
@@ -558,21 +588,18 @@ const Tetris: React.FC = () => {
 
       {/* Right */}
       <Button variant="contained" className="mobile-btn"
-        onTouchStart={(e) => { e.preventDefault(); startRepeat('mr', moveRight); }}
+        onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('mr', moveRight); }}
         onTouchEnd={() => stopRepeat('mr')}
-        onMouseDown={() => startRepeat('mr', moveRight)}
+        onMouseDown={mouseGuard(() => startRepeat('mr', moveRight))}
         onMouseUp={() => stopRepeat('mr')}
         onMouseLeave={() => stopRepeat('mr')}
         sx={mobileBtnStyle}
       >▶</Button>
-	  {/* Rotate CCW */}
-      <Button variant="contained" className="mobile-btn-rotate"
-        onTouchStart={(e) => { rotatePiece(-1); }}
-        sx={mobileRotateStyle}
-      >↺</Button>	
+
       {/* Rotate CW */}
       <Button variant="contained" className="mobile-btn-rotate"
-        onTouchStart={(e) => { rotatePiece(1); }}
+        onTouchStart={touchGuard(() => rotatePiece(1))}
+        onMouseDown={mouseGuard(() => rotatePiece(1))}
         sx={mobileRotateStyle}
       >↻</Button>
     </Box>
@@ -691,15 +718,15 @@ const Tetris: React.FC = () => {
               {renderBoard()}
             </Box>
 
-            {isMobile && renderMobileControls()}
+            <Box className="mobile-only">
+              {renderMobileControls()}
+            </Box>
 
-            {!isMobile && (
-              <Box sx={{ mt: 1, textAlign: 'center' }}>
-                <Typography sx={{ fontFamily: 'monospace', fontSize: 10, color: '#555', letterSpacing: 1 }}>
-                  A/◀ MOVE LEFT &nbsp;|&nbsp; D/▶ MOVE RIGHT &nbsp;|&nbsp; S/▼ SOFT DROP &nbsp;|&nbsp; ↑/SPACE HARD DROP &nbsp;|&nbsp; O ROTATE ↺ &nbsp;|&nbsp; P ROTATE ↻
-                </Typography>
-              </Box>
-            )}
+            <Box className="desktop-only" sx={{ mt: 1, textAlign: 'center' }}>
+              <Typography sx={{ fontFamily: 'monospace', fontSize: 10, color: '#555', letterSpacing: 1 }}>
+                A/◀ MOVE LEFT &nbsp;|&nbsp; D/▶ MOVE RIGHT &nbsp;|&nbsp; S/▼ SOFT DROP &nbsp;|&nbsp; ↑/SPACE HARD DROP &nbsp;|&nbsp; O ROTATE ↺ &nbsp;|&nbsp; P ROTATE ↻
+              </Typography>
+            </Box>
           </>
         )}
 
