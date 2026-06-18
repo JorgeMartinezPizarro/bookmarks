@@ -157,10 +157,6 @@ const ChessGame: React.FC = () => {
         body: JSON.stringify({ fen: currentFen, elo }),
       });
 
-      if (!response.ok) {
-        throw new Error("Error al obtener movimiento de la IA");
-      }
-
       const data = await response.json();
 
       if (data.bestmove) {
