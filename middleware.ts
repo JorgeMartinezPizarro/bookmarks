@@ -6,9 +6,9 @@ const secret = process.env.NEXTAUTH_SECRET;
 
 export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request, secret });
-
+  console.log("Middleware in action!");
   // Si no hay token, redirigimos al login
-  if (!token) {
+  if (!token && process.env.NEXT_PUBLIC_ENABLE_LOGIN !== "true") {
     const loginUrl = new URL('/bookmarks/login', request.url);
     loginUrl.searchParams.set('callbackUrl', request.url); // opcional
     return NextResponse.redirect(loginUrl);

@@ -39,3 +39,5 @@ volume/
 .env
 
 cachedata/
+
+cache/

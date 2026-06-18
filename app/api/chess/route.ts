@@ -18,7 +18,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   try {
 
-    const user = await requireAuth(req);
+    if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "true")
+		await requireAuth(req);
 
     // Parseamos los datos del cuerpo de la solicitud
     const params = await req.json();

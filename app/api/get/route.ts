@@ -7,7 +7,8 @@ export async function GET(request: NextRequest): Promise<Response> {
   
   try {
 
-    const user = await requireAuth(request);
+    if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "true")
+		await requireAuth(request);
 
     const { searchParams } = new URL(request.url)
     

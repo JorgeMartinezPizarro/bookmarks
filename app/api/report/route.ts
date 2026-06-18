@@ -9,8 +9,12 @@ let lastModified = 0; // memoria simple en backend
 
 export async function GET(req: Request) {
   
-	const user = await requireAuth(req);
 	try {
+
+	if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "true")
+		await requireAuth(req);
+
+    	
     const files = await fs.readdir(WATCH_DIR);
     const jsonFiles = files.filter((f) => f.endsWith(".json"));
 

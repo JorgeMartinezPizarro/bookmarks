@@ -1,4 +1,4 @@
-import { requireAuth } from "@/app/lib/auth";
+import { requireAuth, type AuthUser } from "@/app/lib/auth";
 import { getScoresForGame, insertScore } from "@/app/lib/scores/db";
 import {
   GetScoresResponse,
@@ -20,7 +20,11 @@ function errorResponse(error: unknown): Response {
 
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    const user = await requireAuth(request);
+	
+    const user: AuthUser = process.env.NEXT_PUBLIC_ENABLE_LOGIN === "true"
+      ? await requireAuth(request)
+      : { id: "anonymous", name: "anonymous", email: "" };	
+
     const params = await request.json();
     const { gameId, score, gameConfig } = params;
 
@@ -70,8 +74,10 @@ export async function GET(request: NextRequest): Promise<Response> {
       );
     }
 
-    await requireAuth(request);
+    if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "true")
+		await requireAuth(request);
 
+    
     const body: GetScoresResponse = {
       gameId: parsedGameId,
       total: 0,
