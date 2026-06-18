@@ -431,9 +431,9 @@ const Tetris: React.FC = () => {
         case 'ArrowLeft':  case 'a': case 'A': e.preventDefault(); startRepeat('left',  moveLeft);   break;
         case 'ArrowRight': case 'd': case 'D': e.preventDefault(); startRepeat('right', moveRight);  break;
         case 'ArrowDown':  case 's': case 'S': e.preventDefault(); startRepeat('down',  softDrop);   break;
-        case 'ArrowUp':    case ' ':            e.preventDefault(); doHardDrop();                     break;
-        case 'o': case 'O':                     e.preventDefault(); rotatePiece(-1);                  break;
-        case 'p': case 'P':                     e.preventDefault(); rotatePiece(1);                   break;
+        case 'ArrowUp':    case 'w': case ' ': e.preventDefault(); doHardDrop();                     break;
+        case 'o': case 'O':                    e.preventDefault(); rotatePiece(-1);                  break;
+        case 'p': case 'P':                    e.preventDefault(); rotatePiece(1);                   break;
         default: break;
       }
     };
@@ -536,13 +536,6 @@ const Tetris: React.FC = () => {
   // ── Mobile controls ───────────────────────────────────────────────────────
   const renderMobileControls = () => (
     <Box className="mobile-controls-row" sx={{ display: 'flex', gap: 1, justifyContent: 'center', mt: 1 }}>
-      {/* Rotate CCW */}
-      <Button variant="contained" className="mobile-btn-rotate"
-        onTouchStart={(e) => { e.preventDefault(); rotatePiece(-1); }}
-        onClick={() => rotatePiece(-1)}
-        sx={mobileRotateStyle}
-      >↺</Button>
-
       {/* Left */}
       <Button variant="contained" className="mobile-btn"
         onTouchStart={(e) => { e.preventDefault(); startRepeat('ml', moveLeft); }}
@@ -572,7 +565,12 @@ const Tetris: React.FC = () => {
         onMouseLeave={() => stopRepeat('mr')}
         sx={mobileBtnStyle}
       >▶</Button>
-
+	  {/* Rotate CCW */}
+      <Button variant="contained" className="mobile-btn-rotate"
+        onTouchStart={(e) => { e.preventDefault(); rotatePiece(-1); }}
+        onClick={() => rotatePiece(-1)}
+        sx={mobileRotateStyle}
+      >↺</Button>	
       {/* Rotate CW */}
       <Button variant="contained" className="mobile-btn-rotate"
         onTouchStart={(e) => { e.preventDefault(); rotatePiece(1); }}
