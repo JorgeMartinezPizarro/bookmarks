@@ -23,8 +23,8 @@ type LeaderboardEntry = {
 const LINES_TARGET = 25;
 const DROP_SPEED_MS = 184;
 const TIMER_TICK_MS = 10;
-const HOLD_INITIAL_DELAY = 170;
-const HOLD_REPEAT_RATE = 300;
+const HOLD_INITIAL_DELAY = 300; // ms before auto-repeat kicks in
+const HOLD_REPEAT_RATE = 100;  // ms between each repeated step
 
 const ROWS = 20;
 const COLS = 10;
@@ -558,50 +558,53 @@ const Tetris: React.FC = () => {
 
   // ── Mobile controls ───────────────────────────────────────────────────────
   const renderMobileControls = () => (
-    <Box className="mobile-controls-row" sx={{ display: 'flex', gap: 1, justifyContent: 'center', mt: 1 }}>
-      {/* Rotate CCW */}
-      <Button variant="contained" className="mobile-btn-rotate"
-        onTouchStart={touchGuard(() => rotatePiece(-1))}
-        onMouseDown={mouseGuard(() => rotatePiece(-1))}
-        sx={mobileRotateStyle}
-      >↺</Button>
+    <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', alignItems: 'center', mt: 1 }}>
 
-      {/* Left */}
-      <Button variant="contained" className="mobile-btn"
-        onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('ml', moveLeft); }}
-        onTouchEnd={() => stopRepeat('ml')}
-        onMouseDown={mouseGuard(() => startRepeat('ml', moveLeft))}
-        onMouseUp={() => stopRepeat('ml')}
-        onMouseLeave={() => stopRepeat('ml')}
-        sx={mobileBtnStyle}
-      >◀</Button>
+      {/* Left group: ◀ ▼ ▶ */}
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <Button variant="contained"
+          onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('ml', moveLeft); }}
+          onTouchEnd={() => stopRepeat('ml')}
+          onMouseDown={mouseGuard(() => startRepeat('ml', moveLeft))}
+          onMouseUp={() => stopRepeat('ml')}
+          onMouseLeave={() => stopRepeat('ml')}
+          sx={mobileBtnStyle}
+        >◀</Button>
 
-      {/* Down */}
-      <Button variant="contained" className="mobile-btn"
-        onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('md', softDrop); }}
-        onTouchEnd={() => stopRepeat('md')}
-        onMouseDown={mouseGuard(() => startRepeat('md', softDrop))}
-        onMouseUp={() => stopRepeat('md')}
-        onMouseLeave={() => stopRepeat('md')}
-        sx={mobileBtnStyle}
-      >▼</Button>
+        <Button variant="contained"
+          onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('md', softDrop); }}
+          onTouchEnd={() => stopRepeat('md')}
+          onMouseDown={mouseGuard(() => startRepeat('md', softDrop))}
+          onMouseUp={() => stopRepeat('md')}
+          onMouseLeave={() => stopRepeat('md')}
+          sx={mobileBtnStyle}
+        >▼</Button>
 
-      {/* Right */}
-      <Button variant="contained" className="mobile-btn"
-        onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('mr', moveRight); }}
-        onTouchEnd={() => stopRepeat('mr')}
-        onMouseDown={mouseGuard(() => startRepeat('mr', moveRight))}
-        onMouseUp={() => stopRepeat('mr')}
-        onMouseLeave={() => stopRepeat('mr')}
-        sx={mobileBtnStyle}
-      >▶</Button>
+        <Button variant="contained"
+          onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('mr', moveRight); }}
+          onTouchEnd={() => stopRepeat('mr')}
+          onMouseDown={mouseGuard(() => startRepeat('mr', moveRight))}
+          onMouseUp={() => stopRepeat('mr')}
+          onMouseLeave={() => stopRepeat('mr')}
+          sx={mobileBtnStyle}
+        >▶</Button>
+      </Box>
 
-      {/* Rotate CW */}
-      <Button variant="contained" className="mobile-btn-rotate"
-        onTouchStart={touchGuard(() => rotatePiece(1))}
-        onMouseDown={mouseGuard(() => rotatePiece(1))}
-        sx={mobileRotateStyle}
-      >↻</Button>
+      {/* Right group: ↺ stacked over ↻ */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <Button variant="contained"
+          onTouchStart={touchGuard(() => rotatePiece(-1))}
+          onMouseDown={mouseGuard(() => rotatePiece(-1))}
+          sx={mobileRotateStyle}
+        >↺</Button>
+
+        <Button variant="contained"
+          onTouchStart={touchGuard(() => rotatePiece(1))}
+          onMouseDown={mouseGuard(() => rotatePiece(1))}
+          sx={mobileRotateStyle}
+        >↻</Button>
+      </Box>
+
     </Box>
   );
 
