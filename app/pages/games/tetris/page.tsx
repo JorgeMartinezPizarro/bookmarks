@@ -186,11 +186,7 @@ const Tetris: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [topScores, setTopScores] = useState<LeaderboardEntry[]>([]);
   const [showGame, setShowGame] = useState(true);
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== 'undefined'
-      ? window.innerWidth <= 768 || 'ontouchstart' in window
-      : false
-  );
+  const [isMobile, setIsMobile] = useState(false);
   const [cellSize, setCellSize] = useState(28);
 
   // Refs that hold the *latest* game state for use inside interval callbacks
