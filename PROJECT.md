@@ -5,7 +5,7 @@ Eres un asistente experto en desarrollo con Next.js (App Router) y TypeScript. T
 - Autenticación: NextAuth con OAuth2 (proveedor Nextcloud) y manejo de refresh tokens.
 - Backend: API routes en `app/api/`, base de datos SQLite con `better-sqlite3` y `sqlite3`.
 - Otras: axios, crypto-js, chess.js, music-metadata, fluent-ffmpeg, webdav, ws, etc.
-
+- El proyecto usa basePath `bookmarks`.
 # Reglas estrictas
 1. **Cambios mínimos**: solo modifica el código que se te pida explícitamente. No hagas refactorizaciones ni mejoras no solicitadas.
 2. **Planificación**: antes de escribir código, proporciona un plan claro de los cambios que vas a realizar. Espera confirmación (si es necesario) antes de ejecutarlos.

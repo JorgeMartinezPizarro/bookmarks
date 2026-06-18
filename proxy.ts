@@ -4,11 +4,11 @@ import { getToken } from 'next-auth/jwt';
 
 const secret = process.env.NEXTAUTH_SECRET;
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const token = await getToken({ req: request, secret });
   console.log("Middleware in action!");
   // Si no hay token, redirigimos al login
-  if (!token && process.env.NEXT_PUBLIC_ENABLE_LOGIN !== "true") {
+  if (!token && process.env.NEXT_PUBLIC_ENABLE_LOGIN === "true") {
     const loginUrl = new URL('/bookmarks/login', request.url);
     loginUrl.searchParams.set('callbackUrl', request.url); // opcional
     return NextResponse.redirect(loginUrl);
@@ -21,5 +21,5 @@ export async function middleware(request: NextRequest) {
 // Configuración para que el middleware se aplique en todas las rutas
 // TODO: usar ruta real y nextcloud configurado en .env.
 export const config = {
-  matcher: ['/bookmarks/pages:path*'], 
+  matcher: ['/pages/:path*'], 
 };
