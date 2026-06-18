@@ -428,12 +428,12 @@ const Tetris: React.FC = () => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
       switch (e.key) {
-        case 'ArrowLeft':  case 'a': case 'A': e.preventDefault(); startRepeat('left',  moveLeft);   break;
-        case 'ArrowRight': case 'd': case 'D': e.preventDefault(); startRepeat('right', moveRight);  break;
-        case 'ArrowDown':  case 's': case 'S': e.preventDefault(); startRepeat('down',  softDrop);   break;
-        case 'ArrowUp':    case 'w': case ' ': e.preventDefault(); doHardDrop();                     break;
-        case 'o': case 'O':                    e.preventDefault(); rotatePiece(-1);                  break;
-        case 'p': case 'P':                    e.preventDefault(); rotatePiece(1);                   break;
+        case 'ArrowLeft':  case 'a': case 'A': startRepeat('left',  moveLeft);   break;
+        case 'ArrowRight': case 'd': case 'D': startRepeat('right', moveRight);  break;
+        case 'ArrowDown':  case 's': case 'S': startRepeat('down',  softDrop);   break;
+        case 'ArrowUp':    case 'w': case ' ': doHardDrop();                     break;
+        case 'o': case 'O':                    rotatePiece(-1);                  break;
+        case 'p': case 'P':                    rotatePiece(1);                   break;
         default: break;
       }
     };
@@ -567,13 +567,13 @@ const Tetris: React.FC = () => {
       >▶</Button>
 	  {/* Rotate CCW */}
       <Button variant="contained" className="mobile-btn-rotate"
-        onTouchStart={(e) => { e.preventDefault(); rotatePiece(-1); }}
+        onTouchStart={(e) => { rotatePiece(-1); }}
         onClick={() => rotatePiece(-1)}
         sx={mobileRotateStyle}
       >↺</Button>	
       {/* Rotate CW */}
       <Button variant="contained" className="mobile-btn-rotate"
-        onTouchStart={(e) => { e.preventDefault(); rotatePiece(1); }}
+        onTouchStart={(e) => { rotatePiece(1); }}
         onClick={() => rotatePiece(1)}
         sx={mobileRotateStyle}
       >↻</Button>
