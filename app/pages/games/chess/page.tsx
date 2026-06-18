@@ -151,7 +151,7 @@ const ChessGame: React.FC = () => {
     const currentFen = game.fen();
 
     try {
-      const response = await fetch("/api/chess", {
+      const response = await fetch("/bookmarks/api/chess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fen: currentFen, elo }),
