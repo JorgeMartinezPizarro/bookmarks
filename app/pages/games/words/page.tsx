@@ -12,12 +12,14 @@ const Wording = () => {
   const [text, setText] = useState("");
   const [showWord, setShowWord] = useState(true);
   const [playing, setPlaying] = useState(false);
-  const [finished, setFinished] = useState(false);
+  const [showScores, setShowScores] = useState(true);
   const [topScores, setTopScores] = useState<any[]>([]);
   const [scoreSaved, setScoreSaved] = useState(false);
 
+  // NUEVO: estado de fin de partida
+  const [finished, setFinished] = useState(false);
+
   const startTimeRef = useRef<number>(0);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const saveScore = useCallback(async () => {
     if (scoreSaved) return;
@@ -57,7 +59,14 @@ const Wording = () => {
       const data = await response.json();
 
       if (data.scores) {
-        setTopScores(data.scores);
+        setTopScores(
+          data.scores.map((s: any) => ({
+            score: s.score,
+            name: s.username,
+            wordsTotal: s.gameConfig?.wordsTotal || WORDS_TOTAL,
+            createdAt: s.createdAt,
+          }))
+        );
       }
     } catch (error) {
       console.error("Error loading scores:", error);
@@ -67,25 +76,24 @@ const Wording = () => {
   const requestWord = useCallback(() => {
     if (playing) {
       fetch("/word")
-        .then((r) => r.json())
-        .then((r) => setWord(r.word));
+        .then((a) => a.json())
+        .then((a) => setWord(a.word));
     } else {
       setWord("");
     }
   }, [playing]);
 
   useEffect(() => {
-    if (playing) {
-      setScore(0);
-      setFinished(false);
-      setScoreSaved(false);
-      startTimeRef.current = Date.now();
-    }
-  }, [playing]);
+    const audio = document.getElementsByTagName("audio")[0] as HTMLAudioElement;
+    if (playing) audio?.play();
+  }, [word, playing]);
 
   useEffect(() => {
     if (playing) {
-      inputRef.current?.focus();
+      setScore(0);
+      setScoreSaved(false);
+      setFinished(false); // reset fin
+      startTimeRef.current = Date.now();
     }
   }, [playing]);
 
@@ -105,8 +113,8 @@ const Wording = () => {
       setText("");
 
       if (next >= WORDS_TOTAL) {
-        setFinished(true);
         setPlaying(false);
+        setFinished(true); // NUEVO: marcar partida finalizada
         saveScoreRef.current();
         return;
       }
@@ -114,6 +122,8 @@ const Wording = () => {
       requestWord();
     }
   };
+
+  const elapsedMs = playing ? Date.now() - startTimeRef.current : 0;
 
   return (
     <div
@@ -132,8 +142,9 @@ const Wording = () => {
       <MainMenu />
 
       <Button
+        className="game-menu"
         variant="contained"
-        onClick={() => setPlaying(!playing)}
+        onClick={() => setShowScores(!showScores)}
         style={{
           marginBottom: "20px",
           backgroundColor: "#16213e",
@@ -141,101 +152,150 @@ const Wording = () => {
           fontWeight: "bold"
         }}
       >
-        {playing ? "DETENER" : "JUGAR"}
+        {showScores ? "Ver Puntuaciones" : "Jugar"}
       </Button>
 
-      <div
-        style={{
-          backgroundColor: "#16213e",
-          padding: "30px",
-          borderRadius: "12px",
-          width: "100%",
-          maxWidth: "400px",
-        }}
-      >
-        <h2 style={{ margin: "0 0 20px 0", color: "#e94560" }}>
-          {finished
-            ? "🏁 Partida finalizada"
-            : !playing
-              ? "¡Preparado!"
-              : showWord
-                ? word
-                : "Oculta"}
-        </h2>
-
-        <TextField
-          inputRef={inputRef}
-          value={text}
-          onChange={(e: any) => setText(e.target.value)}
-          disabled={!playing}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleSubmitWord();
-          }}
-          placeholder="Escribe la palabra..."
+      {showScores ? (
+        <div
           style={{
-            background: "white",
-            borderRadius: "8px",
+            backgroundColor: "#16213e",
+            padding: "30px",
+            borderRadius: "12px",
             width: "100%",
-            marginBottom: "20px"
+            maxWidth: "400px",
+            boxShadow: "0 4px 15px rgba(0,0,0,0.3)"
           }}
-        />
+        >
+          <h2 style={{ margin: "0 0 20px 0", color: "#e94560" }}>
+            {!playing && finished
+              ? "🎉 Partida finalizada"
+              : !playing
+              ? "👋 Bienvenido"
+              : showWord
+              ? word
+              : "Oculta"}
+          </h2>
 
-        <div style={{ marginBottom: "20px" }}>
-          <Button
-            variant="contained"
-            onClick={() => setShowWord(!showWord)}
-            style={{ backgroundColor: "#0f3460", color: "white" }}
-          >
-            {showWord ? "OCULTAR" : "MOSTRAR"}
-          </Button>
-
-          <Button
-            variant="contained"
-            onClick={handleSubmitWord}
-            disabled={!playing}
-            style={{
-              marginLeft: "10px",
-              backgroundColor: "#e94560",
-              color: "white"
+          <TextField
+            color={word === text ? "primary" : "error"}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && text === word) {
+                handleSubmitWord();
+              }
             }}
-          >
-            ✓
-          </Button>
+            style={{
+              background: "white",
+              borderRadius: "8px",
+              marginBottom: "20px",
+              width: "100%"
+            }}
+            value={text}
+            onChange={(e: any) => setText(e.target.value)}
+            disabled={!playing}
+            placeholder="Escribe la palabra aquí..."
+          />
+
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginBottom: "20px" }}>
+            <Button
+              style={{
+                backgroundColor: playing ? "#e94560" : "#0f3460",
+                color: "white",
+                padding: "10px 20px",
+                borderRadius: "8px",
+                fontWeight: "bold"
+              }}
+              variant="contained"
+              onClick={() => setPlaying(!playing)}
+            >
+              {playing ? "DETENER" : "JUGAR"}
+            </Button>
+
+            <Button
+              style={{
+                backgroundColor: "#0f3460",
+                color: "white",
+                padding: "10px 20px",
+                borderRadius: "8px",
+                fontWeight: "bold"
+              }}
+              variant="contained"
+              onClick={() => setShowWord(!showWord)}
+            >
+              {!showWord ? "MOSTRAR" : "OCULTAR"}
+            </Button>
+
+            <Button
+              style={{
+                backgroundColor: "#e94560",
+                color: "white",
+                padding: "10px 20px",
+                borderRadius: "8px",
+                fontWeight: "bold"
+              }}
+              variant="contained"
+              onClick={handleSubmitWord}
+              disabled={!playing}
+            >
+              ✓
+            </Button>
+          </div>
+
+          <p style={{ fontSize: "18px", margin: "0 0 10px 0" }}>
+            Palabras: <strong>{score}</strong> / {WORDS_TOTAL} | Tiempo:{" "}
+            <strong>{elapsedMs} ms</strong>
+          </p>
+
+          {word !== "" && (
+            <audio key={word} style={{ display: "none" }} controls>
+              <source
+                src={"/bookmarks/api/audio?file=" + word + ".mp3"}
+                type="audio/mpeg"
+              />
+            </audio>
+          )}
         </div>
+      ) : (
+        <div
+          style={{
+            backgroundColor: "#16213e",
+            padding: "20px",
+            borderRadius: "12px",
+            width: "100%",
+            maxWidth: "400px",
+            boxShadow: "0 4px 15px rgba(0,0,0,0.3)"
+          }}
+        >
+          <h3 style={{ color: "#e94560", margin: "0 0 20px 0" }}>
+            Mejores Tiempos
+          </h3>
 
-        <p>
-          Palabras: <strong>{score}</strong> / {WORDS_TOTAL}
-        </p>
-      </div>
-
-      {/* SCOREBOARD SIMPLE */}
-      <div
-        style={{
-          marginTop: "20px",
-          backgroundColor: "#16213e",
-          padding: "20px",
-          borderRadius: "12px",
-          width: "100%",
-          maxWidth: "400px"
-        }}
-      >
-        <h3 style={{ color: "#e94560" }}>Mejores tiempos</h3>
-
-        {topScores.length === 0 ? (
-          <p style={{ color: "#888" }}>Sin datos aún</p>
-        ) : (
-          <ol style={{ color: "white", textAlign: "left" }}>
-            {topScores
-              .sort((a, b) => a.score - b.score)
-              .slice(0, 10)
-              .map((s, i) => (
-                <li key={i}>
-                  {s.score} ms
-                </li>
-              ))}
-          </ol>
-        )}
-      </div>
+          {topScores.length === 0 ? (
+            <p style={{ color: "#888" }}>No hay puntuaciones aún</p>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse", color: "white" }}>
+              <thead>
+                <tr style={{ backgroundColor: "#0f3460" }}>
+                  <th>#</th>
+                  <th>Usuario</th>
+                  <th>Tiempo (ms)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topScores
+                  .sort((a, b) => a.score - b.score)
+                  .slice(0, 10)
+                  .map((s, i) => (
+                    <tr key={i}>
+                      <td>{i + 1}</td>
+                      <td>{s.name}</td>
+                      <td>{s.score}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
     </div>
   );
 };
