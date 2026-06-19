@@ -620,27 +620,24 @@ const Tetris: React.FC = () => {
   const panelWidth = Math.max(boardWidth + 24, 260);
 
   // ── BOTONES MÓVILES (5 botones: A S D para mover/bajar, O P para rotar) ──
-  // Esquema solicitado (grid 9 columnas x 4 filas, columna 5 = separador):
-  //   A A D D . O O P P
-  //   A A D D . O O P P
-  //   S S S S . O O P P
-  //   S S S S . O O P P
+  // Esquema solicitado (grid 8 columnas x 4 filas, sin columna vacía entre grupos):
+  //   A A D D O O P P
+  //   A A D D O O P P
+  //   S S S S O O P P
+  //   S S S S O O P P
   // A = izquierda, D = derecha (arriba, 2x2 cada uno)
   // S = bajar (abajo, ancho completo, 4x2)
   // O = rotar izq, P = rotar der (altura completa, 4 filas)
-  //
-  // Usamos posicionamiento explícito por líneas (gridColumn/gridRow) en vez
-  // de gridTemplateAreas con string multilínea (frágil al pasar por sx).
   const CONTROL_ROW_H = 46;
   const CONTROL_GAP = 6;
   const renderMobileControls = () => (
     <Box
       sx={{
         width: '100%',
-        maxWidth: panelWidth,
+        maxWidth: '99%',
         mx: 'auto',
         display: 'grid',
-        gridTemplateColumns: 'repeat(9, 1fr)',
+        gridTemplateColumns: 'repeat(8, 1fr)',        // ← 8 columnas, sin columna hueca
         gridTemplateRows: `repeat(4, ${CONTROL_ROW_H}px)`,
         gap: `${CONTROL_GAP}px`,
       }}
@@ -720,7 +717,7 @@ const Tetris: React.FC = () => {
         onMouseDown={mouseGuard(() => rotatePiece(-1))}
         aria-label="Girar izquierda (O)"
         sx={{
-          gridColumn: "6 / 8",
+          gridColumn: "5 / 7",          // ← antes era "6 / 8"
           gridRow: "1 / 5",
           minWidth: 0,
           width: '100%',
@@ -741,7 +738,7 @@ const Tetris: React.FC = () => {
         onMouseDown={mouseGuard(() => rotatePiece(1))}
         aria-label="Girar derecha (P)"
         sx={{
-          gridColumn: "8 / 10",
+          gridColumn: "7 / 9",          // ← antes era "8 / 10"
           gridRow: "1 / 5",
           minWidth: 0,
           width: '100%',
