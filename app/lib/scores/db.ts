@@ -3,7 +3,7 @@ import type { GameId, ScoreEntry } from "@/app/lib/scores/types";
 import { parseStoredGameConfig } from "@/app/lib/scores/types";
 import Database from "better-sqlite3";
 
-const db = new Database("cache/scores.db");
+const db = new Database("cache/database/scores.db");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (

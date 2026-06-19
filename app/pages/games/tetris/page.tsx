@@ -23,8 +23,8 @@ type LeaderboardEntry = {
 const LINES_TARGET = 25;
 const DROP_SPEED_MS = 184;
 const TIMER_TICK_MS = 10;
-const HOLD_INITIAL_DELAY = 300; // ms before auto-repeat kicks in
-const HOLD_REPEAT_RATE = 100;  // ms between each repeated step
+const HOLD_INITIAL_DELAY = 300;
+const HOLD_REPEAT_RATE = 100;
 
 const ROWS = 20;
 const COLS = 10;
@@ -33,7 +33,6 @@ const createBoard = (rows: number = ROWS, cols: number = COLS): Board =>
   Array.from({ length: rows }, () =>
     Array.from({ length: cols }, () => ["0", "clear"] as Cell)
   );
-
 const rotate = (matrix: number[][]): number[][] =>
   matrix[0].map((_, colIndex) => matrix.map((row) => row[colIndex]).reverse());
 
@@ -71,7 +70,6 @@ const TETROMINOS: Piece[] = [
   { shape: [[1, 1, 1], [1, 0, 0]], color: "#e07030" },    // L - orange
   { shape: [[1, 1, 1], [0, 0, 1]], color: "#a030e0" },    // J - purple
 ];
-
 const getRandomPiece = (): Piece =>
   TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
 
@@ -80,13 +78,11 @@ function formatTimeMs(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   const millis = ms % 1000;
-
   if (minutes > 0) {
     return `${minutes}:${seconds.toString().padStart(2, "0")}.${millis
       .toString()
       .padStart(3, "0")}`;
   }
-
   return `${seconds}.${millis.toString().padStart(3, "0")}s`;
 }
 
@@ -95,7 +91,6 @@ function parseLeaderboardEntry(entry: ScoreEntry): LeaderboardEntry {
     typeof entry.gameConfig?.linesTarget === "number"
       ? entry.gameConfig.linesTarget
       : LINES_TARGET;
-
   if (typeof entry.gameConfig?.linesTarget === "number" || entry.score >= 1000) {
     return {
       name: entry.username,
@@ -103,10 +98,8 @@ function parseLeaderboardEntry(entry: ScoreEntry): LeaderboardEntry {
       linesTarget,
     };
   }
-
   const legacySeconds =
     typeof entry.gameConfig?.timer === "number" ? entry.gameConfig.timer : 0;
-
   return {
     name: entry.username,
     timeMs: legacySeconds * 1000,
@@ -114,8 +107,7 @@ function parseLeaderboardEntry(entry: ScoreEntry): LeaderboardEntry {
   };
 }
 
-// ─── Pure helpers that don't depend on React state ───────────────────────────
-
+// ─── Puras helpers ──────────────────
 function placePieceOnBoardPure(
   board: Board,
   piece: Piece,
@@ -135,7 +127,6 @@ function placePieceOnBoardPure(
   );
   return newBoard;
 }
-
 function clearLinesPure(board: Board): { newBoard: Board; cleared: number } {
   const kept = board.filter((row) => row.some((cell) => cell[1] === "clear"));
   const cleared = board.length - kept.length;
@@ -145,7 +136,6 @@ function clearLinesPure(board: Board): { newBoard: Board; cleared: number } {
   );
   return { newBoard: [...newRows, ...kept], cleared };
 }
-
 function hardDropDistance(
   board: Board,
   piece: Piece,
@@ -156,8 +146,7 @@ function hardDropDistance(
   return dist;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ───── GameState ──────────
 interface GameState {
   board: Board;
   piece: Piece;
@@ -168,6 +157,8 @@ interface GameState {
   gameCompleted: boolean;
   gameOver: boolean;
   scoreSaved: boolean;
+  lockVisual?: boolean; // NUEVO: para corregir bug 1
+  lockBoard?: Board;    // NUEVO: tablero a mostrar durante lock visual
 }
 
 const initialGameState = (): GameState => ({
@@ -182,27 +173,17 @@ const initialGameState = (): GameState => ({
   scoreSaved: false,
 });
 
+// ────── Componente principal ────
 const Tetris: React.FC = () => {
-  const [gameState, setGameState] = useState<GameState>({
-	board: createBoard(),
-	piece: TETROMINOS[0], // cualquier pieza fija
-	pos: { x: Math.floor(COLS / 2) - 1, y: 0 },
-	lines: 0,
-	isPaused: true,
-	elapsedMs: 0,
-	gameCompleted: false,
-	gameOver: false,
-	scoreSaved: false,
-  });
+  const [gameState, setGameState] = useState<GameState>(initialGameState());
   const [topScores, setTopScores] = useState<LeaderboardEntry[]>([]);
   const [showGame, setShowGame] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [cellSize, setCellSize] = useState(28);
 
-  // Refs that hold the *latest* game state for use inside interval callbacks
+  // Refs
   const gsRef = useRef<GameState>(gameState);
   gsRef.current = gameState;
-
   const startTimeRef = useRef<number | null>(null);
   const scoreSavedRef = useRef(false);
   const gameCompletedRef = useRef(false);
@@ -210,12 +191,10 @@ const Tetris: React.FC = () => {
   const activeKeysRef = useRef<Set<string>>(new Set());
   const holdTimersRef = useRef<Map<string, ReturnType<typeof setTimeout | typeof setInterval>>>(new Map());
 
-  const { board, piece, pos, lines, isPaused, elapsedMs, gameCompleted, gameOver } = gameState;
+  const { board, piece, pos, lines, isPaused, elapsedMs, gameCompleted, gameOver, lockVisual, lockBoard } = gameState;
 
-  useEffect(() => {
-    setGameState(initialGameState());
-  }, []);
-  // ── Mobile detection ──────────────────────────────────────────────────────
+  // Init y resize
+  useEffect(() => { setGameState(initialGameState()); }, []);
   useEffect(() => {
     const check = () => {
       const mobile = window.innerWidth <= 768 || 'ontouchstart' in window;
@@ -232,7 +211,7 @@ const Tetris: React.FC = () => {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // ── Score helpers ─────────────────────────────────────────────────────────
+  // Score helpers
   const loadScores = useCallback(async () => {
     try {
       const response = await fetch(`/bookmarks/api/scores?gameId=${GAME_IDS.TETRIS}`);
@@ -240,11 +219,8 @@ const Tetris: React.FC = () => {
       if (response.ok && data.scores) {
         setTopScores(data.scores.map(parseLeaderboardEntry));
       }
-    } catch (error) {
-      console.error("Error loading scores:", error);
-    }
+    } catch (error) { }
   }, []);
-
   const saveScore = useCallback(async (timeMs: number) => {
     if (scoreSavedRef.current) return;
     scoreSavedRef.current = true;
@@ -252,11 +228,7 @@ const Tetris: React.FC = () => {
       const response = await fetch("/bookmarks/api/scores", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          gameId: GAME_IDS.TETRIS,
-          score: timeMs,
-          gameConfig: { linesTarget: LINES_TARGET },
-        }),
+        body: JSON.stringify({ gameId: GAME_IDS.TETRIS, score: timeMs, gameConfig: { linesTarget: LINES_TARGET } }),
       });
       if (response.ok) {
         setGameState(prev => ({ ...prev, scoreSaved: true }));
@@ -264,55 +236,60 @@ const Tetris: React.FC = () => {
       } else {
         scoreSavedRef.current = false;
       }
-    } catch (error) {
-      console.error("Error saving score:", error);
-      scoreSavedRef.current = false;
-    }
+    } catch { scoreSavedRef.current = false; }
   }, [loadScores]);
-
   useEffect(() => { loadScores(); }, [loadScores]);
 
-  // ── Core game logic (all operate on latest state via gsRef) ───────────────
-
   /**
-   * Attempt to lock the current piece, clear lines, spawn next piece.
-   * Returns false if the game ended (game over).
+   * lockAndAdvance: bloquea pieza y avanza estado (inmediato salvo flag lockVisual)
    */
   const lockAndAdvance = useCallback((
     board: Board,
     piece: Piece,
     pos: { x: number; y: number },
     currentLines: number,
-    currentElapsed: number
+    currentElapsed: number,
+    forceLockVisual = false
   ) => {
+    // Coloca pieza sobre board en la pos final (nuevo para solución bug 1)
     const newBoard = placePieceOnBoardPure(board, piece, pos);
     const { newBoard: clearedBoard, cleared } = clearLinesPure(newBoard);
     const totalLines = currentLines + cleared;
 
     const nextPiece = getRandomPiece();
     const nextPos = { x: Math.floor(COLS / 2) - 1, y: 0 };
-
-    // Check game-over: new piece immediately collides
     const isGameOver = checkCollision(clearedBoard, nextPiece, nextPos.x, nextPos.y);
 
+    // Si es completado O game over:
     const isCompleted = !isGameOver && totalLines >= LINES_TARGET && !gameCompletedRef.current;
-    if (isCompleted) {
-      gameCompletedRef.current = true;
-      const finalMs = startTimeRef.current != null ? Date.now() - startTimeRef.current : currentElapsed;
+
+    // NUEVO: si forceLockVisual o completado, pinta primero lock visual, luego transiciona
+    if (isCompleted || forceLockVisual) {
       setGameState(prev => ({
         ...prev,
-        board: clearedBoard,
-        lines: totalLines,
-        piece: nextPiece,
-        pos: nextPos,
-        isPaused: true,
-        gameCompleted: true,
-        elapsedMs: finalMs,
+        lockVisual: true,
+        lockBoard: newBoard,
       }));
-      saveScore(finalMs);
+      setTimeout(() => {
+        gameCompletedRef.current = isCompleted;
+        const finalMs = startTimeRef.current != null ? Date.now() - startTimeRef.current : currentElapsed;
+        setGameState(prev => ({
+          ...prev,
+          board: clearedBoard,
+          lines: totalLines,
+          piece: nextPiece,
+          pos: nextPos,
+          isPaused: true,
+          gameCompleted: isCompleted,
+          gameOver: !isCompleted && isGameOver,
+          elapsedMs: finalMs,
+          lockVisual: false,
+          lockBoard: undefined
+        }));
+        if (isCompleted) saveScore(finalMs);
+      }, 80); // flash lock visual breve
       return;
     }
-
     if (isGameOver) {
       setGameState(prev => ({
         ...prev,
@@ -320,20 +297,23 @@ const Tetris: React.FC = () => {
         lines: totalLines,
         isPaused: true,
         gameOver: true,
+        lockVisual: false,
+        lockBoard: undefined,
       }));
       return;
     }
-
     setGameState(prev => ({
       ...prev,
       board: clearedBoard,
       lines: totalLines,
       piece: nextPiece,
       pos: nextPos,
+      lockVisual: false,
+      lockBoard: undefined,
     }));
   }, [saveScore]);
 
-  // ── Timer tick ────────────────────────────────────────────────────────────
+  // Timer tick
   useEffect(() => {
     if (isPaused || gameCompleted || gameOver) return;
     const id = setInterval(() => {
@@ -345,7 +325,7 @@ const Tetris: React.FC = () => {
     return () => clearInterval(id);
   }, [isPaused, gameCompleted, gameOver]);
 
-  // ── Gravity drop ──────────────────────────────────────────────────────────
+  // Gravedad
   useEffect(() => {
     if (isPaused || gameCompleted || gameOver) return;
     const id = setInterval(() => {
@@ -360,7 +340,7 @@ const Tetris: React.FC = () => {
     return () => clearInterval(id);
   }, [isPaused, gameCompleted, gameOver, lockAndAdvance]);
 
-  // ── Actions exposed to keyboard / buttons ─────────────────────────────────
+  // Acciones
   const moveLeft = useCallback(() => {
     const gs = gsRef.current;
     if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
@@ -368,7 +348,6 @@ const Tetris: React.FC = () => {
       setGameState(prev => ({ ...prev, pos: { ...prev.pos, x: prev.pos.x - 1 } }));
     }
   }, []);
-
   const moveRight = useCallback(() => {
     const gs = gsRef.current;
     if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
@@ -376,25 +355,29 @@ const Tetris: React.FC = () => {
       setGameState(prev => ({ ...prev, pos: { ...prev.pos, x: prev.pos.x + 1 } }));
     }
   }, []);
-
+  // SOFTDROP MODIFICADA: fuerza lockVisual cuando tocar fondo y sería partida acabada
   const softDrop = useCallback(() => {
     const gs = gsRef.current;
     if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
-    if (!checkCollision(gs.board, gs.piece, gs.pos.x, gs.pos.y + 1)) {
-      setGameState(prev => ({ ...prev, pos: { ...prev.pos, y: prev.pos.y + 1 } }));
+    const nextY = gs.pos.y + 1;
+    if (!checkCollision(gs.board, gs.piece, gs.pos.x, nextY)) {
+      setGameState(prev => ({ ...prev, pos: { ...prev.pos, y: nextY } }));
     } else {
-      lockAndAdvance(gs.board, gs.piece, gs.pos, gs.lines, gs.elapsedMs);
+      // Si lines+1 supera LINES_TARGET, fuerza lockVisual sí o sí
+      const newBoard = placePieceOnBoardPure(gs.board, gs.piece, gs.pos);
+      const { newBoard: clearedBoard, cleared } = clearLinesPure(newBoard);
+      const totalLines = gs.lines + cleared;
+      const isCompleted = totalLines >= LINES_TARGET && !gameCompletedRef.current;
+      lockAndAdvance(gs.board, gs.piece, gs.pos, gs.lines, gs.elapsedMs, isCompleted ? true : false);
     }
   }, [lockAndAdvance]);
-
   const doHardDrop = useCallback(() => {
     const gs = gsRef.current;
     if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
     const dist = hardDropDistance(gs.board, gs.piece, gs.pos);
     const droppedPos = { ...gs.pos, y: gs.pos.y + dist };
-    lockAndAdvance(gs.board, gs.piece, droppedPos, gs.lines, gs.elapsedMs);
+    lockAndAdvance(gs.board, gs.piece, droppedPos, gs.lines, gs.elapsedMs, true);
   }, [lockAndAdvance]);
-
   const rotatePiece = useCallback((direction: 1 | -1) => {
     const gs = gsRef.current;
     if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
@@ -402,8 +385,6 @@ const Tetris: React.FC = () => {
     let rotated = gs.piece.shape;
     for (let i = 0; i < times; i++) rotated = rotate(rotated);
     const rotatedPiece = { ...gs.piece, shape: rotated };
-
-    // Wall-kick: try 0, -1, +1, -2, +2 offsets
     for (const kick of [0, -1, 1, -2, 2]) {
       if (!checkCollision(gs.board, rotatedPiece, gs.pos.x + kick, gs.pos.y)) {
         setGameState(prev => ({
@@ -416,7 +397,7 @@ const Tetris: React.FC = () => {
     }
   }, []);
 
-  // ── Key repeat helper ─────────────────────────────────────────────────────
+  // Key repeat
   const startRepeat = useCallback((key: string, action: () => void) => {
     if (activeKeysRef.current.has(key)) return;
     activeKeysRef.current.add(key);
@@ -427,7 +408,6 @@ const Tetris: React.FC = () => {
     }, HOLD_INITIAL_DELAY);
     holdTimersRef.current.set(key, timeout);
   }, []);
-
   const stopRepeat = useCallback((key: string) => {
     activeKeysRef.current.delete(key);
     const timeout = holdTimersRef.current.get(key);
@@ -435,8 +415,7 @@ const Tetris: React.FC = () => {
     const interval = holdTimersRef.current.get(key + '_interval');
     if (interval != null) { clearInterval(interval as ReturnType<typeof setInterval>); holdTimersRef.current.delete(key + '_interval'); }
   }, []);
-
-  // ── Keyboard handler ──────────────────────────────────────────────────────
+  // Keyboard handler
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
@@ -466,7 +445,7 @@ const Tetris: React.FC = () => {
     };
   }, [moveLeft, moveRight, softDrop, doHardDrop, rotatePiece, startRepeat, stopRepeat]);
 
-  // ── Restart / Pause ───────────────────────────────────────────────────────
+  // Restart y pause
   const restartGame = () => {
     gameCompletedRef.current = false;
     scoreSavedRef.current = false;
@@ -480,7 +459,6 @@ const Tetris: React.FC = () => {
     const state = initialGameState();
     setGameState({ ...state, isPaused: false });
   };
-
   const togglePause = () => {
     setGameState(prev => {
       if (prev.gameCompleted || prev.gameOver) return prev;
@@ -492,38 +470,45 @@ const Tetris: React.FC = () => {
     });
   };
 
-  // ── Render board ──────────────────────────────────────────────────────────
+  // Render board
   const renderBoard = () => {
-    // Build a display board with the active piece painted on
-    const display: string[][] = board.map((row) =>
+    // Mostramos tablero de lock si lockVisual
+    const displaySource = lockVisual && lockBoard ? lockBoard : board;
+    const display: string[][] = displaySource.map((row) =>
       row.map((cell) => (cell[1] === "clear" ? "black" : cell[0]))
     );
-    piece.shape.forEach((row, py) =>
-      row.forEach((cell, px) => {
-        if (cell !== 0) {
-          const ny = pos.y + py;
-          const nx = pos.x + px;
-          if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) {
-            display[ny][nx] = piece.color;
+    if (!(lockVisual && lockBoard)) {
+      piece.shape.forEach((row, py) =>
+        row.forEach((cell, px) => {
+          if (cell !== 0) {
+            const ny = pos.y + py;
+            const nx = pos.x + px;
+            if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) {
+              display[ny][nx] = piece.color;
+            }
           }
-        }
-      })
-    );
-
-    // Ghost piece
-    const ghostDist = hardDropDistance(board, piece, pos);
-    piece.shape.forEach((row, py) =>
-      row.forEach((cell, px) => {
-        if (cell !== 0) {
-          const ny = pos.y + ghostDist + py;
-          const nx = pos.x + px;
-          if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS && display[ny][nx] === 'black') {
-            display[ny][nx] = 'ghost';
+        })
+      );
+      // Ghost
+      const ghostDist = hardDropDistance(board, piece, pos);
+      piece.shape.forEach((row, py) =>
+        row.forEach((cell, px) => {
+          if (cell !== 0) {
+            const ny = pos.y + ghostDist + py;
+            const nx = pos.x + px;
+            if (
+              ny >= 0 &&
+              ny < ROWS &&
+              nx >= 0 &&
+              nx < COLS &&
+              display[ny][nx] === "black"
+            ) {
+              display[ny][nx] = "ghost";
+            }
           }
-        }
-      })
-    );
-
+        })
+      );
+    }
     const cs = cellSize;
     return display.map((row, y) =>
       row.map((color, x) => (
@@ -533,104 +518,190 @@ const Tetris: React.FC = () => {
           style={{
             width: cs,
             height: cs,
-            backgroundColor: color === 'ghost' ? 'transparent' : color,
-            border: color === 'ghost'
-              ? `1px solid ${piece.color}55`
-              : color === 'black'
-              ? '1px solid #111'
-              : '1px solid rgba(255,255,255,0.18)',
-            boxSizing: 'border-box',
+            backgroundColor: color === "ghost" ? "transparent" : color,
+            border:
+              color === "ghost"
+                ? `1px solid ${piece.color}55`
+                : color === "black"
+                ? "1px solid #111"
+                : "1px solid rgba(255,255,255,0.18)",
+            boxSizing: "border-box",
+            opacity: lockVisual && lockBoard ? 0.8 : 1,
           }}
         />
       ))
     );
   };
 
-  // Track whether the last interaction was touch, to suppress the synthetic
-  // mouse events that mobile browsers fire after touchend (~300 ms later).
+  // Mobile controles
   const lastWasTouchRef = useRef(false);
-
   const touchGuard = (action: () => void) => (e: React.TouchEvent) => {
-    e.preventDefault();           // suppress the synthetic mouse/click events
+    e.preventDefault();
     lastWasTouchRef.current = true;
     action();
   };
-
   const mouseGuard = (action: () => void) => () => {
     if (lastWasTouchRef.current) {
-      // Reset flag so the next genuine mouse interaction works normally
       lastWasTouchRef.current = false;
       return;
     }
     action();
   };
 
-  // ── Mobile controls ───────────────────────────────────────────────────────
-  // ── Mobile controls ───────────────────────────────────────────────────────
-  // Layout (8 cols x 3 rows):
-  //   A A D D O O P P
-  //   A A D D O O P P
-  //   S S S S O O P P
+  // BUTTONS ARCADE
   const renderMobileControls = () => (
-    <Box sx={{
-	  display: 'grid',
-      gridTemplateColumns: 'repeat(8, 1fr)',
-      gridTemplateRows: 'repeat(3, 64px)',
-      gap: '4px',
-      width: '100vw',
-      position: 'relative',
-      left: '50%',
-      right: '50%',
-      marginLeft: '-50vw',
-      marginRight: '-50vw',
-      px: '6px',
-      boxSizing: 'border-box',
-      mt: 1,
-    }}>
-      <Button variant="contained"
-        onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('ml', moveLeft); }}
-        onTouchEnd={() => stopRepeat('ml')}
-        onMouseDown={mouseGuard(() => startRepeat('ml', moveLeft))}
-        onMouseUp={() => stopRepeat('ml')}
-        onMouseLeave={() => stopRepeat('ml')}
-        sx={{ ...mobileBtnStyle, gridColumn: '1 / 3', gridRow: '1 / 3' }}
+    <Box className="mobile-controls-row" sx={{ mt: 2 }}>
+      <Button
+        className="mobile-btn"
+        onTouchStart={touchGuard(() => startRepeat("ml", moveLeft))}
+        onTouchEnd={() => stopRepeat("ml")}
+        onMouseDown={mouseGuard(() => startRepeat("ml", moveLeft))}
+        onMouseUp={() => stopRepeat("ml")}
+        onMouseLeave={() => stopRepeat("ml")}
+        aria-label="Izquierda"
+        sx={{
+          background: "radial-gradient(circle at 30% 30%, #18ffff 80%, #055 100%)",
+          color: "#012",
+          border: "3px solid #0ff",
+          minWidth: 58, height: 58, mx: 1,
+          fontSize: 32, fontWeight: "bold", boxShadow: "0 2px 16px #0ff5",
+          transition: "filter 0.07s", filter: "brightness(0.98)",
+          '&:active': { filter: 'brightness(1.25)' }
+        }}
       >◀</Button>
-
-      <Button variant="contained"
-        onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('mr', moveRight); }}
-        onTouchEnd={() => stopRepeat('mr')}
-        onMouseDown={mouseGuard(() => startRepeat('mr', moveRight))}
-        onMouseUp={() => stopRepeat('mr')}
-        onMouseLeave={() => stopRepeat('mr')}
-        sx={{ ...mobileBtnStyle, gridColumn: '3 / 5', gridRow: '1 / 3' }}
-      >▶</Button>
-
-      <Button variant="contained"
-        onTouchStart={(e) => { e.preventDefault(); lastWasTouchRef.current = true; startRepeat('md', softDrop); }}
-        onTouchEnd={() => stopRepeat('md')}
-        onMouseDown={mouseGuard(() => startRepeat('md', softDrop))}
-        onMouseUp={() => stopRepeat('md')}
-        onMouseLeave={() => stopRepeat('md')}
-        sx={{ ...mobileBtnStyle, gridColumn: '1 / 5', gridRow: '3 / 4' }}
+      <Button
+        className="mobile-btn"
+        onTouchStart={touchGuard(() => startRepeat("md", softDrop))}
+        onTouchEnd={() => stopRepeat("md")}
+        onMouseDown={mouseGuard(() => startRepeat("md", softDrop))}
+        onMouseUp={() => stopRepeat("md")}
+        onMouseLeave={() => stopRepeat("md")}
+        aria-label="Bajar"
+        sx={{
+          background: "radial-gradient(circle at 50% 40%, #ffff18 75%, #550 100%)",
+          color: "#221", border: "3px solid #ff0",
+          minWidth: 58, height: 58, mx: 1, fontSize: 33,
+          fontWeight: "bold", boxShadow: "0 2px 16px #ff07",
+          '&:active': { filter: 'brightness(1.18)' }
+        }}
       >▼</Button>
-
-      <Button variant="contained"
+      <Button
+        className="mobile-btn"
+        onTouchStart={touchGuard(() => startRepeat("mr", moveRight))}
+        onTouchEnd={() => stopRepeat("mr")}
+        onMouseDown={mouseGuard(() => startRepeat("mr", moveRight))}
+        onMouseUp={() => stopRepeat("mr")}
+        onMouseLeave={() => stopRepeat("mr")}
+        aria-label="Derecha"
+        sx={{
+          background: "radial-gradient(circle at 70% 30%, #18ff7a 70%, #053 100%)",
+          color: "#012", border: "3px solid #0f7",
+          minWidth: 58, height: 58, mx: 1, fontSize: 32,
+          boxShadow: "0 2px 16px #0fb5",
+          '&:active': { filter: 'brightness(1.13)' }
+        }}
+      >▶</Button>
+      <Button
+        className="mobile-btn-rotate"
         onTouchStart={touchGuard(() => rotatePiece(-1))}
         onMouseDown={mouseGuard(() => rotatePiece(-1))}
-        sx={{ ...mobileRotateStyle, gridColumn: '5 / 7', gridRow: '1 / 4' }}
+        aria-label="Girar izq"
+        sx={{
+          background: "radial-gradient(circle at 45% 35%, #ffd600 62%, #fc0 100%)",
+          color: "#fd0", border: "3px solid #ffc800",
+          minWidth: 48, height: 48, mx: 1, fontSize: 32,
+          boxShadow: "0 2px 10px #ff08",
+          '&:active': { filter: 'brightness(1.18)' }
+        }}
       >↺</Button>
-
-      <Button variant="contained"
+      <Button
+        className="mobile-btn-rotate"
         onTouchStart={touchGuard(() => rotatePiece(1))}
         onMouseDown={mouseGuard(() => rotatePiece(1))}
-        sx={{ ...mobileRotateStyle, gridColumn: '7 / 9', gridRow: '1 / 4' }}
+        aria-label="Girar der"
+        sx={{
+          background: "radial-gradient(circle at 55% 40%, #7f57f3 62%, #9000b3 100%)",
+          color: "#fff", border: "3px solid #ae7fff",
+          minWidth: 48, height: 48, mx: 1, fontSize: 32,
+          boxShadow: "0 2px 10px #ae7fff77",
+          '&:active': { filter: 'brightness(1.14)' }
+        }}
       >↻</Button>
+      <Button
+        className="mobile-btn-rotate"
+        onTouchStart={touchGuard(() => doHardDrop())}
+        onMouseDown={mouseGuard(() => doHardDrop())}
+        aria-label="Drop"
+        sx={{
+          background: "radial-gradient(circle at 66% 60%, #19f7ff 72%, #297df8 100%)",
+          color: "#fff", border: "3px solid #19d7ff",
+          minWidth: 48, height: 48, mx: 1, fontSize: 34,
+          boxShadow: "0 2px 10px #19f7ff77",
+          '&:active': { filter: 'brightness(1.26)' }
+        }}
+      >⎇</Button>
     </Box>
   );
 
   const cs = cellSize;
   const boardWidth = cs * COLS;
   const boardHeight = cs * ROWS;
+
+  // Nuevo menú tipo panel arcade
+  const renderMainMenu = () => (
+    <Box sx={{
+      width: boardWidth + 42,
+      margin: "0 auto 16px",
+      display: 'flex',
+      alignItems: "center",
+      justifyContent: "center",
+      py: 1.2,
+      px: 2,
+      background: 'linear-gradient(90deg, #181830 0%, #27274e 70%, #191530 100%)',
+      border: "2.5px solid #00ffcc66",
+      borderRadius: "20px",
+      boxShadow: "0 0 18px #00ffcc22, 0 2px 24px #001e15aa, inset 0 0 16px #3ff4  "
+    }}>
+      <Button
+        size="large"
+        variant={showGame ? "contained" : "outlined"}
+        onClick={() => setShowGame(v => !v)}
+        sx={{
+          ...menuBtnStyleArcade,
+          background: showGame
+            ? 'radial-gradient(circle at 55% 30%, #011b21 70%, #1d3c40 100%)'
+            : 'transparent',
+          color: showGame ? "#00ffe0" : "#00ffcc",
+          mr: 1.5
+        }}
+      >
+        {showGame ? 'SCORES' : 'PLAY'}
+      </Button>
+      <Button
+        size="large"
+        variant="outlined"
+        onClick={restartGame}
+        sx={{ ...menuBtnStyleArcade, mx: 1.5, color: "#ffec40", borderColor: "#ffdc40" }}
+      >
+        RESTART
+      </Button>
+      <Button
+        size="large"
+        variant="outlined"
+        onClick={togglePause}
+        disabled={gameCompleted || gameOver}
+        sx={{
+          ...menuBtnStyleArcade,
+          mx: 1.5,
+          color: isPaused ? "#13e673" : "#fff",
+          borderColor: "#13e673",
+          opacity: gameCompleted || gameOver ? 0.45 : 1,
+        }}
+      >
+        {isPaused ? 'RESUME' : 'PAUSE'}
+      </Button>
+    </Box>
+  );
 
   return (
     <Box className={`tetris-container ${isMobile ? 'mobile' : ''}`}
@@ -644,13 +715,16 @@ const Tetris: React.FC = () => {
     >
       <MainMenu />
 
-      {/* ── Arcade cabinet wrapper ── */}
+      {/* Menú superior amplio */}
+      {renderMainMenu()}
+
+      {/* Arcade wrapper */}
       <Box ref={gameContainerRef} sx={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         width: '100%',
-        maxWidth: 520,
+        maxWidth: boardWidth + 30,
         px: 1,
         pb: 2,
       }}>
@@ -674,7 +748,6 @@ const Tetris: React.FC = () => {
             TETRIS
           </Typography>
         </Box>
-
         {/* Stats bar */}
         <Box sx={{
           display: 'flex',
@@ -683,15 +756,10 @@ const Tetris: React.FC = () => {
           px: 0.5,
           mb: 0.5,
         }}>
-          <Typography sx={statStyle}>
-            LINES: {Math.min(lines, LINES_TARGET)}/{LINES_TARGET}
-          </Typography>
-          <Typography sx={statStyle}>
-            TIME: {formatTimeMs(elapsedMs)}
-          </Typography>
+          <Typography sx={statStyle}>LINES: {Math.min(lines, LINES_TARGET)}/{LINES_TARGET}</Typography>
+          <Typography sx={statStyle}>TIME: {formatTimeMs(elapsedMs)}</Typography>
         </Box>
-
-        {/* Status messages */}
+        {/* Mensajes de estado */}
         {gameCompleted && (
           <Typography sx={{ ...statusStyle, color: '#00ffcc', textShadow: '0 0 8px #00ffcc' }}>
             ★ COMPLETE: {formatTimeMs(elapsedMs)} ★
@@ -708,24 +776,7 @@ const Tetris: React.FC = () => {
           </Typography>
         )}
 
-        {/* Menu buttons */}
-        <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-          <Button size="small" variant="outlined" onClick={() => setShowGame(v => !v)} sx={menuBtnStyle}>
-            {showGame ? 'SCORES' : 'PLAY'}
-          </Button>
-          <Button size="small" variant="outlined" onClick={restartGame} sx={menuBtnStyle}>
-            RESTART
-          </Button>
-          <Button size="small" variant="outlined"
-            onClick={togglePause}
-            disabled={gameCompleted || gameOver}
-            sx={menuBtnStyle}
-          >
-            {isPaused ? 'RESUME' : 'PAUSE'}
-          </Button>
-        </Box>
-
-        {/* ── Board ── */}
+        {/* ── Tablero ── */}
         {showGame && (
           <>
             <Box sx={{
@@ -737,14 +788,14 @@ const Tetris: React.FC = () => {
               boxShadow: '0 0 18px #00ffcc55, inset 0 0 30px #00001a',
               background: '#000010',
               userSelect: 'none',
+              borderRadius: "3px"
             }}>
               {renderBoard()}
             </Box>
 
-            <Box className="mobile-only">
-              {renderMobileControls()}
-            </Box>
-
+            {/* SOLO MOVIL */}
+            <Box className="mobile-only">{renderMobileControls()}</Box>
+            {/* Desktop help */}
             <Box className="desktop-only" sx={{ mt: 1, textAlign: 'center' }}>
               <Typography sx={{ fontFamily: 'monospace', fontSize: 10, color: '#555', letterSpacing: 1 }}>
                 A/◀ MOVE LEFT &nbsp;|&nbsp; D/▶ MOVE RIGHT &nbsp;|&nbsp; S/▼ SOFT DROP &nbsp;|&nbsp; ↑/SPACE HARD DROP &nbsp;|&nbsp; O ROTATE ↺ &nbsp;|&nbsp; P ROTATE ↻
@@ -752,8 +803,7 @@ const Tetris: React.FC = () => {
             </Box>
           </>
         )}
-
-        {/* ── Leaderboard ── */}
+        {/* Leaderboard */}
         {!showGame && (
           <Box sx={{
             width: boardWidth,
@@ -797,55 +847,34 @@ const Tetris: React.FC = () => {
   );
 };
 
-// ── Shared style objects ──────────────────────────────────────────────────────
-
+// ── Estilos de botones y panel menú arcade ──
 const statStyle = {
   fontFamily: '"Press Start 2P", "Courier New", monospace',
-  fontSize: 9,
+  fontSize: 10,
   color: '#aaffcc',
   letterSpacing: 1,
 };
 
 const statusStyle = {
   fontFamily: '"Press Start 2P", "Courier New", monospace',
-  fontSize: 11,
+  fontSize: 13,
   mb: 0.5,
   letterSpacing: 2,
 };
 
-const menuBtnStyle = {
+const menuBtnStyleArcade = {
   fontFamily: '"Press Start 2P", "Courier New", monospace',
-  fontSize: 8,
-  color: '#00ffcc',
-  borderColor: '#00ffcc55',
-  letterSpacing: 1,
-  py: 0.5,
-  px: 1,
+  fontSize: 13,
+  letterSpacing: 1.8,
+  py: 1.3,
+  px: 2.8,
+  borderWidth: 2.5,
+  borderRadius: 4,
   minWidth: 0,
-  '&:hover': { borderColor: '#00ffcc', background: '#00ffcc11' },
-  '&:disabled': { color: '#333', borderColor: '#222' },
-};
-
-const mobileBtnStyle = {
-  width: '100%',
-  height: '100%',
-  minWidth: 0,
-  fontSize: 28,
-  background: '#1a1a2e',
-  color: '#00ffcc',
-  border: '2px solid #00ffcc55',
-  borderRadius: '8px',
-  '&:hover': { background: '#00ffcc22' },
-  '&:active': { background: '#00ffcc44' },
-};
-
-const mobileRotateStyle = {
-  ...mobileBtnStyle,
-  fontSize: 26,
-  color: '#ffcc00',
-  border: '2px solid #ffcc0055',
-  '&:hover': { background: '#ffcc0022' },
-  '&:active': { background: '#ffcc0044' },
+  boxShadow: "0 1px 10px #00ffcc22",
+  transition: "all 0.13s",
+  whiteSpace: "nowrap" as const,
+  textShadow: "0 0 6px #0ff8",
 };
 
 export default Tetris;
