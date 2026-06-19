@@ -15,11 +15,12 @@ const Wording = () => {
   const [showScores, setShowScores] = useState(true);
   const [topScores, setTopScores] = useState<any[]>([]);
   const [scoreSaved, setScoreSaved] = useState(false);
-
-  // NUEVO: estado de fin de partida
   const [finished, setFinished] = useState(false);
 
   const startTimeRef = useRef<number>(0);
+
+  // NUEVO: ref del input
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const saveScore = useCallback(async () => {
     if (scoreSaved) return;
@@ -88,12 +89,22 @@ const Wording = () => {
     if (playing) audio?.play();
   }, [word, playing]);
 
+  // RESET PARTIDA
   useEffect(() => {
     if (playing) {
       setScore(0);
       setScoreSaved(false);
-      setFinished(false); // reset fin
+      setFinished(false);
       startTimeRef.current = Date.now();
+    }
+  }, [playing]);
+
+  // NUEVO: foco automático al empezar
+  useEffect(() => {
+    if (playing) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
     }
   }, [playing]);
 
@@ -114,7 +125,7 @@ const Wording = () => {
 
       if (next >= WORDS_TOTAL) {
         setPlaying(false);
-        setFinished(true); // NUEVO: marcar partida finalizada
+        setFinished(true);
         saveScoreRef.current();
         return;
       }
@@ -177,6 +188,7 @@ const Wording = () => {
           </h2>
 
           <TextField
+            inputRef={inputRef}   // 👈 NUEVO
             color={word === text ? "primary" : "error"}
             onKeyDown={(event) => {
               if (event.key === "Enter" && text === word) {
