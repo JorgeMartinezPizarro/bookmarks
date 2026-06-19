@@ -29,6 +29,12 @@ const HOLD_REPEAT_RATE = 100;
 const ROWS = 20;
 const COLS = 10;
 
+// Tamaño de celda mínimo y máximo permitido. El mínimo garantiza que el
+// tablero siga siendo jugable incluso en pantallas muy bajas; el máximo
+// mantiene el tamaño "de toda la vida" en pantallas grandes.
+const MIN_CELL_SIZE = 8;
+const MAX_CELL_SIZE = 28;
+
 const createBoard = (rows: number = ROWS, cols: number = COLS): Board =>
   Array.from({ length: rows }, () =>
     Array.from({ length: cols }, () => ["0", "clear"] as Cell)
@@ -161,9 +167,16 @@ interface GameState {
   lockBoard?: Board;    // NUEVO: tablero a mostrar durante lock visual
 }
 
+// IMPORTANTE (fix hidratación): esta función se usa también como valor inicial
+// de useState, que se ejecuta tanto en el servidor (SSR) como en el primer
+// render del cliente. Si usáramos getRandomPiece() aquí, el servidor y el
+// cliente generarían piezas distintas y React lanzaría un error de
+// hidratación. Por eso la pieza inicial es SIEMPRE determinista
+// (TETROMINOS[0]); la pieza aleatoria real se asigna después del montaje
+// (ver randomizedInitialState / useEffect de inicialización).
 const initialGameState = (): GameState => ({
   board: createBoard(),
-  piece: getRandomPiece(),
+  piece: TETROMINOS[0],
   pos: { x: Math.floor(COLS / 2) - 1, y: 0 },
   lines: 0,
   isPaused: true,
@@ -173,13 +186,20 @@ const initialGameState = (): GameState => ({
   scoreSaved: false,
 });
 
+// Solo se debe llamar en el cliente (useEffect / handlers), nunca como
+// valor inicial de useState ni durante el render.
+const randomizedInitialState = (): GameState => ({
+  ...initialGameState(),
+  piece: getRandomPiece(),
+});
+
 // ────── Componente principal ────
 const Tetris: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(initialGameState());
   const [topScores, setTopScores] = useState<LeaderboardEntry[]>([]);
   const [showGame, setShowGame] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [cellSize, setCellSize] = useState(28);
+  const [cellSize, setCellSize] = useState(MAX_CELL_SIZE);
 
   // Refs
   const gsRef = useRef<GameState>(gameState);
@@ -187,29 +207,72 @@ const Tetris: React.FC = () => {
   const startTimeRef = useRef<number | null>(null);
   const scoreSavedRef = useRef(false);
   const gameCompletedRef = useRef(false);
-  const gameContainerRef = useRef<HTMLDivElement>(null);
   const activeKeysRef = useRef<Set<string>>(new Set());
   const holdTimersRef = useRef<Map<string, ReturnType<typeof setTimeout | typeof setInterval>>>(new Map());
 
+  // Refs usadas SOLO para medir el alto real de la cabecera (menús, título,
+  // stats, mensajes de estado) y de los controles móviles, de forma que el
+  // tablero pueda calcular exactamente el espacio que le sobra y todo el
+  // juego quepa en una sola pantalla sin scroll.
+  const headerRef = useRef<HTMLDivElement>(null);
+  const controlsWrapRef = useRef<HTMLDivElement>(null);
+
   const { board, piece, pos, lines, isPaused, elapsedMs, gameCompleted, gameOver, lockVisual, lockBoard } = gameState;
 
-  // Init y resize
-  useEffect(() => { setGameState(initialGameState()); }, []);
-  useEffect(() => {
-    const check = () => {
-      const mobile = window.innerWidth <= 768 || 'ontouchstart' in window;
-      setIsMobile(mobile);
-      if (mobile && gameContainerRef.current) {
-        const w = gameContainerRef.current.clientWidth - 20;
-        setCellSize(Math.min(Math.floor(w / COLS), 28));
-      } else {
-        setCellSize(28);
-      }
-    };
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
+  // Init
+  useEffect(() => { setGameState(randomizedInitialState()); }, []);
+
+  // ── Layout responsive sin scroll ──────────────────────────────────────
+  // Mide la altura real ya ocupada por la cabecera y por los controles
+  // móviles, y calcula el cellSize máximo que permite que el tablero (más
+  // todo lo demás) quepa en el alto visible del viewport. Así garantizamos
+  // que el juego, los menús y los controles se vean siempre completos sin
+  // necesidad de hacer scroll, sea cual sea el tamaño de pantalla.
+  const recalcLayout = useCallback(() => {
+    const mobile = window.innerWidth <= 768 || 'ontouchstart' in window;
+    setIsMobile(mobile);
+
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+
+    const headerH = headerRef.current?.offsetHeight ?? 0;
+    const footerH = controlsWrapRef.current?.offsetHeight ?? 0;
+
+    const verticalSlack = 16;   // margen de seguridad (notch, redondeos...)
+    const horizontalSlack = 24;
+
+    const availableHeight = viewportHeight - headerH - footerH - verticalSlack;
+    const availableWidth = viewportWidth - horizontalSlack;
+
+    const heightCellSize = Math.floor(availableHeight / ROWS);
+    const widthCellSize = Math.floor(availableWidth / COLS);
+
+    const next = Math.max(
+      MIN_CELL_SIZE,
+      Math.min(heightCellSize, widthCellSize, MAX_CELL_SIZE)
+    );
+    setCellSize(next);
   }, []);
+
+  useEffect(() => {
+    recalcLayout();
+    const handle = () => recalcLayout();
+    window.addEventListener('resize', handle);
+    window.addEventListener('orientationchange', handle);
+    window.visualViewport?.addEventListener('resize', handle);
+    return () => {
+      window.removeEventListener('resize', handle);
+      window.removeEventListener('orientationchange', handle);
+      window.visualViewport?.removeEventListener('resize', handle);
+    };
+  }, [recalcLayout]);
+
+  // Recalcular cuando cambia lo que se muestra en la cabecera/controles
+  // (juego <-> leaderboard, PAUSED/GAME OVER/COMPLETE), ya que eso cambia
+  // su altura real.
+  useEffect(() => {
+    recalcLayout();
+  }, [showGame, isPaused, gameOver, gameCompleted, recalcLayout]);
 
   // Score helpers
   const loadScores = useCallback(async () => {
@@ -456,7 +519,7 @@ const Tetris: React.FC = () => {
     holdTimersRef.current.clear();
     activeKeysRef.current.clear();
     startTimeRef.current = Date.now();
-    const state = initialGameState();
+    const state = randomizedInitialState();
     setGameState({ ...state, isPaused: false });
   };
   const togglePause = () => {
@@ -548,151 +611,203 @@ const Tetris: React.FC = () => {
     action();
   };
 
-  // BUTTONS ARCADE
+  const cs = cellSize;
+  const boardWidth = cs * COLS;
+  const boardHeight = cs * ROWS;
+  // Ancho compartido por cabecera y controles: sigue al tablero pero nunca
+  // baja de un mínimo, para que el texto no haga wrap y no se descontrole
+  // la altura medida (evita un bucle de retroalimentación con recalcLayout).
+  const panelWidth = Math.max(boardWidth + 24, 260);
+
+  // ── BOTONES MÓVILES (5 botones: A S D para mover/bajar, O P para rotar) ──
+  // Esquema solicitado (grid 9 columnas x 4 filas, columna 5 = separador):
+  //   A A D D . O O P P
+  //   A A D D . O O P P
+  //   S S S S . O O P P
+  //   S S S S . O O P P
+  // A = izquierda, D = derecha (arriba, 2x2 cada uno)
+  // S = bajar (abajo, ancho completo, 4x2)
+  // O = rotar izq, P = rotar der (altura completa, 4 filas)
+  //
+  // Usamos posicionamiento explícito por líneas (gridColumn/gridRow) en vez
+  // de gridTemplateAreas con string multilínea (frágil al pasar por sx).
+  const CONTROL_ROW_H = 46;
+  const CONTROL_GAP = 6;
   const renderMobileControls = () => (
-    <Box className="mobile-controls-row" sx={{ mt: 2 }}>
+    <Box
+      sx={{
+        width: '100%',
+        maxWidth: panelWidth,
+        mx: 'auto',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(9, 1fr)',
+        gridTemplateRows: `repeat(4, ${CONTROL_ROW_H}px)`,
+        gap: `${CONTROL_GAP}px`,
+      }}
+    >
       <Button
-        className="mobile-btn"
         onTouchStart={touchGuard(() => startRepeat("ml", moveLeft))}
         onTouchEnd={() => stopRepeat("ml")}
         onMouseDown={mouseGuard(() => startRepeat("ml", moveLeft))}
         onMouseUp={() => stopRepeat("ml")}
         onMouseLeave={() => stopRepeat("ml")}
-        aria-label="Izquierda"
+        aria-label="Izquierda (A)"
         sx={{
+          gridColumn: "1 / 3",
+          gridRow: "1 / 3",
+          minWidth: 0,
+          width: '100%',
+          height: '100%',
           background: "radial-gradient(circle at 30% 30%, #18ffff 80%, #055 100%)",
           color: "#012",
           border: "3px solid #0ff",
-          minWidth: 58, height: 58, mx: 1,
-          fontSize: 32, fontWeight: "bold", boxShadow: "0 2px 16px #0ff5",
+          fontSize: 22, fontWeight: "bold", boxShadow: "0 2px 16px #0ff5",
           transition: "filter 0.07s", filter: "brightness(0.98)",
           '&:active': { filter: 'brightness(1.25)' }
         }}
-      >◀</Button>
+      >
+        A
+      </Button>
+
       <Button
-        className="mobile-btn"
-        onTouchStart={touchGuard(() => startRepeat("md", softDrop))}
-        onTouchEnd={() => stopRepeat("md")}
-        onMouseDown={mouseGuard(() => startRepeat("md", softDrop))}
-        onMouseUp={() => stopRepeat("md")}
-        onMouseLeave={() => stopRepeat("md")}
-        aria-label="Bajar"
-        sx={{
-          background: "radial-gradient(circle at 50% 40%, #ffff18 75%, #550 100%)",
-          color: "#221", border: "3px solid #ff0",
-          minWidth: 58, height: 58, mx: 1, fontSize: 33,
-          fontWeight: "bold", boxShadow: "0 2px 16px #ff07",
-          '&:active': { filter: 'brightness(1.18)' }
-        }}
-      >▼</Button>
-      <Button
-        className="mobile-btn"
         onTouchStart={touchGuard(() => startRepeat("mr", moveRight))}
         onTouchEnd={() => stopRepeat("mr")}
         onMouseDown={mouseGuard(() => startRepeat("mr", moveRight))}
         onMouseUp={() => stopRepeat("mr")}
         onMouseLeave={() => stopRepeat("mr")}
-        aria-label="Derecha"
+        aria-label="Derecha (D)"
         sx={{
+          gridColumn: "3 / 5",
+          gridRow: "1 / 3",
+          minWidth: 0,
+          width: '100%',
+          height: '100%',
           background: "radial-gradient(circle at 70% 30%, #18ff7a 70%, #053 100%)",
           color: "#012", border: "3px solid #0f7",
-          minWidth: 58, height: 58, mx: 1, fontSize: 32,
+          fontSize: 22, fontWeight: "bold",
           boxShadow: "0 2px 16px #0fb5",
           '&:active': { filter: 'brightness(1.13)' }
         }}
-      >▶</Button>
+      >
+        D
+      </Button>
+
       <Button
-        className="mobile-btn-rotate"
+        onTouchStart={touchGuard(() => startRepeat("md", softDrop))}
+        onTouchEnd={() => stopRepeat("md")}
+        onMouseDown={mouseGuard(() => startRepeat("md", softDrop))}
+        onMouseUp={() => stopRepeat("md")}
+        onMouseLeave={() => stopRepeat("md")}
+        aria-label="Bajar (S)"
+        sx={{
+          gridColumn: "1 / 5",
+          gridRow: "3 / 5",
+          minWidth: 0,
+          width: '100%',
+          height: '100%',
+          background: "radial-gradient(circle at 50% 40%, #ffff18 75%, #550 100%)",
+          color: "#221", border: "3px solid #ff0",
+          fontSize: 22,
+          fontWeight: "bold", boxShadow: "0 2px 16px #ff07",
+          '&:active': { filter: 'brightness(1.18)' }
+        }}
+      >
+        S
+      </Button>
+
+      <Button
         onTouchStart={touchGuard(() => rotatePiece(-1))}
         onMouseDown={mouseGuard(() => rotatePiece(-1))}
-        aria-label="Girar izq"
+        aria-label="Girar izquierda (O)"
         sx={{
+          gridColumn: "6 / 8",
+          gridRow: "1 / 5",
+          minWidth: 0,
+          width: '100%',
+          height: '100%',
           background: "radial-gradient(circle at 45% 35%, #ffd600 62%, #fc0 100%)",
-          color: "#fd0", border: "3px solid #ffc800",
-          minWidth: 48, height: 48, mx: 1, fontSize: 32,
+          color: "#221", border: "3px solid #ffc800",
+          fontSize: 20,
+          fontWeight: "bold",
           boxShadow: "0 2px 10px #ff08",
           '&:active': { filter: 'brightness(1.18)' }
         }}
-      >↺</Button>
+      >
+        O
+      </Button>
+
       <Button
-        className="mobile-btn-rotate"
         onTouchStart={touchGuard(() => rotatePiece(1))}
         onMouseDown={mouseGuard(() => rotatePiece(1))}
-        aria-label="Girar der"
+        aria-label="Girar derecha (P)"
         sx={{
+          gridColumn: "8 / 10",
+          gridRow: "1 / 5",
+          minWidth: 0,
+          width: '100%',
+          height: '100%',
           background: "radial-gradient(circle at 55% 40%, #7f57f3 62%, #9000b3 100%)",
           color: "#fff", border: "3px solid #ae7fff",
-          minWidth: 48, height: 48, mx: 1, fontSize: 32,
+          fontSize: 20,
+          fontWeight: "bold",
           boxShadow: "0 2px 10px #ae7fff77",
           '&:active': { filter: 'brightness(1.14)' }
         }}
-      >↻</Button>
-      <Button
-        className="mobile-btn-rotate"
-        onTouchStart={touchGuard(() => doHardDrop())}
-        onMouseDown={mouseGuard(() => doHardDrop())}
-        aria-label="Drop"
-        sx={{
-          background: "radial-gradient(circle at 66% 60%, #19f7ff 72%, #297df8 100%)",
-          color: "#fff", border: "3px solid #19d7ff",
-          minWidth: 48, height: 48, mx: 1, fontSize: 34,
-          boxShadow: "0 2px 10px #19f7ff77",
-          '&:active': { filter: 'brightness(1.26)' }
-        }}
-      >⎇</Button>
+      >
+        P
+      </Button>
     </Box>
   );
 
-  const cs = cellSize;
-  const boardWidth = cs * COLS;
-  const boardHeight = cs * ROWS;
-
-  // Nuevo menú tipo panel arcade
+  // Menú superior tipo panel arcade. Más compacto en móvil para dejar más
+  // espacio vertical al tablero.
   const renderMainMenu = () => (
     <Box sx={{
-      width: boardWidth + 42,
-      margin: "0 auto 16px",
+      width: '100%',
+      maxWidth: panelWidth,
+      mx: 'auto',
+      mb: isMobile ? 0.75 : 2,
       display: 'flex',
       alignItems: "center",
       justifyContent: "center",
-      py: 1.2,
-      px: 2,
+      py: isMobile ? 0.5 : 1.2,
+      px: isMobile ? 1 : 2,
       background: 'linear-gradient(90deg, #181830 0%, #27274e 70%, #191530 100%)',
       border: "2.5px solid #00ffcc66",
-      borderRadius: "20px",
-      boxShadow: "0 0 18px #00ffcc22, 0 2px 24px #001e15aa, inset 0 0 16px #3ff4  "
+      borderRadius: "16px",
+      boxShadow: "0 0 18px #00ffcc22, 0 2px 24px #001e15aa, inset 0 0 16px #3ff4"
     }}>
       <Button
-        size="large"
+        size="small"
         variant={showGame ? "contained" : "outlined"}
         onClick={() => setShowGame(v => !v)}
         sx={{
-          ...menuBtnStyleArcade,
+          ...menuBtnStyleArcade(isMobile),
           background: showGame
             ? 'radial-gradient(circle at 55% 30%, #011b21 70%, #1d3c40 100%)'
             : 'transparent',
           color: showGame ? "#00ffe0" : "#00ffcc",
-          mr: 1.5
+          mr: isMobile ? 0.75 : 1.5
         }}
       >
         {showGame ? 'SCORES' : 'PLAY'}
       </Button>
       <Button
-        size="large"
+        size="small"
         variant="outlined"
         onClick={restartGame}
-        sx={{ ...menuBtnStyleArcade, mx: 1.5, color: "#ffec40", borderColor: "#ffdc40" }}
+        sx={{ ...menuBtnStyleArcade(isMobile), mx: isMobile ? 0.75 : 1.5, color: "#ffec40", borderColor: "#ffdc40" }}
       >
         RESTART
       </Button>
       <Button
-        size="large"
+        size="small"
         variant="outlined"
         onClick={togglePause}
         disabled={gameCompleted || gameOver}
         sx={{
-          ...menuBtnStyleArcade,
-          mx: 1.5,
+          ...menuBtnStyleArcade(isMobile),
+          mx: isMobile ? 0.75 : 1.5,
           color: isPaused ? "#13e673" : "#fff",
           borderColor: "#13e673",
           opacity: gameCompleted || gameOver ? 0.45 : 1,
@@ -704,37 +819,29 @@ const Tetris: React.FC = () => {
   );
 
   return (
-    <Box className={`tetris-container ${isMobile ? 'mobile' : ''}`}
+    <Box
+      className={`tetris-container ${isMobile ? 'mobile' : ''}`}
       sx={{
-        minHeight: '100vh',
+        height: '100dvh',
+        width: '100%',
         background: '#0a0a0f',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
+        overflow: 'hidden', // el juego entero debe caber siempre en la pantalla, sin scroll
       }}
     >
-      <MainMenu />
+      {/* ── Cabecera: medida en vivo por headerRef ── */}
+      <Box ref={headerRef} sx={{ width: '100%', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 1 }}>
+        <MainMenu />
+        {renderMainMenu()}
 
-      {/* Menú superior amplio */}
-      {renderMainMenu()}
-
-      {/* Arcade wrapper */}
-      <Box ref={gameContainerRef} sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        width: '100%',
-        maxWidth: boardWidth + 30,
-        px: 1,
-        pb: 2,
-      }}>
-
-        {/* Title bar */}
         <Box sx={{
           width: '100%',
+          maxWidth: panelWidth,
           textAlign: 'center',
-          py: 0.5,
-          mb: 0.5,
+          py: 0.4,
+          mb: 0.4,
           background: 'linear-gradient(90deg, #1a1a2e, #16213e, #1a1a2e)',
           borderBottom: '2px solid #00ffcc',
           letterSpacing: 6,
@@ -748,18 +855,19 @@ const Tetris: React.FC = () => {
             TETRIS
           </Typography>
         </Box>
-        {/* Stats bar */}
+
         <Box sx={{
           display: 'flex',
           justifyContent: 'space-between',
-          width: boardWidth,
+          width: '100%',
+          maxWidth: panelWidth,
           px: 0.5,
-          mb: 0.5,
+          mb: 0.3,
         }}>
           <Typography sx={statStyle}>LINES: {Math.min(lines, LINES_TARGET)}/{LINES_TARGET}</Typography>
           <Typography sx={statStyle}>TIME: {formatTimeMs(elapsedMs)}</Typography>
         </Box>
-        {/* Mensajes de estado */}
+
         {gameCompleted && (
           <Typography sx={{ ...statusStyle, color: '#00ffcc', textShadow: '0 0 8px #00ffcc' }}>
             ★ COMPLETE: {formatTimeMs(elapsedMs)} ★
@@ -775,38 +883,39 @@ const Tetris: React.FC = () => {
             PAUSED
           </Typography>
         )}
+      </Box>
 
-        {/* ── Tablero ── */}
-        {showGame && (
-          <>
-            <Box sx={{
-              width: boardWidth,
-              height: boardHeight,
-              display: 'grid',
-              gridTemplateColumns: `repeat(${COLS}, ${cs}px)`,
-              border: '3px solid #00ffcc',
-              boxShadow: '0 0 18px #00ffcc55, inset 0 0 30px #00001a',
-              background: '#000010',
-              userSelect: 'none',
-              borderRadius: "3px"
-            }}>
-              {renderBoard()}
-            </Box>
-
-            {/* SOLO MOVIL */}
-            <Box className="mobile-only">{renderMobileControls()}</Box>
-            {/* Desktop help */}
-            <Box className="desktop-only" sx={{ mt: 1, textAlign: 'center' }}>
-              <Typography sx={{ fontFamily: 'monospace', fontSize: 10, color: '#555', letterSpacing: 1 }}>
-                A/◀ MOVE LEFT &nbsp;|&nbsp; D/▶ MOVE RIGHT &nbsp;|&nbsp; S/▼ SOFT DROP &nbsp;|&nbsp; ↑/SPACE HARD DROP &nbsp;|&nbsp; O ROTATE ↺ &nbsp;|&nbsp; P ROTATE ↻
-              </Typography>
-            </Box>
-          </>
-        )}
-        {/* Leaderboard */}
-        {!showGame && (
+      {/* ── Zona central: tablero o leaderboard, ocupa el espacio restante ── */}
+      <Box sx={{
+        flex: '1 1 auto',
+        minHeight: 0,
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+      }}>
+        {showGame ? (
           <Box sx={{
             width: boardWidth,
+            height: boardHeight,
+            display: 'grid',
+            gridTemplateColumns: `repeat(${COLS}, ${cs}px)`,
+            border: '3px solid #00ffcc',
+            boxShadow: '0 0 18px #00ffcc55, inset 0 0 30px #00001a',
+            background: '#000010',
+            userSelect: 'none',
+            borderRadius: "3px"
+          }}>
+            {renderBoard()}
+          </Box>
+        ) : (
+          <Box sx={{
+            width: '100%',
+            maxWidth: panelWidth,
+            maxHeight: '100%',
+            overflowY: 'auto', // si hay muchas entradas, el scroll queda contenido aquí, no en la página
             background: '#060610',
             border: '2px solid #00ffcc44',
             p: 2,
@@ -843,6 +952,20 @@ const Tetris: React.FC = () => {
           </Box>
         )}
       </Box>
+
+      {/* ── Pie: controles móviles (medidos por controlsWrapRef) o ayuda de teclado en desktop ── */}
+      {showGame && isMobile && (
+        <Box ref={controlsWrapRef} sx={{ width: '100%', flexShrink: 0, pb: 1 }}>
+          {renderMobileControls()}
+        </Box>
+      )}
+      {showGame && !isMobile && (
+        <Box sx={{ flexShrink: 0, pb: 1, textAlign: 'center' }}>
+          <Typography sx={{ fontFamily: 'monospace', fontSize: 10, color: '#555', letterSpacing: 1 }}>
+            A/◀ MOVE LEFT &nbsp;|&nbsp; D/▶ MOVE RIGHT &nbsp;|&nbsp; S/▼ SOFT DROP &nbsp;|&nbsp; ↑/SPACE HARD DROP &nbsp;|&nbsp; O ROTATE ↺ &nbsp;|&nbsp; P ROTATE ↻
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 };
@@ -858,16 +981,16 @@ const statStyle = {
 const statusStyle = {
   fontFamily: '"Press Start 2P", "Courier New", monospace',
   fontSize: 13,
-  mb: 0.5,
+  mb: 0.3,
   letterSpacing: 2,
 };
 
-const menuBtnStyleArcade = {
+const menuBtnStyleArcade = (mobile: boolean) => ({
   fontFamily: '"Press Start 2P", "Courier New", monospace',
-  fontSize: 13,
-  letterSpacing: 1.8,
-  py: 1.3,
-  px: 2.8,
+  fontSize: mobile ? 9 : 13,
+  letterSpacing: mobile ? 1 : 1.8,
+  py: mobile ? 0.6 : 1.3,
+  px: mobile ? 1.2 : 2.8,
   borderWidth: 2.5,
   borderRadius: 4,
   minWidth: 0,
@@ -875,6 +998,6 @@ const menuBtnStyleArcade = {
   transition: "all 0.13s",
   whiteSpace: "nowrap" as const,
   textShadow: "0 0 6px #0ff8",
-};
+});
 
 export default Tetris;
