@@ -5,6 +5,9 @@ import { getToken } from 'next-auth/jwt';
 const secret = process.env.NEXTAUTH_SECRET;
 
 export async function proxy(request: NextRequest) {
+
+	if (process.env.NEXT_PUBLIC_ENABLE_LOGIN == "false")
+  		return NextResponse.next();
   const token = await getToken({ req: request, secret });
 
   console.log("Middleware in action!");
