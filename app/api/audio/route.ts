@@ -5,40 +5,62 @@ import { requireAuth } from '@/app/lib/auth';
 
 export async function GET(request: NextRequest): Promise<Response> {
   try {
-    // Obtener el nombre del archivo desde los parámetros de la URL
-    if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "true")
-		await requireAuth(request);
+    if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "true") {
+      await requireAuth(request);
+    }
 
     const { searchParams } = new URL(request.url);
     const fileName = searchParams.get('file');
 
-    if (!fileName) {
-      return NextResponse.json({ error: 'File name is required' }, { status: 400 });
+    // =========================
+    // 1. STREAM AUDIO (legacy)
+    // =========================
+    if (fileName) {
+      if (!fileName.endsWith('.mp3')) {
+        return NextResponse.json(
+          { error: 'Only MP3 files are allowed' },
+          { status: 403 }
+        );
+      }
+
+      const filePath = path.join(process.cwd(), 'cache', 'audio', fileName);
+      const fileData = await fs.readFile(filePath);
+
+      return new Response(new Uint8Array(fileData), {
+        status: 200,
+        headers: {
+          'Content-Type': 'audio/mpeg',
+          'Content-Disposition': `inline; filename="${fileName}"`,
+          'Accept-Ranges': 'bytes',
+        },
+      });
     }
 
-    // Asegurar que el archivo es un .mp3
-    if (!fileName.endsWith('.mp3')) {
-      return NextResponse.json({ error: 'Only MP3 files are allowed' }, { status: 403 });
-    }
+    // =========================
+    // 2. GENERATE WORD + AUDIO
+    // =========================
+    const origin = new URL(request.url).origin;
 
-    // Construir la ruta absoluta del archivo dentro de la carpeta "top"
-    const filePath = path.join(process.cwd(), 'cache', 'audio', fileName);
+	const WORD_URL = process.env.NEXT_PUBLIC_WORD_URL
+		? process.env.NEXT_PUBLIC_WORD_URL + "/word"
+		: "/word"
+    const wordRes = await fetch(WORD_URL);
+    const wordData = await wordRes.json();
 
-    // Leer el archivo
-    const fileData = await fs.readFile(filePath);
+    const word: string = wordData.word;
 
-    // Retornar el archivo como un audio MP3 con soporte para streaming
-    return new Response(new Uint8Array(fileData), {
-      status: 200,
-      headers: {
-        'Content-Type': 'audio/mpeg',
-        'Content-Disposition': `inline; filename="${fileName}"`,
-        'Accept-Ranges': 'bytes',  // Permite reproducción en stream
-      },
+    const url = `/bookmarks/api/audio?file=${word}.mp3`;
+
+    return NextResponse.json({
+      word,
+      url,
     });
 
   } catch (error) {
-    console.error('Error fetching MP3 file:', error);
-    return NextResponse.json({ error: 'MP3 file not found or access denied' }, { status: 404 });
+    console.error('Error in audio endpoint:', error);
+    return NextResponse.json(
+      { error: 'Audio generation failed' },
+      { status: 500 }
+    );
   }
 }

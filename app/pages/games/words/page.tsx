@@ -14,8 +14,15 @@ type ScoreEntry = {
   createdAt?: string;
 };
 
+type AudioResponse = {
+  word: string;
+  url: string;
+};
+
 const Wording = () => {
   const [word, setWord] = useState("");
+  const [audioUrl, setAudioUrl] = useState<string>("");
+
   const [score, setScore] = useState(0);
   const [text, setText] = useState("");
   const [showWord, setShowWord] = useState(true);
@@ -25,7 +32,6 @@ const Wording = () => {
   const [scoreSaved, setScoreSaved] = useState(false);
   const [finished, setFinished] = useState(false);
 
-  // NUEVO: tiempo logrado y puesto en el ranking al terminar la partida
   const [finishedTime, setFinishedTime] = useState<number | null>(null);
   const [finishedRank, setFinishedRank] = useState<number | null>(null);
 
@@ -53,6 +59,20 @@ const Wording = () => {
     return [];
   }, []);
 
+  const requestAudioWord = useCallback(async () => {
+    if (!playing) {
+      setWord("");
+      setAudioUrl("");
+      return;
+    }
+
+    const res = await fetch("/bookmarks/api/audio");
+    const data: AudioResponse = await res.json();
+
+    setWord(data.word);
+    setAudioUrl(data.url);
+  }, [playing]);
+
   const saveScore = useCallback(async () => {
     if (scoreSaved) return;
 
@@ -75,12 +95,10 @@ const Wording = () => {
         setScoreSaved(true);
         const updated = await loadScores();
 
-        // Calculamos el puesto (menor tiempo = mejor puesto), solo cuenta si está en el top 10
         const sorted = [...updated].sort((a, b) => a.score - b.score);
         const idx = sorted.findIndex((s) => s.score === elapsed);
         setFinishedRank(idx >= 0 && idx < 10 ? idx + 1 : null);
 
-        // Mostramos automáticamente el marcador con la partida recién jugada
         setShowScores(false);
       }
     } catch (error) {
@@ -94,21 +112,6 @@ const Wording = () => {
     saveScoreRef.current = saveScore;
   }, [saveScore]);
 
-  const requestWord = useCallback(() => {
-    if (playing) {
-      fetch("/word")
-        .then((a) => a.json())
-        .then((a) => setWord(a.word));
-    } else {
-      setWord("");
-    }
-  }, [playing]);
-
-  useEffect(() => {
-    const audio = document.getElementsByTagName("audio")[0] as HTMLAudioElement;
-    if (playing) audio?.play();
-  }, [word, playing]);
-
   // RESET PARTIDA
   useEffect(() => {
     if (playing) {
@@ -121,22 +124,27 @@ const Wording = () => {
     }
   }, [playing]);
 
-  // Foco automático al empezar
+  // Foco automático
   useEffect(() => {
     if (playing) {
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 50);
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [playing]);
 
+  // nueva palabra
   useEffect(() => {
-    requestWord();
-  }, [requestWord]);
+    requestAudioWord();
+  }, [requestAudioWord]);
 
   useEffect(() => {
     loadScores();
   }, [loadScores]);
+
+  // autoplay audio cuando cambia
+  useEffect(() => {
+    const audio = document.getElementsByTagName("audio")[0] as HTMLAudioElement;
+    if (playing) audio?.play();
+  }, [audioUrl, playing]);
 
   const handleSubmitWord = () => {
     if (text === word && playing) {
@@ -152,13 +160,15 @@ const Wording = () => {
         return;
       }
 
-      requestWord();
+      requestAudioWord();
     }
   };
 
   const elapsedMs = playing ? Date.now() - startTimeRef.current : 0;
 
-  const sortedScores = [...topScores].sort((a, b) => a.score - b.score).slice(0, 10);
+  const sortedScores = [...topScores]
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 10);
 
   return (
     <div className="wording-page">
@@ -184,19 +194,21 @@ const Wording = () => {
               : "Oculta"}
           </h2>
 
-          {playing && <TextField
-            inputRef={inputRef}
-            color={word === text ? "primary" : "error"}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && text === word) {
-                handleSubmitWord();
-              }
-            }}
-            className="word-input"
-            value={text}
-            onChange={(e: any) => setText(e.target.value)}
-            placeholder="Escribe la palabra aquí..."
-          />}
+          {playing && (
+            <TextField
+              inputRef={inputRef}
+              color={word === text ? "primary" : "error"}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && text === word) {
+                  handleSubmitWord();
+                }
+              }}
+              className="word-input"
+              value={text}
+              onChange={(e: any) => setText(e.target.value)}
+              placeholder="Escribe la palabra aquí..."
+            />
+          )}
 
           <div className="button-row">
             <Button
@@ -230,12 +242,9 @@ const Wording = () => {
             <strong>{elapsedMs} ms</strong>
           </p>
 
-          {word !== "" && (
-            <audio key={word} className="hidden-audio" controls>
-              <source
-                src={"/bookmarks/api/audio?file=" + word + ".mp3"}
-                type="audio/mpeg"
-              />
+          {audioUrl !== "" && (
+            <audio key={audioUrl} className="hidden-audio" controls>
+              <source src={audioUrl} type="audio/mpeg" />
             </audio>
           )}
         </div>
@@ -272,25 +281,13 @@ const Wording = () => {
                 </tr>
               </thead>
               <tbody>
-                {sortedScores.map((s, i) => {
-                  const isHighlighted =
-                    finished &&
-                    finishedTime !== null &&
-                    finishedRank !== null &&
-                    i + 1 === finishedRank &&
-                    s.score === finishedTime;
-
-                  return (
-                    <tr
-                      key={i}
-                      className={isHighlighted ? "scoreboard-row--highlight" : undefined}
-                    >
-                      <td>{i + 1}</td>
-                      <td>{s.name}</td>
-                      <td>{s.score}</td>
-                    </tr>
-                  );
-                })}
+                {sortedScores.map((s, i) => (
+                  <tr key={i}>
+                    <td>{i + 1}</td>
+                    <td>{s.name}</td>
+                    <td>{s.score}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
