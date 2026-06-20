@@ -254,35 +254,60 @@ const ChessGame: React.FC = () => {
     <>
       <MainMenu />
       <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          gap: 2,
-          mt: 2,
-          mx: 2,
-        }}
-      >
-        <Button
-          variant="contained"
-          onClick={() => setShowScores(!showScores)}
-          sx={{
-            borderRadius: 50,
-            px: 4,
-            py: 1,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            fontWeight: "bold",
-            textTransform: "none",
-            fontSize: "1rem",
-            transition: "all 0.2s",
-            "&:hover": {
-              transform: "translateY(-2px)",
-              boxShadow: "0 6px 16px rgba(0,0,0,0.2)",
-            },
-          }}
-        >
-          {showScores ? "🎯 Game" : "🏆 Scores"}
-        </Button>
-      </Box>
+		sx={{
+			display: "flex",
+			justifyContent: "center",
+			gap: 2,
+			mt: 2,
+			mx: 2,
+		}}
+		>
+		<Button
+			variant="contained"
+			onClick={() => setShowScores(!showScores)}
+			sx={{
+			borderRadius: 50,
+			px: 4,
+			py: 1,
+			boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+			fontWeight: "bold",
+			textTransform: "none",
+			fontSize: "1rem",
+			transition: "all 0.2s",
+			"&:hover": {
+				transform: "translateY(-2px)",
+				boxShadow: "0 6px 16px rgba(0,0,0,0.2)",
+			},
+			}}
+		>
+			{showScores ? "🎯 Game" : "🏆 Scores"}
+		</Button>
+
+		{!showScores && (
+			<Button
+			onClick={resetGame}
+			variant="contained"
+			color="secondary"
+			sx={{
+				borderRadius: 50,
+				px: 4,
+				py: 1,
+				fontWeight: "bold",
+				textTransform: "none",
+				fontSize: "1rem",
+				color: "grey",
+				boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+				transition: "all 0.2s",
+				"&:hover": {
+				transform: "translateY(-2px)",
+				boxShadow: "0 6px 16px rgba(0,0,0,0.2)",
+				},
+			}}
+			>
+			🔄 Restart
+			</Button>
+		)}
+	</Box>
 
       <Box
         sx={{
@@ -299,7 +324,6 @@ const ChessGame: React.FC = () => {
           <>
             <Box style={boardContainerStyle}>
               <Chessboard
-                key={fen}
                 id="chessboard"
                 position={fen}
                 onPieceDrop={onDrop}
@@ -312,29 +336,7 @@ const ChessGame: React.FC = () => {
               />
             </Box>
 
-            <Button
-              onClick={resetGame}
-              variant="contained"
-              color="secondary"
-              sx={{
-                mt: 2,
-                borderRadius: 50,
-                px: 4,
-                py: 1.2,
-                fontWeight: "bold",
-                textTransform: "none",
-                fontSize: "1rem",
-				color: "grey",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                transition: "all 0.2s",
-                "&:hover": {
-                  transform: "translateY(-2px)",
-                  boxShadow: "0 6px 16px rgba(0,0,0,0.2)",
-                },
-              }}
-            >
-              🔄 Restart
-            </Button>
+            
 
             <Box sx={{ width: "100%", maxWidth: 400, mt: 3 }}>
               <Slider
