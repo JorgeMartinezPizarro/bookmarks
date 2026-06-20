@@ -11,6 +11,7 @@ export async function proxy(request: NextRequest) {
 
   const cookie = request.headers.get("cookie") || "";
 
+  console.log("probando", process.env.NEXTCLOUD_URL);
   // 🔥 pedir identidad real a Nextcloud
   const res = await fetch(process.env.NEXTCLOUD_URL + "/ocs/v2.php/cloud/user", {
     headers: {
