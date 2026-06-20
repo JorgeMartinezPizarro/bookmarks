@@ -184,7 +184,7 @@ const Wording = () => {
               : "Oculta"}
           </h2>
 
-          <TextField
+          {playing && <TextField
             inputRef={inputRef}
             color={word === text ? "primary" : "error"}
             onKeyDown={(event) => {
@@ -195,9 +195,8 @@ const Wording = () => {
             className="word-input"
             value={text}
             onChange={(e: any) => setText(e.target.value)}
-            disabled={!playing}
             placeholder="Escribe la palabra aquí..."
-          />
+          />}
 
           <div className="button-row">
             <Button

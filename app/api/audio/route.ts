@@ -28,7 +28,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     const fileData = await fs.readFile(filePath);
 
     // Retornar el archivo como un audio MP3 con soporte para streaming
-    return new Response(fileData, {
+    return new Response(new Uint8Array(fileData), {
       status: 200,
       headers: {
         'Content-Type': 'audio/mpeg',
