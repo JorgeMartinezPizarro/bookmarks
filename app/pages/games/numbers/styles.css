@@ -50,6 +50,52 @@
     background: #b37 !important;
 }
 
+/* === ARCADE BUTTONS === */
+.arcade-btn {
+  font-family: 'Press Start 2P', 'VT323', 'Courier New', monospace;
+  font-size: 1rem;
+  letter-spacing: 1.5px;
+  background: linear-gradient(90deg, #03a9f4, #9013fe 80%);
+  color: #fff !important;
+  border: 3px solid #ffea00;
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 3px #03a9f4, /* cian */
+    0 0 8px #03a9f4,
+    0 2px 6px 2px #222 inset,
+    0 10px 30px rgba(0,0,0,0.2);
+  padding: 9px 24px;
+  transition: 
+    background 0.2s, 
+    box-shadow 0.2s, 
+    transform 0.1s;
+  text-shadow: 0 2px 2px #222, 0 6px 6px #15f3b5;
+  outline: none;
+}
+
+.arcade-btn:active {
+  transform: scale(0.97);
+  background: linear-gradient(90deg, #9013fe, #03a9f4 80%);
+  box-shadow:
+    0 0 0 5px #ffea00,
+    0 0 12px #ffea00,
+    0 1px 3px 1px #222 inset;
+}
+
+.arcade-btn.danger {
+  background: linear-gradient(90deg, #d50000, #ff5722 80%);
+  border-color: #ffea00;
+  box-shadow: 0 0 0 4px #ff3f80, 0 0 15px #d500f9, 0 2px 7px 2px #222 inset;
+}
+
+.arcade-btn[disabled], .arcade-btn.disabled {
+  background: #444 !important;
+  color: #aaa !important;
+  border-color: #777 !important;
+  box-shadow: none !important;
+  text-shadow: 0 2px 2px #222;
+}
+
 /* Border cells (where numbers appear) */
 .cell-border {
     display: flex;
@@ -106,6 +152,27 @@
     font-size: clamp(10px, 2.6vw, 13px);
     padding: 4px 2px;
     min-height: 36px;
+}
+
+/* Arcade Toggle Button improvements */
+.arcade-toggle-btn {
+  border-radius: 26px !important;
+  padding-left: 2.5rem !important;
+  padding-right: 2.5rem !important;
+  font-size: 1.1rem !important;
+  font-weight: bold !important;
+  box-shadow: 0 0 48px #00e6ff88, 0 0 0 #222 inset !important;
+  margin-bottom: 10px;
+  margin-top: 4px;
+  outline: none;
+}
+.arcade-toggle-btn.selected {
+  box-shadow: 0 0 24px #ff3f80, 0 4px 18px #222 inset !important;
+  border-color: #ffea00 !important;
+}
+.arcade-toggle-btn:active {
+  transform: scale(0.98);
+  filter: brightness(0.9);
 }
 
 /* En landscape priorizamos la altura disponible */

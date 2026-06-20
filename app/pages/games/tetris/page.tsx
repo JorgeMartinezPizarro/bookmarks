@@ -655,15 +655,25 @@ const Tetris: React.FC = () => {
           minWidth: 0,
           width: '100%',
           height: '100%',
-          background: "radial-gradient(circle at 30% 30%, #18ffff 80%, #055 100%)",
-          color: "#012",
-          border: "3px solid #0ff",
-          fontSize: 22, fontWeight: "bold", boxShadow: "0 2px 16px #0ff5",
-          transition: "filter 0.07s", filter: "brightness(0.98)",
-          '&:active': { filter: 'brightness(1.25)' }
+          background: "rgba(24,255,255, 0.18)", // semi-transparent cyan
+          backdropFilter: "blur(6.5px)",
+          border: "2.5px solid #00ffff99",
+          boxShadow: "0 2px 18px #00ffee44, 0 0 6px #0ff2",
+          color: "#011",
+          fontSize: 22, fontWeight: "bold",
+          textShadow: "0 0 12px #bfffff77",
+          outline: "2px solid #03ffd6bb",
+          outlineOffset: "-2px",
+          borderRadius: "12px",
+          transition: "all 0.16s cubic-bezier(.48,.19,.19,.97)",
+          filter: "brightness(0.98)",
+          '&:active': { filter: 'brightness(1.28) blur(0.6px)' }
         }}
       >
-        A
+        {/* Flecha izquierda (A) */}
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="17,6 9,14 17,22" fill="#0ff" stroke="#011" strokeWidth="2"/>
+        </svg>
       </Button>
 
       <Button
@@ -679,14 +689,24 @@ const Tetris: React.FC = () => {
           minWidth: 0,
           width: '100%',
           height: '100%',
-          background: "radial-gradient(circle at 70% 30%, #18ff7a 70%, #053 100%)",
-          color: "#012", border: "3px solid #0f7",
+          background: "rgba(24,255,122, 0.17)",
+          backdropFilter: "blur(6px)",
+          border: "2.5px solid #00ff7a99",
+          boxShadow: "0 2px 18px #00fb7444, 0 0 6px #0fa",
+          color: "#012",
           fontSize: 22, fontWeight: "bold",
-          boxShadow: "0 2px 16px #0fb5",
-          '&:active': { filter: 'brightness(1.13)' }
+          textShadow: "0 0 12px #ccffd699",
+          outline: "2px solid #00ff7abb",
+          outlineOffset: "-2px",
+          borderRadius: "12px",
+          transition: "all 0.16s cubic-bezier(.48,.19,.19,.97)",
+          '&:active': { filter: 'brightness(1.2) blur(0.6px)' }
         }}
       >
-        D
+        {/* Flecha derecha (D) */}
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="11,6 19,14 11,22" fill="#0f7" stroke="#011" strokeWidth="2"/>
+        </svg>
       </Button>
 
       <Button
@@ -702,14 +722,24 @@ const Tetris: React.FC = () => {
           minWidth: 0,
           width: '100%',
           height: '100%',
-          background: "radial-gradient(circle at 50% 40%, #ffff18 75%, #550 100%)",
-          color: "#221", border: "3px solid #ff0",
-          fontSize: 22,
-          fontWeight: "bold", boxShadow: "0 2px 16px #ff07",
-          '&:active': { filter: 'brightness(1.18)' }
+          background: "rgba(250,220,39,0.18)",
+          backdropFilter: "blur(6.5px)",
+          border: "2.5px solid #ffec4099",
+          boxShadow: "0 2px 18px #ffec4077, 0 0 6px #ffe",
+          color: "#443",
+          fontSize: 22, fontWeight: "bold",
+          textShadow: "0 0 10px #ffec6077",
+          outline: "2px solid #ffdc40bb",
+          outlineOffset: "-2px",
+          borderRadius: "12px",
+          transition: "all 0.16s cubic-bezier(.48,.19,.19,.97)",
+          '&:active': { filter: 'brightness(1.28) blur(0.6px)' }
         }}
       >
-        S
+        {/* Flecha abajo (S) */}
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="8,13 16,23 24,13" fill="#ffec40" stroke="#443" strokeWidth="2"/>
+        </svg>
       </Button>
 
       <Button
@@ -717,20 +747,31 @@ const Tetris: React.FC = () => {
         onMouseDown={mouseGuard(() => rotatePiece(-1))}
         aria-label="Girar izquierda (O)"
         sx={{
-          gridColumn: "5 / 7",          // ← antes era "6 / 8"
+          gridColumn: "5 / 7",
           gridRow: "1 / 5",
           minWidth: 0,
           width: '100%',
           height: '100%',
-          background: "radial-gradient(circle at 45% 35%, #ffd600 62%, #fc0 100%)",
-          color: "#221", border: "3px solid #ffc800",
+          background: "rgba(255, 214, 0, 0.15)",
+          backdropFilter: "blur(7px)",
+          border: "2.5px solid #ffc800cc",
+          boxShadow: "0 2px 18px #ffc80077, 0 0 6px #ffed00",
+          color: "#221",
           fontSize: 20,
           fontWeight: "bold",
-          boxShadow: "0 2px 10px #ff08",
-          '&:active': { filter: 'brightness(1.18)' }
+          textShadow: "0 0 9px #ffd64055",
+          outline: "2px solid #ffd600aa",
+          outlineOffset: "-2px",
+          borderRadius: "12px",
+          transition: "all 0.16s cubic-bezier(.48,.19,.19,.97)",
+          '&:active': { filter: 'brightness(1.19) blur(0.8px)' }
         }}
       >
-        O
+        {/* Rotar izquierda (O) */}
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 18a7 7 0 1 1-6-10" stroke="#ffc800" strokeWidth="2.2" fill="none"/>
+          <polygon points="13,8 13,14 8,11" fill="#ffc800" />
+        </svg>
       </Button>
 
       <Button
@@ -738,20 +779,30 @@ const Tetris: React.FC = () => {
         onMouseDown={mouseGuard(() => rotatePiece(1))}
         aria-label="Girar derecha (P)"
         sx={{
-          gridColumn: "7 / 9",          // ← antes era "8 / 10"
+          gridColumn: "7 / 9",
           gridRow: "1 / 5",
           minWidth: 0,
           width: '100%',
           height: '100%',
-          background: "radial-gradient(circle at 55% 40%, #7f57f3 62%, #9000b3 100%)",
-          color: "#fff", border: "3px solid #ae7fff",
-          fontSize: 20,
-          fontWeight: "bold",
-          boxShadow: "0 2px 10px #ae7fff77",
-          '&:active': { filter: 'brightness(1.14)' }
+          background: "rgba(127, 87, 243, 0.16)",
+          backdropFilter: "blur(6.5px)",
+          border: "2.5px solid #7f57f3bb",
+          boxShadow: "0 2px 18px #ae7fff77, 0 0 8px #9000b377",
+          color: "#fff",
+          fontSize: 20, fontWeight: "bold",
+          textShadow: "0 0 10px #7f57ffcc",
+          outline: "2px solid #ae7fff66",
+          outlineOffset: "-2px",
+          borderRadius: "12px",
+          transition: "all 0.16s cubic-bezier(.48,.19,.19,.97)",
+          '&:active': { filter: 'brightness(1.16) blur(0.8px)' }
         }}
       >
-        P
+        {/* Rotar derecha (P) */}
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 18a7 7 0 1 0 6-10" stroke="#ae7fff" strokeWidth="2.2" fill="none"/>
+          <polygon points="15,8 15,14 20,11" fill="#ae7fff" />
+        </svg>
       </Button>
     </Box>
   );

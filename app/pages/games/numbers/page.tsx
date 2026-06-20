@@ -157,27 +157,32 @@ const GamesComponent = () => {
     <>
       <MainMenu />
       
-      {/* Toggle para cambiar entre juego y scores */}
+      {/* Arcade Toggle Button for play/scores */}
       <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2, mt: 1 }}>
-        <ToggleButtonGroup
-          value={view}
-          exclusive
-          onChange={(_, newView) => newView && setView(newView)}
-          size="small"
+        <Button
+          onClick={() => setView(view === 'play' ? 'scores' : 'play')}
+          className={
+            "arcade-btn arcade-toggle-btn" +
+            (view === "scores" ? " selected" : "")
+          }
           sx={{
-            '& .MuiToggleButton-root': {
-              color: 'white',
-              borderColor: 'rgba(255,255,255,0.3)',
-              '&.Mui-selected': {
-                color: '#90caf9',
-                backgroundColor: 'rgba(144, 202, 249, 0.12)',
-              }
-            }
+            borderRadius: '30px',
+            fontSize: '1.05rem',
+            px: 5,
+            py: 1.5,
+            fontWeight: 900,
+            mt: 2,
+            boxShadow: '0 0 24px #00e6ff, 0 4px 18px #222 inset',
+            background: view === "play"
+              ? "linear-gradient(90deg,#43e97b 0%,#38f9d7 100%)"
+              : "linear-gradient(90deg,#ff7b7b 0%,#ffb199 100%)",
+            color: "#181818",
+            textShadow: '0 1px #fff, 0 2px #10abff',
+            transition: 'all 0.17s cubic-bezier(.68,-.55,.27,1.55)'
           }}
         >
-          <ToggleButton value="play">🎮 Play</ToggleButton>
-          <ToggleButton value="scores">🏆 Scores</ToggleButton>
-        </ToggleButtonGroup>
+          {view === "scores" ? "🎮 PLAY" : "🏆 SCORES"}
+        </Button>
       </Box>
 
       <Box
@@ -198,22 +203,22 @@ const GamesComponent = () => {
         {view === 'play' && numbers.length === 20 && (
           <Box className={"box" + (loading ? " loading" : "")}>
             <Box className="controls">
-              <Button className={isRight ? undefined : "danger"} onClick={newGame}>Reset</Button>
-              <Button disabled>Score</Button>
-              <Button disabled>{currentScore}</Button>
-              <Button disabled>Steps</Button>
-              <Button disabled>{steps}</Button>
+              <Button className={"arcade-btn" + (!isRight ? " danger" : "")} onClick={newGame}>Reset</Button>
+              <Button className="arcade-btn" disabled>Score</Button>
+              <Button className="arcade-btn" disabled>{currentScore}</Button>
+              <Button className="arcade-btn" disabled>Steps</Button>
+              <Button className="arcade-btn" disabled>{steps}</Button>
               {isRight ? (
-                <Button disabled>{}</Button>
+                <Button className="arcade-btn" disabled>{}</Button>
               ) : (
-                <Button disabled className="danger">💀</Button>
+                <Button className="arcade-btn danger" disabled>💀</Button>
               )}
             </Box>
 
             {topRow.map(number => (
               <Box key={`top-${number.values.i}`} className="cell-border">
                 <Button
-                  className={!isRight ? "danger" : ""}
+                  className={"arcade-btn" + (!isRight ? " danger" : "")}
                   color={number.values.b ? "secondary" : "primary"}
                   disabled={loading || !isRight || number.values.b}
                   onClick={() => handleClick(number)}
@@ -227,7 +232,7 @@ const GamesComponent = () => {
               <React.Fragment key={`mid-row-${rowIndex}`}>
                 <Box key={`left-${rowIndex}`} className="cell-border">
                   <Button
-                    className={!isRight ? "danger" : ""}
+                    className={"arcade-btn" + (!isRight ? " danger" : "")}
                     color={leftCol[rowIndex].values.b ? "secondary" : "primary"}
                     disabled={loading || !isRight || leftCol[rowIndex].values.b}
                     onClick={() => handleClick(leftCol[rowIndex])}
@@ -238,7 +243,7 @@ const GamesComponent = () => {
 
                 {[0, 1, 2, 3].map(colIndex => (
                   <Box key={`center-${rowIndex}-${colIndex}`} className="cell-center">
-                    <Button disabled className={isRight ? "" : "danger"}>
+                    <Button disabled className={"arcade-btn" + (!isRight ? " danger" : "")}>
                       {getCenterButtonText(rowIndex, colIndex)}
                     </Button>
                   </Box>
@@ -246,7 +251,7 @@ const GamesComponent = () => {
 
                 <Box key={`right-${rowIndex}`} className="cell-border">
                   <Button
-                    className={!isRight ? "danger" : ""}
+                    className={"arcade-btn" + (!isRight ? " danger" : "")}
                     color={rightCol[rowIndex].values.b ? "secondary" : "primary"}
                     disabled={loading || !isRight || rightCol[rowIndex].values.b}
                     onClick={() => handleClick(rightCol[rowIndex])}
@@ -260,7 +265,7 @@ const GamesComponent = () => {
             {bottomRow.map(number => (
               <Box key={`bot-${number.values.i}`} className="cell-border">
                 <Button
-                  className={!isRight ? "danger" : ""}
+                  className={"arcade-btn" + (!isRight ? " danger" : "")}
                   color={number.values.b ? "secondary" : "primary"}
                   disabled={loading || !isRight || number.values.b}
                   onClick={() => handleClick(number)}

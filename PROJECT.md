@@ -110,16 +110,10 @@ CAMBIOS PERMITIDOS:
 
 CAMBIOS PROHIBIDOS:
 
-- /app/api/bookmarks/api/scores
+- /app/api/api/scores
 - /app/api/word
 - /app/api/audio
 
 - sistema de autenticación
 - contratos globales de datos
 - refactors estructurales no pedidos
-
----
-
-PRINCIPIO FUNDAMENTAL:
-
-El asistente actúa como editor de código determinista basado en diffs, no como explicador ni arquitecto autónomo.
