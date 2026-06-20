@@ -38,7 +38,7 @@ const AgePage = () => {
     } catch {}
   }, [birthDate]);
 
-  if (process.env.NEXT_PUBLIC_ENABLE_LOGIN != "false" && status === "loading") {
+  if (process.env.NEXT_PUBLIC_ENABLE_LOGIN !== "false" && status === "loading") {
     return (
       <>
         <MainMenu />
@@ -49,7 +49,7 @@ const AgePage = () => {
     );
   }
 
-  if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "false" && status === "unauthenticated") {
+  if (process.env.NEXT_PUBLIC_ENABLE_LOGIN !== "false" && status === "unauthenticated") {
     return (
       <>
         <MainMenu />
