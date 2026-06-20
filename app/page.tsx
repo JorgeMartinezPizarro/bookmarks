@@ -49,7 +49,7 @@ const AgePage = () => {
     );
   }
 
-  if (process.env.NEXT_PUBLIC_ENABLE_LOGIN != "false" && status === "unauthenticated") {
+  if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "false" && status === "unauthenticated") {
     return (
       <>
         <MainMenu />
@@ -64,9 +64,10 @@ const AgePage = () => {
           }}
         >
           <p>You are not signed in</p>
-          <Button variant="contained" onClick={() => signIn()}>
-            Sign in
-          </Button>
+          <Button onClick={() => {
+				  signIn("nextcloud", {callbackUrl: window.location.href, redirect: true})
+			  }}><Image alt="" width="24" height="24" src="/bookmarks/user.png" />Login
+        	</Button >
         </Box>
       </>
     );
