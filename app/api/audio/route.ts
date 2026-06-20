@@ -43,7 +43,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
 	const WORD_URL = process.env.NEXT_PUBLIC_WORD_URL
 		? process.env.NEXT_PUBLIC_WORD_URL + "/word"
-		: "/word"
+		: process.env.NEXTCLOUD_URL + "/word"
     const wordRes = await fetch(WORD_URL);
     const wordData = await wordRes.json();
 
