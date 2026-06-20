@@ -19,6 +19,8 @@ export async function proxy(request: NextRequest) {
     }
   });
 
+  console.log(res);
+
   if (!res.ok) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
