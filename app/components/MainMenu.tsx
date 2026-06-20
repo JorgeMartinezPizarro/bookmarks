@@ -1,78 +1,141 @@
 'use client'
 
-import { Button, Menu, MenuItem } from "@mui/material";
-import { MouseEvent, useState, useEffect } from "react";
-import { signIn, useSession } from "next-auth/react";
+import {
+  Button,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+} from "@mui/material";
+import { MouseEvent, useState, useCallback } from "react";
+import { signIn } from "next-auth/react";
 import MenuOpenIcon from "@mui/icons-material/Menu";
 import Image from "next/image";
-
+import { useRouter } from "next/navigation";
 
 const MainMenu = () => {
-  const {status } = useSession()
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-        const open = Boolean(anchorEl);
-        const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
-            setAnchorEl(event.currentTarget);
-        };
-        const handleClose = () => {
-            setAnchorEl(null);
-        };
+  const router = useRouter();
 
-    return <>
-        <Button
-        id="basic-button"
-        aria-controls={open ? 'basic-menu' : undefined}
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  // 🔁 toggle open/close
+  const handleToggle = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl((prev) => (prev ? null : event.currentTarget));
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setAnchorEl(null);
+  }, []);
+
+  const go = useCallback(
+    (path: string) => {
+      handleClose();
+      router.push(path);
+    },
+    [router, handleClose]
+  );
+
+  return (
+    <>
+      <Button
+        onClick={handleToggle}
+        aria-controls={open ? "main-menu" : undefined}
         aria-haspopup="true"
-        aria-expanded={open ? 'true' : undefined}
-        onClick={handleClick}
-        style={{
-          color: "grey",
+        aria-expanded={open ? "true" : undefined}
+        sx={{
           position: "absolute",
-          left: "5px",
-          top: "5px",
-          zIndex: "14000",
-          padding: "8px",
-          minWidth: "0",
-          margin: 0,
-          scale: "1.4"
+          left: 8,
+          top: 8,
+          zIndex: 14000,
+          minWidth: 0,
+          p: 1,
+          borderRadius: 2,
+
+          bgcolor: open ? "primary.main" : "background.paper",
+          color: open ? "primary.contrastText" : "text.primary",
+
+          boxShadow: 2,
+          transition: "all 120ms ease-out",
+
+          "&:hover": {
+            transform: "scale(1.05)",
+            bgcolor: open ? "primary.dark" : "action.hover",
+          },
         }}
       >
-        <MenuOpenIcon />
+        <MenuOpenIcon
+          style={{
+            transition: "transform 120ms ease",
+            transform: open ? "rotate(90deg)" : "rotate(0deg)",
+          }}
+        />
       </Button>
-    <Menu
-        id="basic-menu"
-        color="secondary"
+
+      <Menu
+        id="main-menu"
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
+        disableAutoFocusItem
+        transitionDuration={120}
+        slotProps={{
+          paper: {
+            elevation: 8,
+            sx: {
+              mt: 1,
+              minWidth: 220,
+              borderRadius: 2,
+              overflow: "hidden",
+            },
+          },
+        }}
       >
-        <MenuItem  color="primary" onClick={()=>window.location.href="/bookmarks"}><Button>
-          <Image alt="" width="24" height="24" src="/bookmarks/icon-test.png" />Home
-        </Button></MenuItem>
-        <hr />
-        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/games/chess"}><Button>
-          <Image alt="" width="24" height="24" src="/bookmarks/queen.png" />Chess
-        </Button></MenuItem>
-        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/games/words"}><Button>
-          <Image alt="" width="24" height="24" src="/bookmarks/omega.png" />Words
-        </Button></MenuItem>
-        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/games/numbers"}><Button>
-          <Image alt="" width="24" height="24" src="/bookmarks/number.png" />Numbers
-        </Button></MenuItem>
-        <MenuItem onClick={()=>window.location.href="/bookmarks/pages/games/tetris"}><Button>
-          <Image alt="" width="24" height="24" src="/bookmarks/tetris.png" />Tetris
-        </Button></MenuItem>
-		<hr />
-        {<MenuItem onClick={() => {
-				  signIn("nextcloud", {callbackUrl: window.location.href, redirect: true})
-			  }}><Button 
-          color="primary"
-          
-        >
-          <Image alt="" width="24" height="24" src="/bookmarks/user.png" />Login
-        </Button></MenuItem>}
+        <MenuItem onClick={() => go("/")}>
+          <ListItemIcon>
+            <Image
+              alt=""
+              width={20}
+              height={20}
+              src="/bookmarks/icon-test.png"
+            />
+          </ListItemIcon>
+          <ListItemText>Home</ListItemText>
+        </MenuItem>
+
+        <Divider />
+
+        <MenuItem onClick={() => go("/pages/games/chess")}>
+          <ListItemIcon>
+            <Image alt="" width={20} height={20} src="/bookmarks/queen.png" />
+          </ListItemIcon>
+          <ListItemText>Chess</ListItemText>
+        </MenuItem>
+
+        <MenuItem onClick={() => go("/pages/games/words")}>
+          <ListItemIcon>
+            <Image alt="" width={20} height={20} src="/bookmarks/omega.png" />
+          </ListItemIcon>
+          <ListItemText>Words</ListItemText>
+        </MenuItem>
+
+        <MenuItem onClick={() => go("/pages/games/numbers")}>
+          <ListItemIcon>
+            <Image alt="" width={20} height={20} src="/bookmarks/number.png" />
+          </ListItemIcon>
+          <ListItemText>Numbers</ListItemText>
+        </MenuItem>
+
+        <MenuItem onClick={() => go("/pages/games/tetris")}>
+          <ListItemIcon>
+            <Image alt="" width={20} height={20} src="/bookmarks/tetris.png" />
+          </ListItemIcon>
+          <ListItemText>Tetris</ListItemText>
+        </MenuItem>
       </Menu>
     </>
-}
+  );
+};
 
 export default MainMenu;
