@@ -3,7 +3,6 @@
 import { Box, TextField, Button } from "@mui/material";
 import { useEffect, useState } from "react";
 import MainMenu from "./components/MainMenu";
-import { useSession, signIn } from "next-auth/react";
 import Image from "next/image";
 
 const key = "123213231asdssdadasdas213";
@@ -12,8 +11,6 @@ const AgePage = () => {
   const [birthDate, setBirthDate] = useState("");
   const [days, setDays] = useState(0);
 
-  const { data: session, status } = useSession();
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       setBirthDate(localStorage.getItem(key) || "");
@@ -21,12 +18,13 @@ const AgePage = () => {
   }, []);
 
   useEffect(() => {
-    if (birthDate !== "") {
-      localStorage.setItem(key, birthDate);
-    }
+    if (!birthDate) return;
+
+    localStorage.setItem(key, birthDate);
 
     try {
       const a = new Date();
+
       const b = new Date(
         birthDate.substring(6, 10) + "-" +
         birthDate.substring(3, 5) + "-" +
@@ -34,48 +32,16 @@ const AgePage = () => {
         "T00:00:00"
       );
 
-      setDays(Math.round((a.getTime() - b.getTime()) / 86400000));
+      if (!isNaN(b.getTime())) {
+        setDays(Math.round((a.getTime() - b.getTime()) / 86400000));
+      }
     } catch {}
   }, [birthDate]);
-
-  if (process.env.NEXT_PUBLIC_ENABLE_LOGIN !== "false" && status === "loading") {
-    return (
-      <>
-        <MainMenu />
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 10 }}>
-          <p>Loading session...</p>
-        </Box>
-      </>
-    );
-  }
-
-  if (process.env.NEXT_PUBLIC_ENABLE_LOGIN !== "false" && status === "unauthenticated") {
-    return (
-      <>
-        <MainMenu />
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "100vh",
-            gap: 2,
-          }}
-        >
-          <p>You are not signed in</p>
-          <Button onClick={() => {
-				  signIn("nextcloud", {callbackUrl: window.location.href, redirect: true})
-			  }}><Image alt="" width="24" height="24" src="/bookmarks/user.png" />Login
-        	</Button >
-        </Box>
-      </>
-    );
-  }
 
   return (
     <>
       <MainMenu />
+
       <Box
         className="intro"
         sx={{
@@ -96,23 +62,23 @@ const AgePage = () => {
         />
 
         <p>
-          Dear <i>{session?.user?.name || "user"}</i>, you are since {days} days on planet Earth, congratulations!
+          Dear <i>user</i>, you are since {days} days on planet Earth, congratulations!
         </p>
 
         <p>
-          <Button title="Chess" onClick={() => window.location.href = "/bookmarks/pages/games/chess"}>
+          <Button onClick={() => window.location.href = "/bookmarks/pages/games/chess"}>
             <Image alt="" width={64} height={64} src="/bookmarks/queen.png" />
           </Button>
 
-          <Button title="Words" onClick={() => window.location.href = "/bookmarks/pages/games/words"}>
+          <Button onClick={() => window.location.href = "/bookmarks/pages/games/words"}>
             <Image alt="" width={64} height={64} src="/bookmarks/omega.png" />
           </Button>
 
-          <Button title="Numbers" onClick={() => window.location.href = "/bookmarks/pages/games/numbers"}>
+          <Button onClick={() => window.location.href = "/bookmarks/pages/games/numbers"}>
             <Image alt="" width={64} height={64} src="/bookmarks/number.png" />
           </Button>
 
-          <Button title="Tetris" onClick={() => window.location.href = "/bookmarks/pages/games/tetris"}>
+          <Button onClick={() => window.location.href = "/bookmarks/pages/games/tetris"}>
             <Image alt="" width={64} height={64} src="/bookmarks/tetris.png" />
           </Button>
         </p>

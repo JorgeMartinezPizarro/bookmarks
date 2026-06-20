@@ -1,62 +1,38 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
-
-const secret = process.env.NEXTAUTH_SECRET;
 
 export async function proxy(request: NextRequest) {
 
-	if (process.env.NEXT_PUBLIC_ENABLE_LOGIN == "false")
-  		return NextResponse.next();
-  const token = await getToken({ req: request, secret });
-
-  console.log("Middleware in action!");
-
-  // 1. No token -> redirect inmediato
-  if (!token) {
-    return NextResponse.redirect(new URL('/bookmarks', request.url));
+  if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "false") {
+    return NextResponse.next();
   }
 
-  // 2. Token existe pero expirado -> intentar refresh
-  const now = Math.floor(Date.now() / 1000);
+  console.log("Nextcloud auth middleware");
 
-  const expired =
-    token?.accessTokenExpires &&
-    typeof token.accessTokenExpires === "number" &&
-    token.accessTokenExpires < now;
+  const cookie = request.headers.get("cookie") || "";
 
-  if (expired) {
-    try {
-      const refreshRes = await fetch(`${request.nextUrl.origin}/api/auth/refresh`, {
-        method: "POST",
-        headers: {
-          cookie: request.headers.get("cookie") || "",
-        },
-      });
-
-      if (!refreshRes.ok) {
-        throw new Error("refresh failed");
-      }
-
-      const data = await refreshRes.json();
-
-      if (!data?.accessToken) {
-        throw new Error("invalid refresh response");
-      }
-
-      // refresh OK -> continuar request
-      return NextResponse.next();
-    } catch (e) {
-      console.log("Refresh failed, redirecting...");
-      return NextResponse.redirect(new URL('/bookmarks', request.url));
+  // 🔥 pedir identidad real a Nextcloud
+  const res = await fetch(process.env.NEXTCLOUD_URL + "/ocs/v2.php/cloud/user", {
+    headers: {
+      cookie
     }
+  });
+
+  if (!res.ok) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // 3. Token válido
+  const data = await res.json();
+
+  if (!data?.ocs?.data?.id) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // usuario válido → continuar
   return NextResponse.next();
 }
 
-// IMPORTANTE: asegúrate de cubrir todo lo protegido
+// cubrir solo app nextjs
 export const config = {
-  matcher: ['/pages/:path*'],
+  matcher: ['/pages/:path*']
 };

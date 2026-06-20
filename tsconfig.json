@@ -33,8 +33,6 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "app/api/auth/callback/[...nextauth]/route.js",
-    "nextauth.d.ts",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
