@@ -14,7 +14,9 @@ const isValidFEN = (fen: string) => {
 
 export async function POST(req: NextRequest): Promise<Response> {
   // La URL correcta para Stockfish, basada en tu configuración de Nginx
-  const STOCKFISH_API_URL = `${process.env.NEXTCLOUD_URL}/chess`;
+  const STOCKFISH_API_URL = process.env.NEXT_PUBLIC_CHESS_URL
+  	? (process.env.NEXT_PUBLIC_CHESS_URL + "/chess")
+	: `${process.env.NEXTCLOUD_URL}/chess`;
 
   try {
 
