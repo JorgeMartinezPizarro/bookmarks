@@ -3,8 +3,16 @@
 import MainMenu from "@/app/components/MainMenu";
 import { TextField, Button } from "@mui/material";
 import { useCallback, useEffect, useState, useRef } from "react";
+import "./styles.css";
 
 const WORDS_TOTAL = 10;
+
+type ScoreEntry = {
+  score: number;
+  name: string;
+  wordsTotal: number;
+  createdAt?: string;
+};
 
 const Wording = () => {
   const [word, setWord] = useState("");
@@ -13,19 +21,43 @@ const Wording = () => {
   const [showWord, setShowWord] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [showScores, setShowScores] = useState(true);
-  const [topScores, setTopScores] = useState<any[]>([]);
+  const [topScores, setTopScores] = useState<ScoreEntry[]>([]);
   const [scoreSaved, setScoreSaved] = useState(false);
   const [finished, setFinished] = useState(false);
 
-  const startTimeRef = useRef<number>(0);
+  // NUEVO: tiempo logrado y puesto en el ranking al terminar la partida
+  const [finishedTime, setFinishedTime] = useState<number | null>(null);
+  const [finishedRank, setFinishedRank] = useState<number | null>(null);
 
-  // NUEVO: ref del input
+  const startTimeRef = useRef<number>(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const loadScores = useCallback(async (): Promise<ScoreEntry[]> => {
+    try {
+      const response = await fetch("/bookmarks/api/scores?gameId=4");
+      const data = await response.json();
+
+      if (data.scores) {
+        const mapped: ScoreEntry[] = data.scores.map((s: any) => ({
+          score: s.score,
+          name: s.username,
+          wordsTotal: s.gameConfig?.wordsTotal || WORDS_TOTAL,
+          createdAt: s.createdAt,
+        }));
+        setTopScores(mapped);
+        return mapped;
+      }
+    } catch (error) {
+      console.error("Error loading scores:", error);
+    }
+    return [];
+  }, []);
 
   const saveScore = useCallback(async () => {
     if (scoreSaved) return;
 
     const elapsed = Date.now() - startTimeRef.current;
+    setFinishedTime(elapsed);
 
     try {
       const response = await fetch("/bookmarks/api/scores", {
@@ -41,38 +73,26 @@ const Wording = () => {
 
       if (response.ok) {
         setScoreSaved(true);
-        await loadScores();
+        const updated = await loadScores();
+
+        // Calculamos el puesto (menor tiempo = mejor puesto), solo cuenta si está en el top 10
+        const sorted = [...updated].sort((a, b) => a.score - b.score);
+        const idx = sorted.findIndex((s) => s.score === elapsed);
+        setFinishedRank(idx >= 0 && idx < 10 ? idx + 1 : null);
+
+        // Mostramos automáticamente el marcador con la partida recién jugada
+        setShowScores(false);
       }
     } catch (error) {
       console.error("Error saving score:", error);
     }
-  }, [scoreSaved]);
+  }, [scoreSaved, loadScores]);
 
   const saveScoreRef = useRef(saveScore);
 
   useEffect(() => {
     saveScoreRef.current = saveScore;
   }, [saveScore]);
-
-  const loadScores = useCallback(async () => {
-    try {
-      const response = await fetch("/bookmarks/api/scores?gameId=4");
-      const data = await response.json();
-
-      if (data.scores) {
-        setTopScores(
-          data.scores.map((s: any) => ({
-            score: s.score,
-            name: s.username,
-            wordsTotal: s.gameConfig?.wordsTotal || WORDS_TOTAL,
-            createdAt: s.createdAt,
-          }))
-        );
-      }
-    } catch (error) {
-      console.error("Error loading scores:", error);
-    }
-  }, []);
 
   const requestWord = useCallback(() => {
     if (playing) {
@@ -95,11 +115,13 @@ const Wording = () => {
       setScore(0);
       setScoreSaved(false);
       setFinished(false);
+      setFinishedTime(null);
+      setFinishedRank(null);
       startTimeRef.current = Date.now();
     }
   }, [playing]);
 
-  // NUEVO: foco automático al empezar
+  // Foco automático al empezar
   useEffect(() => {
     if (playing) {
       setTimeout(() => {
@@ -136,48 +158,23 @@ const Wording = () => {
 
   const elapsedMs = playing ? Date.now() - startTimeRef.current : 0;
 
+  const sortedScores = [...topScores].sort((a, b) => a.score - b.score).slice(0, 10);
+
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-        padding: "20px",
-        color: "white",
-        textAlign: "center",
-        backgroundColor: "#1a1a2e",
-      }}
-    >
+    <div className="wording-page">
       <MainMenu />
 
       <Button
-        className="game-menu"
+        className="toggle-view-btn"
         variant="contained"
         onClick={() => setShowScores(!showScores)}
-        style={{
-          marginBottom: "20px",
-          backgroundColor: "#16213e",
-          color: "white",
-          fontWeight: "bold"
-        }}
       >
         {showScores ? "Ver Puntuaciones" : "Jugar"}
       </Button>
 
       {showScores ? (
-        <div
-          style={{
-            backgroundColor: "#16213e",
-            padding: "30px",
-            borderRadius: "12px",
-            width: "100%",
-            maxWidth: "400px",
-            boxShadow: "0 4px 15px rgba(0,0,0,0.3)"
-          }}
-        >
-          <h2 style={{ margin: "0 0 20px 0", color: "#e94560" }}>
+        <div className="panel">
+          <h2 className="panel-title">
             {!playing && finished
               ? "🎉 Partida finalizada"
               : !playing
@@ -188,34 +185,23 @@ const Wording = () => {
           </h2>
 
           <TextField
-            inputRef={inputRef}   // 👈 NUEVO
+            inputRef={inputRef}
             color={word === text ? "primary" : "error"}
             onKeyDown={(event) => {
               if (event.key === "Enter" && text === word) {
                 handleSubmitWord();
               }
             }}
-            style={{
-              background: "white",
-              borderRadius: "8px",
-              marginBottom: "20px",
-              width: "100%"
-            }}
+            className="word-input"
             value={text}
             onChange={(e: any) => setText(e.target.value)}
             disabled={!playing}
             placeholder="Escribe la palabra aquí..."
           />
 
-          <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginBottom: "20px" }}>
+          <div className="button-row">
             <Button
-              style={{
-                backgroundColor: playing ? "#e94560" : "#0f3460",
-                color: "white",
-                padding: "10px 20px",
-                borderRadius: "8px",
-                fontWeight: "bold"
-              }}
+              className={`action-btn ${playing ? "action-btn--play" : "action-btn--stopped"}`}
               variant="contained"
               onClick={() => setPlaying(!playing)}
             >
@@ -223,13 +209,7 @@ const Wording = () => {
             </Button>
 
             <Button
-              style={{
-                backgroundColor: "#0f3460",
-                color: "white",
-                padding: "10px 20px",
-                borderRadius: "8px",
-                fontWeight: "bold"
-              }}
+              className="action-btn action-btn--neutral"
               variant="contained"
               onClick={() => setShowWord(!showWord)}
             >
@@ -237,13 +217,7 @@ const Wording = () => {
             </Button>
 
             <Button
-              style={{
-                backgroundColor: "#e94560",
-                color: "white",
-                padding: "10px 20px",
-                borderRadius: "8px",
-                fontWeight: "bold"
-              }}
+              className="action-btn action-btn--submit"
               variant="contained"
               onClick={handleSubmitWord}
               disabled={!playing}
@@ -252,13 +226,13 @@ const Wording = () => {
             </Button>
           </div>
 
-          <p style={{ fontSize: "18px", margin: "0 0 10px 0" }}>
+          <p className="stats-line">
             Palabras: <strong>{score}</strong> / {WORDS_TOTAL} | Tiempo:{" "}
             <strong>{elapsedMs} ms</strong>
           </p>
 
           {word !== "" && (
-            <audio key={word} style={{ display: "none" }} controls>
+            <audio key={word} className="hidden-audio" controls>
               <source
                 src={"/bookmarks/api/audio?file=" + word + ".mp3"}
                 type="audio/mpeg"
@@ -267,42 +241,57 @@ const Wording = () => {
           )}
         </div>
       ) : (
-        <div
-          style={{
-            backgroundColor: "#16213e",
-            padding: "20px",
-            borderRadius: "12px",
-            width: "100%",
-            maxWidth: "400px",
-            boxShadow: "0 4px 15px rgba(0,0,0,0.3)"
-          }}
-        >
-          <h3 style={{ color: "#e94560", margin: "0 0 20px 0" }}>
-            Mejores Tiempos
-          </h3>
+        <div className="scoreboard-panel">
+          <h3 className="scoreboard-title">Mejores Tiempos</h3>
 
-          {topScores.length === 0 ? (
-            <p style={{ color: "#888" }}>No hay puntuaciones aún</p>
+          {finished && finishedTime !== null && (
+            <div className="finished-summary">
+              <div className="finished-summary__time">
+                ⏱ Tu tiempo: {finishedTime} ms
+              </div>
+              {finishedRank !== null ? (
+                <p className="finished-summary__rank">
+                  🏆 ¡Puesto #{finishedRank} del top 10!
+                </p>
+              ) : (
+                <p className="finished-summary__rank finished-summary__rank--outside">
+                  No has entrado en el top 10 esta vez.
+                </p>
+              )}
+            </div>
+          )}
+
+          {sortedScores.length === 0 ? (
+            <p className="no-scores">No hay puntuaciones aún</p>
           ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", color: "white" }}>
+            <table className="scoreboard-table">
               <thead>
-                <tr style={{ backgroundColor: "#0f3460" }}>
+                <tr>
                   <th>#</th>
                   <th>Usuario</th>
                   <th>Tiempo (ms)</th>
                 </tr>
               </thead>
               <tbody>
-                {topScores
-                  .sort((a, b) => a.score - b.score)
-                  .slice(0, 10)
-                  .map((s, i) => (
-                    <tr key={i}>
+                {sortedScores.map((s, i) => {
+                  const isHighlighted =
+                    finished &&
+                    finishedTime !== null &&
+                    finishedRank !== null &&
+                    i + 1 === finishedRank &&
+                    s.score === finishedTime;
+
+                  return (
+                    <tr
+                      key={i}
+                      className={isHighlighted ? "scoreboard-row--highlight" : undefined}
+                    >
                       <td>{i + 1}</td>
                       <td>{s.name}</td>
                       <td>{s.score}</td>
                     </tr>
-                  ))}
+                  );
+                })}
               </tbody>
             </table>
           )}

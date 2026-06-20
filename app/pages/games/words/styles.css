@@ -1,0 +1,145 @@
+.wording-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  color: white;
+  text-align: center;
+  background-color: #1a1a2e;
+}
+
+.toggle-view-btn {
+  margin-bottom: 20px !important;
+  background-color: #16213e !important;
+  color: white !important;
+  font-weight: bold !important;
+}
+
+.panel {
+  background-color: #16213e;
+  padding: 30px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.scoreboard-panel {
+  background-color: #16213e;
+  padding: 20px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.panel-title {
+  margin: 0 0 20px 0;
+  color: #e94560;
+}
+
+.scoreboard-title {
+  color: #e94560;
+  margin: 0 0 20px 0;
+}
+
+.word-input {
+  background: white;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.button-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.action-btn {
+  color: white !important;
+  padding: 10px 20px !important;
+  border-radius: 8px !important;
+  font-weight: bold !important;
+}
+
+.action-btn--play {
+  background-color: #e94560 !important;
+}
+
+.action-btn--stopped {
+  background-color: #0f3460 !important;
+}
+
+.action-btn--neutral {
+  background-color: #0f3460 !important;
+}
+
+.action-btn--submit {
+  background-color: #e94560 !important;
+}
+
+.stats-line {
+  font-size: 18px;
+  margin: 0 0 10px 0;
+}
+
+.hidden-audio {
+  display: none;
+}
+
+/* Finished-game summary */
+.finished-summary {
+  background-color: #0f3460;
+  border: 1px solid #e94560;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 20px;
+}
+
+.finished-summary__time {
+  font-size: 22px;
+  font-weight: bold;
+  color: #ffd84d;
+  margin: 4px 0;
+}
+
+.finished-summary__rank {
+  font-size: 16px;
+  color: #ffd84d;
+  font-weight: bold;
+  margin: 4px 0 0 0;
+}
+
+.finished-summary__rank--outside {
+  color: #cccccc;
+  font-weight: normal;
+}
+
+.scoreboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: white;
+}
+
+.scoreboard-table thead tr {
+  background-color: #0f3460;
+}
+
+.scoreboard-table th,
+.scoreboard-table td {
+  padding: 6px 8px;
+}
+
+.scoreboard-row--highlight {
+  background-color: #ffd84d;
+  color: #1a1a2e;
+  font-weight: bold;
+}
+
+.no-scores {
+  color: #888;
+}

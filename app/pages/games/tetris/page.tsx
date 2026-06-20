@@ -1,647 +1,176 @@
-'use client';
+"use client";
 
 import MainMenu from "@/app/components/MainMenu";
-import {
-  GAME_IDS,
-  GetScoresResponse,
-  ScoreEntry,
-} from "@/app/lib/scores/types";
 import { Box, Button, Typography } from "@mui/material";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import "./styles.css";
+import { Board, COLS, hardDropDistance, Piece, ROWS, useTetris } from "../../../../app/hooks/useTetris";
+import { formatTimeMs, LeaderboardEntry, useScore } from "../../../../app/hooks/useTetrisScore";
 
-type Cell = [string, string];
-type Board = Cell[][];
-type Piece = { shape: number[][]; color: string };
+// ───────────────────────── Tablero (memoizado) ─────────────────────────
 
-type LeaderboardEntry = {
-  name: string;
-  timeMs: number;
-  linesTarget: number;
-};
-
-const LINES_TARGET = 25;
-const DROP_SPEED_MS = 184;
-const TIMER_TICK_MS = 10;
-const HOLD_INITIAL_DELAY = 300;
-const HOLD_REPEAT_RATE = 100;
-
-const ROWS = 20;
-const COLS = 10;
-
-// Tamaño de celda mínimo y máximo permitido. El mínimo garantiza que el
-// tablero siga siendo jugable incluso en pantallas muy bajas; el máximo
-// mantiene el tamaño "de toda la vida" en pantallas grandes.
-const MIN_CELL_SIZE = 8;
-const MAX_CELL_SIZE = 28;
-
-const createBoard = (rows: number = ROWS, cols: number = COLS): Board =>
-  Array.from({ length: rows }, () =>
-    Array.from({ length: cols }, () => ["0", "clear"] as Cell)
-  );
-const rotate = (matrix: number[][]): number[][] =>
-  matrix[0].map((_, colIndex) => matrix.map((row) => row[colIndex]).reverse());
-
-const checkCollision = (
-  board: Board,
-  piece: Piece,
-  x: number,
-  y: number
-): boolean => {
-  return piece.shape.some((row, rowIndex) =>
-    row.some((cell, colIndex) => {
-      if (cell !== 0) {
-        const newX = x + colIndex;
-        const newY = y + rowIndex;
-        if (
-          newY >= board.length ||
-          newX < 0 ||
-          newX >= board[0].length ||
-          (newY >= 0 && board[newY][newX][1] !== "clear")
-        ) {
-          return true;
-        }
-      }
-      return false;
-    })
-  );
-};
-
-const TETROMINOS: Piece[] = [
-  { shape: [[1, 1, 1], [0, 1, 0]], color: "#e03030" },   // T - red
-  { shape: [[1, 1], [1, 1]], color: "#e0c030" },          // O - yellow
-  { shape: [[1, 1, 0], [0, 1, 1]], color: "#30c030" },    // S - green
-  { shape: [[0, 1, 1], [1, 1, 0]], color: "#3070e0" },    // Z - blue
-  { shape: [[1, 1, 1, 1]], color: "#30d0d0" },            // I - cyan
-  { shape: [[1, 1, 1], [1, 0, 0]], color: "#e07030" },    // L - orange
-  { shape: [[1, 1, 1], [0, 0, 1]], color: "#a030e0" },    // J - purple
-];
-const getRandomPiece = (): Piece =>
-  TETROMINOS[Math.floor(Math.random() * TETROMINOS.length)];
-
-function formatTimeMs(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  const millis = ms % 1000;
-  if (minutes > 0) {
-    return `${minutes}:${seconds.toString().padStart(2, "0")}.${millis
-      .toString()
-      .padStart(3, "0")}`;
-  }
-  return `${seconds}.${millis.toString().padStart(3, "0")}s`;
-}
-
-function parseLeaderboardEntry(entry: ScoreEntry): LeaderboardEntry {
-  const linesTarget =
-    typeof entry.gameConfig?.linesTarget === "number"
-      ? entry.gameConfig.linesTarget
-      : LINES_TARGET;
-  if (typeof entry.gameConfig?.linesTarget === "number" || entry.score >= 1000) {
-    return {
-      name: entry.username,
-      timeMs: entry.score,
-      linesTarget,
-    };
-  }
-  const legacySeconds =
-    typeof entry.gameConfig?.timer === "number" ? entry.gameConfig.timer : 0;
-  return {
-    name: entry.username,
-    timeMs: legacySeconds * 1000,
-    linesTarget: entry.score,
-  };
-}
-
-// ─── Puras helpers ──────────────────
-function placePieceOnBoardPure(
-  board: Board,
-  piece: Piece,
-  pos: { x: number; y: number }
-): Board {
-  const newBoard = board.map((row) => row.map((cell) => [...cell] as Cell));
-  piece.shape.forEach((row, rowIndex) =>
-    row.forEach((cell, colIndex) => {
-      if (cell !== 0) {
-        const ny = pos.y + rowIndex;
-        const nx = pos.x + colIndex;
-        if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) {
-          newBoard[ny][nx] = [piece.color, "filled"];
-        }
-      }
-    })
-  );
-  return newBoard;
-}
-function clearLinesPure(board: Board): { newBoard: Board; cleared: number } {
-  const kept = board.filter((row) => row.some((cell) => cell[1] === "clear"));
-  const cleared = board.length - kept.length;
-  if (cleared === 0) return { newBoard: board, cleared: 0 };
-  const newRows = Array.from({ length: cleared }, () =>
-    Array.from({ length: board[0].length }, () => ["0", "clear"] as Cell)
-  );
-  return { newBoard: [...newRows, ...kept], cleared };
-}
-function hardDropDistance(
-  board: Board,
-  piece: Piece,
-  pos: { x: number; y: number }
-): number {
-  let dist = 0;
-  while (!checkCollision(board, piece, pos.x, pos.y + dist + 1)) dist++;
-  return dist;
-}
-
-// ───── GameState ──────────
-interface GameState {
+interface BoardViewProps {
   board: Board;
   piece: Piece;
   pos: { x: number; y: number };
-  lines: number;
-  isPaused: boolean;
-  elapsedMs: number;
-  gameCompleted: boolean;
-  gameOver: boolean;
-  scoreSaved: boolean;
-  lockVisual?: boolean; // NUEVO: para corregir bug 1
-  lockBoard?: Board;    // NUEVO: tablero a mostrar durante lock visual
+  lockVisual?: boolean;
+  lockBoard?: Board;
 }
 
-// IMPORTANTE (fix hidratación): esta función se usa también como valor inicial
-// de useState, que se ejecuta tanto en el servidor (SSR) como en el primer
-// render del cliente. Si usáramos getRandomPiece() aquí, el servidor y el
-// cliente generarían piezas distintas y React lanzaría un error de
-// hidratación. Por eso la pieza inicial es SIEMPRE determinista
-// (TETROMINOS[0]); la pieza aleatoria real se asigna después del montaje
-// (ver randomizedInitialState / useEffect de inicialización).
-const initialGameState = (): GameState => ({
-  board: createBoard(),
-  piece: TETROMINOS[0],
-  pos: { x: Math.floor(COLS / 2) - 1, y: 0 },
-  lines: 0,
-  isPaused: true,
-  elapsedMs: 0,
-  gameCompleted: false,
-  gameOver: false,
-  scoreSaved: false,
+const BoardView = React.memo(function BoardView({
+  board,
+  piece,
+  pos,
+  lockVisual,
+  lockBoard,
+}: BoardViewProps) {
+  const showingLock = Boolean(lockVisual && lockBoard);
+  const displaySource = showingLock ? (lockBoard as Board) : board;
+  const display: string[][] = displaySource.map((row) =>
+    row.map((cell) => (cell[1] === "clear" ? "black" : cell[0]))
+  );
+
+  if (!showingLock) {
+    piece.shape.forEach((row, py) =>
+      row.forEach((cell, px) => {
+        if (cell !== 0) {
+          const ny = pos.y + py;
+          const nx = pos.x + px;
+          if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) {
+            display[ny][nx] = piece.color;
+          }
+        }
+      })
+    );
+    const ghostDist = hardDropDistance(board, piece, pos);
+    piece.shape.forEach((row, py) =>
+      row.forEach((cell, px) => {
+        if (cell !== 0) {
+          const ny = pos.y + ghostDist + py;
+          const nx = pos.x + px;
+          if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS && display[ny][nx] === "black") {
+            display[ny][nx] = "ghost";
+          }
+        }
+      })
+    );
+  }
+
+  return (
+    <Box className="tetris-board">
+      {display.map((row, y) =>
+        row.map((color, x) => (
+          <div
+            key={`${y}-${x}`}
+            className="tetris-cell"
+            style={{
+              backgroundColor: color === "ghost" ? "transparent" : color,
+              border:
+                color === "ghost"
+                  ? `1px solid ${piece.color}55`
+                  : color === "black"
+                  ? "1px solid #111"
+                  : "1px solid rgba(255,255,255,0.18)",
+              opacity: showingLock ? 0.8 : 1,
+            }}
+          />
+        ))
+      )}
+    </Box>
+  );
 });
 
-// Solo se debe llamar en el cliente (useEffect / handlers), nunca como
-// valor inicial de useState ni durante el render.
-const randomizedInitialState = (): GameState => ({
-  ...initialGameState(),
-  piece: getRandomPiece(),
+// ───────────────────────── Menú superior (memoizado) ─────────────────────────
+
+interface MenuBarProps {
+  showGame: boolean;
+  onToggleView: () => void;
+  onRestart: () => void;
+  onTogglePause: () => void;
+  isPaused: boolean;
+  isLocked: boolean; // gameCompleted || gameOver
+}
+
+const MenuBar = React.memo(function MenuBar({
+  showGame,
+  onToggleView,
+  onRestart,
+  onTogglePause,
+  isPaused,
+  isLocked,
+}: MenuBarProps) {
+  return (
+    <Box className="tetris-panel-width tetris-menu-bar">
+      <Button
+        size="small"
+        variant={showGame ? "contained" : "outlined"}
+        onClick={onToggleView}
+        className={`tetris-menu-btn tetris-menu-btn--scores ${showGame ? "is-active" : ""}`}
+      >
+        {showGame ? "SCORES" : "PLAY"}
+      </Button>
+      {showGame && <Button
+        size="small"
+        variant="outlined"
+        onClick={onRestart}
+        className="tetris-menu-btn tetris-menu-btn--restart"
+      >
+        RESTART
+      </Button>}
+      {showGame && <Button
+        size="small"
+        variant="outlined"
+        onClick={onTogglePause}
+        disabled={isLocked}
+        className={`tetris-menu-btn tetris-menu-btn--pause ${isPaused ? "is-paused" : ""} ${
+          isLocked ? "is-disabled" : ""
+        }`}
+      >
+        {isPaused ? "RESUME" : "PAUSE"}
+      </Button>}
+    </Box>
+  );
 });
 
-// ────── Componente principal ────
-const Tetris: React.FC = () => {
-  const [gameState, setGameState] = useState<GameState>(initialGameState());
-  const [topScores, setTopScores] = useState<LeaderboardEntry[]>([]);
-  const [showGame, setShowGame] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
-  const [cellSize, setCellSize] = useState(MAX_CELL_SIZE);
+// ───────────────────────── Controles móviles (memoizados) ─────────────────────────
 
-  // Refs
-  const gsRef = useRef<GameState>(gameState);
-  gsRef.current = gameState;
-  const startTimeRef = useRef<number | null>(null);
-  const scoreSavedRef = useRef(false);
-  const gameCompletedRef = useRef(false);
-  const activeKeysRef = useRef<Set<string>>(new Set());
-  const holdTimersRef = useRef<Map<string, ReturnType<typeof setTimeout | typeof setInterval>>>(new Map());
+interface MobileControlsProps {
+  startRepeat: (key: string, action: () => void) => void;
+  stopRepeat: (key: string) => void;
+  moveLeft: () => void;
+  moveRight: () => void;
+  softDrop: () => void;
+  rotateLeft: () => void;
+  rotateRight: () => void;
+}
 
-  // Refs usadas SOLO para medir el alto real de la cabecera (menús, título,
-  // stats, mensajes de estado) y de los controles móviles, de forma que el
-  // tablero pueda calcular exactamente el espacio que le sobra y todo el
-  // juego quepa en una sola pantalla sin scroll.
-  const headerRef = useRef<HTMLDivElement>(null);
-  const controlsWrapRef = useRef<HTMLDivElement>(null);
-
-  const { board, piece, pos, lines, isPaused, elapsedMs, gameCompleted, gameOver, lockVisual, lockBoard } = gameState;
-
-  // Init
-  useEffect(() => { setGameState(randomizedInitialState()); }, []);
-
-  // ── Layout responsive sin scroll ──────────────────────────────────────
-  // Mide la altura real ya ocupada por la cabecera y por los controles
-  // móviles, y calcula el cellSize máximo que permite que el tablero (más
-  // todo lo demás) quepa en el alto visible del viewport. Así garantizamos
-  // que el juego, los menús y los controles se vean siempre completos sin
-  // necesidad de hacer scroll, sea cual sea el tamaño de pantalla.
-  const recalcLayout = useCallback(() => {
-    const mobile = window.innerWidth <= 768 || 'ontouchstart' in window;
-    setIsMobile(mobile);
-
-    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
-
-    const headerH = headerRef.current?.offsetHeight ?? 0;
-    const footerH = controlsWrapRef.current?.offsetHeight ?? 0;
-
-    const verticalSlack = 16;   // margen de seguridad (notch, redondeos...)
-    const horizontalSlack = 24;
-
-    const availableHeight = viewportHeight - headerH - footerH - verticalSlack;
-    const availableWidth = viewportWidth - horizontalSlack;
-
-    const heightCellSize = Math.floor(availableHeight / ROWS);
-    const widthCellSize = Math.floor(availableWidth / COLS);
-
-    const next = Math.max(
-      MIN_CELL_SIZE,
-      Math.min(heightCellSize, widthCellSize, MAX_CELL_SIZE)
-    );
-    setCellSize(next);
-  }, []);
-
-  useEffect(() => {
-    recalcLayout();
-    const handle = () => recalcLayout();
-    window.addEventListener('resize', handle);
-    window.addEventListener('orientationchange', handle);
-    window.visualViewport?.addEventListener('resize', handle);
-    return () => {
-      window.removeEventListener('resize', handle);
-      window.removeEventListener('orientationchange', handle);
-      window.visualViewport?.removeEventListener('resize', handle);
-    };
-  }, [recalcLayout]);
-
-  // Recalcular cuando cambia lo que se muestra en la cabecera/controles
-  // (juego <-> leaderboard, PAUSED/GAME OVER/COMPLETE), ya que eso cambia
-  // su altura real.
-  useEffect(() => {
-    recalcLayout();
-  }, [showGame, isPaused, gameOver, gameCompleted, recalcLayout]);
-
-  // Score helpers
-  const loadScores = useCallback(async () => {
-    try {
-      const response = await fetch(`/bookmarks/api/scores?gameId=${GAME_IDS.TETRIS}`);
-      const data: GetScoresResponse = await response.json();
-      if (response.ok && data.scores) {
-        setTopScores(data.scores.map(parseLeaderboardEntry));
-      }
-    } catch (error) { }
-  }, []);
-  const saveScore = useCallback(async (timeMs: number) => {
-    if (scoreSavedRef.current) return;
-    scoreSavedRef.current = true;
-    try {
-      const response = await fetch("/bookmarks/api/scores", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gameId: GAME_IDS.TETRIS, score: timeMs, gameConfig: { linesTarget: LINES_TARGET } }),
-      });
-      if (response.ok) {
-        setGameState(prev => ({ ...prev, scoreSaved: true }));
-        await loadScores();
-      } else {
-        scoreSavedRef.current = false;
-      }
-    } catch { scoreSavedRef.current = false; }
-  }, [loadScores]);
-  useEffect(() => { loadScores(); }, [loadScores]);
-
-  /**
-   * lockAndAdvance: bloquea pieza y avanza estado (inmediato salvo flag lockVisual)
-   */
-  const lockAndAdvance = useCallback((
-    board: Board,
-    piece: Piece,
-    pos: { x: number; y: number },
-    currentLines: number,
-    currentElapsed: number,
-    forceLockVisual = false
-  ) => {
-    // Coloca pieza sobre board en la pos final (nuevo para solución bug 1)
-    const newBoard = placePieceOnBoardPure(board, piece, pos);
-    const { newBoard: clearedBoard, cleared } = clearLinesPure(newBoard);
-    const totalLines = currentLines + cleared;
-
-    const nextPiece = getRandomPiece();
-    const nextPos = { x: Math.floor(COLS / 2) - 1, y: 0 };
-    const isGameOver = checkCollision(clearedBoard, nextPiece, nextPos.x, nextPos.y);
-
-    // Si es completado O game over:
-    const isCompleted = !isGameOver && totalLines >= LINES_TARGET && !gameCompletedRef.current;
-
-    // NUEVO: si forceLockVisual o completado, pinta primero lock visual, luego transiciona
-    if (isCompleted || forceLockVisual) {
-      setGameState(prev => ({
-        ...prev,
-        lockVisual: true,
-        lockBoard: newBoard,
-      }));
-      setTimeout(() => {
-        gameCompletedRef.current = isCompleted;
-        const finalMs = startTimeRef.current != null ? Date.now() - startTimeRef.current : currentElapsed;
-        setGameState(prev => ({
-          ...prev,
-          board: clearedBoard,
-          lines: totalLines,
-          piece: nextPiece,
-          pos: nextPos,
-          isPaused: true,
-          gameCompleted: isCompleted,
-          gameOver: !isCompleted && isGameOver,
-          elapsedMs: finalMs,
-          lockVisual: false,
-          lockBoard: undefined
-        }));
-        if (isCompleted) saveScore(finalMs);
-      }, 80); // flash lock visual breve
-      return;
-    }
-    if (isGameOver) {
-      setGameState(prev => ({
-        ...prev,
-        board: clearedBoard,
-        lines: totalLines,
-        isPaused: true,
-        gameOver: true,
-        lockVisual: false,
-        lockBoard: undefined,
-      }));
-      return;
-    }
-    setGameState(prev => ({
-      ...prev,
-      board: clearedBoard,
-      lines: totalLines,
-      piece: nextPiece,
-      pos: nextPos,
-      lockVisual: false,
-      lockBoard: undefined,
-    }));
-  }, [saveScore]);
-
-  // Timer tick
-  useEffect(() => {
-    if (isPaused || gameCompleted || gameOver) return;
-    const id = setInterval(() => {
-      setGameState(prev => {
-        if (prev.isPaused || prev.gameCompleted || prev.gameOver) return prev;
-        return { ...prev, elapsedMs: startTimeRef.current != null ? Date.now() - startTimeRef.current : prev.elapsedMs };
-      });
-    }, TIMER_TICK_MS);
-    return () => clearInterval(id);
-  }, [isPaused, gameCompleted, gameOver]);
-
-  // Gravedad
-  useEffect(() => {
-    if (isPaused || gameCompleted || gameOver) return;
-    const id = setInterval(() => {
-      const gs = gsRef.current;
-      if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
-      if (!checkCollision(gs.board, gs.piece, gs.pos.x, gs.pos.y + 1)) {
-        setGameState(prev => ({ ...prev, pos: { ...prev.pos, y: prev.pos.y + 1 } }));
-      } else {
-        lockAndAdvance(gs.board, gs.piece, gs.pos, gs.lines, gs.elapsedMs);
-      }
-    }, DROP_SPEED_MS);
-    return () => clearInterval(id);
-  }, [isPaused, gameCompleted, gameOver, lockAndAdvance]);
-
-  // Acciones
-  const moveLeft = useCallback(() => {
-    const gs = gsRef.current;
-    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
-    if (!checkCollision(gs.board, gs.piece, gs.pos.x - 1, gs.pos.y)) {
-      setGameState(prev => ({ ...prev, pos: { ...prev.pos, x: prev.pos.x - 1 } }));
-    }
-  }, []);
-  const moveRight = useCallback(() => {
-    const gs = gsRef.current;
-    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
-    if (!checkCollision(gs.board, gs.piece, gs.pos.x + 1, gs.pos.y)) {
-      setGameState(prev => ({ ...prev, pos: { ...prev.pos, x: prev.pos.x + 1 } }));
-    }
-  }, []);
-  // SOFTDROP MODIFICADA: fuerza lockVisual cuando tocar fondo y sería partida acabada
-  const softDrop = useCallback(() => {
-    const gs = gsRef.current;
-    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
-    const nextY = gs.pos.y + 1;
-    if (!checkCollision(gs.board, gs.piece, gs.pos.x, nextY)) {
-      setGameState(prev => ({ ...prev, pos: { ...prev.pos, y: nextY } }));
-    } else {
-      // Si lines+1 supera LINES_TARGET, fuerza lockVisual sí o sí
-      const newBoard = placePieceOnBoardPure(gs.board, gs.piece, gs.pos);
-      const { newBoard: clearedBoard, cleared } = clearLinesPure(newBoard);
-      const totalLines = gs.lines + cleared;
-      const isCompleted = totalLines >= LINES_TARGET && !gameCompletedRef.current;
-      lockAndAdvance(gs.board, gs.piece, gs.pos, gs.lines, gs.elapsedMs, isCompleted ? true : false);
-    }
-  }, [lockAndAdvance]);
-  const doHardDrop = useCallback(() => {
-    const gs = gsRef.current;
-    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
-    const dist = hardDropDistance(gs.board, gs.piece, gs.pos);
-    const droppedPos = { ...gs.pos, y: gs.pos.y + dist };
-    lockAndAdvance(gs.board, gs.piece, droppedPos, gs.lines, gs.elapsedMs, true);
-  }, [lockAndAdvance]);
-  const rotatePiece = useCallback((direction: 1 | -1) => {
-    const gs = gsRef.current;
-    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
-    const times = direction === 1 ? 1 : 3;
-    let rotated = gs.piece.shape;
-    for (let i = 0; i < times; i++) rotated = rotate(rotated);
-    const rotatedPiece = { ...gs.piece, shape: rotated };
-    for (const kick of [0, -1, 1, -2, 2]) {
-      if (!checkCollision(gs.board, rotatedPiece, gs.pos.x + kick, gs.pos.y)) {
-        setGameState(prev => ({
-          ...prev,
-          piece: rotatedPiece,
-          pos: { ...prev.pos, x: prev.pos.x + kick },
-        }));
-        return;
-      }
-    }
-  }, []);
-
-  // Key repeat
-  const startRepeat = useCallback((key: string, action: () => void) => {
-    if (activeKeysRef.current.has(key)) return;
-    activeKeysRef.current.add(key);
-    action();
-    const timeout = setTimeout(() => {
-      const interval = setInterval(action, HOLD_REPEAT_RATE);
-      holdTimersRef.current.set(key + '_interval', interval);
-    }, HOLD_INITIAL_DELAY);
-    holdTimersRef.current.set(key, timeout);
-  }, []);
-  const stopRepeat = useCallback((key: string) => {
-    activeKeysRef.current.delete(key);
-    const timeout = holdTimersRef.current.get(key);
-    if (timeout != null) { clearTimeout(timeout as ReturnType<typeof setTimeout>); holdTimersRef.current.delete(key); }
-    const interval = holdTimersRef.current.get(key + '_interval');
-    if (interval != null) { clearInterval(interval as ReturnType<typeof setInterval>); holdTimersRef.current.delete(key + '_interval'); }
-  }, []);
-  // Keyboard handler
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat) return;
-      switch (e.key) {
-        case 'ArrowLeft':  case 'a': case 'A': e.preventDefault(); startRepeat('left',  moveLeft);   break;
-        case 'ArrowRight': case 'd': case 'D': e.preventDefault(); startRepeat('right', moveRight);  break;
-        case 'ArrowDown':  case 's': case 'S': e.preventDefault(); startRepeat('down',  softDrop);   break;
-        case 'ArrowUp':    case ' ':            e.preventDefault(); doHardDrop();                     break;
-        case 'o': case 'O':                     e.preventDefault(); rotatePiece(-1);                  break;
-        case 'p': case 'P':                     e.preventDefault(); rotatePiece(1);                   break;
-        default: break;
-      }
-    };
-    const onKeyUp = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case 'ArrowLeft':  case 'a': case 'A': stopRepeat('left');  break;
-        case 'ArrowRight': case 'd': case 'D': stopRepeat('right'); break;
-        case 'ArrowDown':  case 's': case 'S': stopRepeat('down');  break;
-        default: break;
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-    };
-  }, [moveLeft, moveRight, softDrop, doHardDrop, rotatePiece, startRepeat, stopRepeat]);
-
-  // Restart y pause
-  const restartGame = () => {
-    gameCompletedRef.current = false;
-    scoreSavedRef.current = false;
-    holdTimersRef.current.forEach((t, k) => {
-      if (k.includes('interval')) clearInterval(t as ReturnType<typeof setInterval>);
-      else clearTimeout(t as ReturnType<typeof setTimeout>);
-    });
-    holdTimersRef.current.clear();
-    activeKeysRef.current.clear();
-    startTimeRef.current = Date.now();
-    const state = randomizedInitialState();
-    setGameState({ ...state, isPaused: false });
-  };
-  const togglePause = () => {
-    setGameState(prev => {
-      if (prev.gameCompleted || prev.gameOver) return prev;
-      if (prev.isPaused) {
-        startTimeRef.current = Date.now() - prev.elapsedMs;
-        return { ...prev, isPaused: false };
-      }
-      return { ...prev, isPaused: true };
-    });
-  };
-
-  // Render board
-  const renderBoard = () => {
-    // Mostramos tablero de lock si lockVisual
-    const displaySource = lockVisual && lockBoard ? lockBoard : board;
-    const display: string[][] = displaySource.map((row) =>
-      row.map((cell) => (cell[1] === "clear" ? "black" : cell[0]))
-    );
-    if (!(lockVisual && lockBoard)) {
-      piece.shape.forEach((row, py) =>
-        row.forEach((cell, px) => {
-          if (cell !== 0) {
-            const ny = pos.y + py;
-            const nx = pos.x + px;
-            if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) {
-              display[ny][nx] = piece.color;
-            }
-          }
-        })
-      );
-      // Ghost
-      const ghostDist = hardDropDistance(board, piece, pos);
-      piece.shape.forEach((row, py) =>
-        row.forEach((cell, px) => {
-          if (cell !== 0) {
-            const ny = pos.y + ghostDist + py;
-            const nx = pos.x + px;
-            if (
-              ny >= 0 &&
-              ny < ROWS &&
-              nx >= 0 &&
-              nx < COLS &&
-              display[ny][nx] === "black"
-            ) {
-              display[ny][nx] = "ghost";
-            }
-          }
-        })
-      );
-    }
-    const cs = cellSize;
-    return display.map((row, y) =>
-      row.map((color, x) => (
-        <div
-          key={`${y}-${x}`}
-          className="tetris-cell"
-          style={{
-            width: cs,
-            height: cs,
-            backgroundColor: color === "ghost" ? "transparent" : color,
-            border:
-              color === "ghost"
-                ? `1px solid ${piece.color}55`
-                : color === "black"
-                ? "1px solid #111"
-                : "1px solid rgba(255,255,255,0.18)",
-            boxSizing: "border-box",
-            opacity: lockVisual && lockBoard ? 0.8 : 1,
-          }}
-        />
-      ))
-    );
-  };
-
-  // Mobile controles
-  const lastWasTouchRef = useRef(false);
+const MobileControls = React.memo(function MobileControls({
+  startRepeat,
+  stopRepeat,
+  moveLeft,
+  moveRight,
+  softDrop,
+  rotateLeft,
+  rotateRight,
+}: MobileControlsProps) {
+  // Evita que el evento "click" fantasma que sigue a un touchstart dispare
+  // la acción dos veces en los botones de pulsación única (rotar).
+  const lastWasTouch = React.useRef(false);
   const touchGuard = (action: () => void) => (e: React.TouchEvent) => {
     e.preventDefault();
-    lastWasTouchRef.current = true;
+    lastWasTouch.current = true;
     action();
   };
   const mouseGuard = (action: () => void) => () => {
-    if (lastWasTouchRef.current) {
-      lastWasTouchRef.current = false;
+    if (lastWasTouch.current) {
+      lastWasTouch.current = false;
       return;
     }
     action();
   };
 
-  const cs = cellSize;
-  const boardWidth = cs * COLS;
-  const boardHeight = cs * ROWS;
-  // Ancho compartido por cabecera y controles: sigue al tablero pero nunca
-  // baja de un mínimo, para que el texto no haga wrap y no se descontrole
-  // la altura medida (evita un bucle de retroalimentación con recalcLayout).
-  const panelWidth = Math.max(boardWidth + 24, 260);
-
-  // ── BOTONES MÓVILES (5 botones: A S D para mover/bajar, O P para rotar) ──
-  // Esquema solicitado (grid 8 columnas x 4 filas, sin columna vacía entre grupos):
-  //   A A D D O O P P
-  //   A A D D O O P P
-  //   S S S S O O P P
-  //   S S S S O O P P
-  // A = izquierda, D = derecha (arriba, 2x2 cada uno)
-  // S = bajar (abajo, ancho completo, 4x2)
-  // O = rotar izq, P = rotar der (altura completa, 4 filas)
-  const CONTROL_ROW_H = 46;
-  const CONTROL_GAP = 6;
-  const renderMobileControls = () => (
-    <Box
-      sx={{
-        width: '100%',
-        maxWidth: '99%',
-        mx: 'auto',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(8, 1fr)',        // ← 8 columnas, sin columna hueca
-        gridTemplateRows: `repeat(4, ${CONTROL_ROW_H}px)`,
-        gap: `${CONTROL_GAP}px`,
-      }}
-    >
+  return (
+    <Box className="mobile-controls">
       <Button
         onTouchStart={touchGuard(() => startRepeat("ml", moveLeft))}
         onTouchEnd={() => stopRepeat("ml")}
@@ -649,30 +178,10 @@ const Tetris: React.FC = () => {
         onMouseUp={() => stopRepeat("ml")}
         onMouseLeave={() => stopRepeat("ml")}
         aria-label="Izquierda (A)"
-        sx={{
-          gridColumn: "1 / 3",
-          gridRow: "1 / 3",
-          minWidth: 0,
-          width: '100%',
-          height: '100%',
-          background: "rgba(24,255,255, 0.18)", // semi-transparent cyan
-          backdropFilter: "blur(6.5px)",
-          border: "2.5px solid #00ffff99",
-          boxShadow: "0 2px 18px #00ffee44, 0 0 6px #0ff2",
-          color: "#011",
-          fontSize: 22, fontWeight: "bold",
-          textShadow: "0 0 12px #bfffff77",
-          outline: "2px solid #03ffd6bb",
-          outlineOffset: "-2px",
-          borderRadius: "12px",
-          transition: "all 0.16s cubic-bezier(.48,.19,.19,.97)",
-          filter: "brightness(0.98)",
-          '&:active': { filter: 'brightness(1.28) blur(0.6px)' }
-        }}
+        className="mobile-controls-btn mobile-controls-btn--left"
       >
-        {/* Flecha izquierda (A) */}
         <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="17,6 9,14 17,22" fill="#0ff" stroke="#011" strokeWidth="2"/>
+          <polygon points="17,6 9,14 17,22" fill="#0ff" stroke="#011" strokeWidth="2" />
         </svg>
       </Button>
 
@@ -683,29 +192,10 @@ const Tetris: React.FC = () => {
         onMouseUp={() => stopRepeat("mr")}
         onMouseLeave={() => stopRepeat("mr")}
         aria-label="Derecha (D)"
-        sx={{
-          gridColumn: "3 / 5",
-          gridRow: "1 / 3",
-          minWidth: 0,
-          width: '100%',
-          height: '100%',
-          background: "rgba(24,255,122, 0.17)",
-          backdropFilter: "blur(6px)",
-          border: "2.5px solid #00ff7a99",
-          boxShadow: "0 2px 18px #00fb7444, 0 0 6px #0fa",
-          color: "#012",
-          fontSize: 22, fontWeight: "bold",
-          textShadow: "0 0 12px #ccffd699",
-          outline: "2px solid #00ff7abb",
-          outlineOffset: "-2px",
-          borderRadius: "12px",
-          transition: "all 0.16s cubic-bezier(.48,.19,.19,.97)",
-          '&:active': { filter: 'brightness(1.2) blur(0.6px)' }
-        }}
+        className="mobile-controls-btn mobile-controls-btn--right"
       >
-        {/* Flecha derecha (D) */}
         <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="11,6 19,14 11,22" fill="#0f7" stroke="#011" strokeWidth="2"/>
+          <polygon points="11,6 19,14 11,22" fill="#0f7" stroke="#011" strokeWidth="2" />
         </svg>
       </Button>
 
@@ -716,336 +206,180 @@ const Tetris: React.FC = () => {
         onMouseUp={() => stopRepeat("md")}
         onMouseLeave={() => stopRepeat("md")}
         aria-label="Bajar (S)"
-        sx={{
-          gridColumn: "1 / 5",
-          gridRow: "3 / 5",
-          minWidth: 0,
-          width: '100%',
-          height: '100%',
-          background: "rgba(250,220,39,0.18)",
-          backdropFilter: "blur(6.5px)",
-          border: "2.5px solid #ffec4099",
-          boxShadow: "0 2px 18px #ffec4077, 0 0 6px #ffe",
-          color: "#443",
-          fontSize: 22, fontWeight: "bold",
-          textShadow: "0 0 10px #ffec6077",
-          outline: "2px solid #ffdc40bb",
-          outlineOffset: "-2px",
-          borderRadius: "12px",
-          transition: "all 0.16s cubic-bezier(.48,.19,.19,.97)",
-          '&:active': { filter: 'brightness(1.28) blur(0.6px)' }
-        }}
+        className="mobile-controls-btn mobile-controls-btn--down"
       >
-        {/* Flecha abajo (S) */}
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="8,13 16,23 24,13" fill="#ffec40" stroke="#443" strokeWidth="2"/>
+          <polygon points="8,13 16,23 24,13" fill="#ffec40" stroke="#443" strokeWidth="2" />
         </svg>
       </Button>
 
       <Button
-        onTouchStart={touchGuard(() => rotatePiece(-1))}
-        onMouseDown={mouseGuard(() => rotatePiece(-1))}
+        onTouchStart={touchGuard(rotateLeft)}
+        onMouseDown={mouseGuard(rotateLeft)}
         aria-label="Girar izquierda (O)"
-        sx={{
-          gridColumn: "5 / 7",
-          gridRow: "1 / 5",
-          minWidth: 0,
-          width: '100%',
-          height: '100%',
-          background: "rgba(255, 214, 0, 0.15)",
-          backdropFilter: "blur(7px)",
-          border: "2.5px solid #ffc800cc",
-          boxShadow: "0 2px 18px #ffc80077, 0 0 6px #ffed00",
-          color: "#221",
-          fontSize: 20,
-          fontWeight: "bold",
-          textShadow: "0 0 9px #ffd64055",
-          outline: "2px solid #ffd600aa",
-          outlineOffset: "-2px",
-          borderRadius: "12px",
-          transition: "all 0.16s cubic-bezier(.48,.19,.19,.97)",
-          '&:active': { filter: 'brightness(1.19) blur(0.8px)' }
-        }}
+        className="mobile-controls-btn mobile-controls-btn--rotate-left"
       >
-        {/* Rotar izquierda (O) */}
         <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M20 18a7 7 0 1 1-6-10" stroke="#ffc800" strokeWidth="2.2" fill="none"/>
+          <path d="M20 18a7 7 0 1 1-6-10" stroke="#ffc800" strokeWidth="2.2" fill="none" />
           <polygon points="13,8 13,14 8,11" fill="#ffc800" />
         </svg>
       </Button>
 
       <Button
-        onTouchStart={touchGuard(() => rotatePiece(1))}
-        onMouseDown={mouseGuard(() => rotatePiece(1))}
+        onTouchStart={touchGuard(rotateRight)}
+        onMouseDown={mouseGuard(rotateRight)}
         aria-label="Girar derecha (P)"
-        sx={{
-          gridColumn: "7 / 9",
-          gridRow: "1 / 5",
-          minWidth: 0,
-          width: '100%',
-          height: '100%',
-          background: "rgba(127, 87, 243, 0.16)",
-          backdropFilter: "blur(6.5px)",
-          border: "2.5px solid #7f57f3bb",
-          boxShadow: "0 2px 18px #ae7fff77, 0 0 8px #9000b377",
-          color: "#fff",
-          fontSize: 20, fontWeight: "bold",
-          textShadow: "0 0 10px #7f57ffcc",
-          outline: "2px solid #ae7fff66",
-          outlineOffset: "-2px",
-          borderRadius: "12px",
-          transition: "all 0.16s cubic-bezier(.48,.19,.19,.97)",
-          '&:active': { filter: 'brightness(1.16) blur(0.8px)' }
-        }}
+        className="mobile-controls-btn mobile-controls-btn--rotate-right"
       >
-        {/* Rotar derecha (P) */}
         <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 18a7 7 0 1 0 6-10" stroke="#ae7fff" strokeWidth="2.2" fill="none"/>
+          <path d="M8 18a7 7 0 1 0 6-10" stroke="#ae7fff" strokeWidth="2.2" fill="none" />
           <polygon points="15,8 15,14 20,11" fill="#ae7fff" />
         </svg>
       </Button>
     </Box>
   );
+});
 
-  // Menú superior tipo panel arcade. Más compacto en móvil para dejar más
-  // espacio vertical al tablero.
-  const renderMainMenu = () => (
-    <Box sx={{
-      width: '100%',
-      maxWidth: panelWidth,
-      mx: 'auto',
-      mb: isMobile ? 0.75 : 2,
-      display: 'flex',
-      alignItems: "center",
-      justifyContent: "center",
-      py: isMobile ? 0.5 : 1.2,
-      px: isMobile ? 1 : 2,
-      background: 'linear-gradient(90deg, #181830 0%, #27274e 70%, #191530 100%)',
-      border: "2.5px solid #00ffcc66",
-      borderRadius: "16px",
-      boxShadow: "0 0 18px #00ffcc22, 0 2px 24px #001e15aa, inset 0 0 16px #3ff4"
-    }}>
-      <Button
-        size="small"
-        variant={showGame ? "contained" : "outlined"}
-        onClick={() => setShowGame(v => !v)}
-        sx={{
-          ...menuBtnStyleArcade(isMobile),
-          background: showGame
-            ? 'radial-gradient(circle at 55% 30%, #011b21 70%, #1d3c40 100%)'
-            : 'transparent',
-          color: showGame ? "#00ffe0" : "#00ffcc",
-          mr: isMobile ? 0.75 : 1.5
-        }}
-      >
-        {showGame ? 'SCORES' : 'PLAY'}
-      </Button>
-      <Button
-        size="small"
-        variant="outlined"
-        onClick={restartGame}
-        sx={{ ...menuBtnStyleArcade(isMobile), mx: isMobile ? 0.75 : 1.5, color: "#ffec40", borderColor: "#ffdc40" }}
-      >
-        RESTART
-      </Button>
-      <Button
-        size="small"
-        variant="outlined"
-        onClick={togglePause}
-        disabled={gameCompleted || gameOver}
-        sx={{
-          ...menuBtnStyleArcade(isMobile),
-          mx: isMobile ? 0.75 : 1.5,
-          color: isPaused ? "#13e673" : "#fff",
-          borderColor: "#13e673",
-          opacity: gameCompleted || gameOver ? 0.45 : 1,
-        }}
-      >
-        {isPaused ? 'RESUME' : 'PAUSE'}
-      </Button>
+// ───────────────────────── Marcador (memoizado) ─────────────────────────
+
+const Scoreboard = React.memo(function Scoreboard({ topScores }: { topScores: LeaderboardEntry[] }) {
+  const sorted = useMemo(() => [...topScores].sort((a, b) => a.timeMs - b.timeMs).slice(0, 10), [topScores]);
+  return (
+    <Box className="tetris-panel-width tetris-scoreboard">
+      <Typography className="tetris-stat tetris-scoreboard-title">─ BEST TIMES ─</Typography>
+      {sorted.length === 0 ? (
+        <Typography className="tetris-stat tetris-scoreboard-empty">NO SCORES YET</Typography>
+      ) : (
+        <table className="tetris-scores-table">
+          <thead>
+            <tr>
+              {["#", "USER", "TIME", "LINES"].map((h) => (
+                <th key={h}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((entry, i) => (
+              <tr key={`${entry.name}-${entry.timeMs}-${i}`} className={i === 0 ? "is-first" : "is-rest"}>
+                <td>{i + 1}</td>
+                <td>{entry.name}</td>
+                <td>{formatTimeMs(entry.timeMs)}</td>
+                <td>{entry.linesTarget}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </Box>
   );
+});
+
+// ───────────────────────── Componente principal ─────────────────────────
+
+const Tetris: React.FC = () => {
+  const [showGame, setShowGame] = React.useState(true);
+  const score = useScore();
+  const tetris = useTetris({ onComplete: score.saveScore });
+
+  const {
+    board,
+    piece,
+    pos,
+    lines,
+    linesTarget,
+    isPaused,
+    elapsedMs,
+    gameCompleted,
+    gameOver,
+    lockVisual,
+    lockBoard,
+    moveLeft,
+    moveRight,
+    softDrop,
+    rotateLeft,
+    rotateRight,
+    restartGame,
+    togglePause,
+    startRepeat,
+    stopRepeat,
+  } = tetris;
+
+  const handleRestart = useCallback(() => {
+    score.resetSaveGuard();
+    restartGame();
+  }, [score, restartGame]);
+
+  const handleToggleView = useCallback(() => setShowGame((v) => !v), []);
 
   return (
-    <Box
-      className={`tetris-container ${isMobile ? 'mobile' : ''}`}
-      sx={{
-        height: '100dvh',
-        width: '100%',
-        background: '#0a0a0f',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        overflow: 'hidden', // el juego entero debe caber siempre en la pantalla, sin scroll
-      }}
-    >
-      {/* ── Cabecera: medida en vivo por headerRef ── */}
-      <Box ref={headerRef} sx={{ width: '100%', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 1 }}>
+    <Box className="tetris-page">
+      {/* ── Cabecera ── */}
+      <Box className="tetris-header">
         <MainMenu />
-        {renderMainMenu()}
+        <MenuBar
+          showGame={showGame}
+          onToggleView={handleToggleView}
+          onRestart={handleRestart}
+          onTogglePause={togglePause}
+          isPaused={isPaused}
+          isLocked={gameCompleted || gameOver}
+        />
 
-        <Box sx={{
-          width: '100%',
-          maxWidth: panelWidth,
-          textAlign: 'center',
-          py: 0.4,
-          mb: 0.4,
-          background: 'linear-gradient(90deg, #1a1a2e, #16213e, #1a1a2e)',
-          borderBottom: '2px solid #00ffcc',
-          letterSpacing: 6,
-        }}>
-          <Typography sx={{
-            fontFamily: '"Press Start 2P", "Courier New", monospace',
-            fontSize: isMobile ? 12 : 16,
-            color: '#00ffcc',
-            textShadow: '0 0 10px #00ffcc, 0 0 20px #00ffcc',
-          }}>
-            TETRIS
-          </Typography>
+        <Box className="tetris-panel-width tetris-title-bar">
+          <Typography className="tetris-title">TETRIS</Typography>
         </Box>
 
-        <Box sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          width: '100%',
-          maxWidth: panelWidth,
-          px: 0.5,
-          mb: 0.3,
-        }}>
-          <Typography sx={statStyle}>LINES: {Math.min(lines, LINES_TARGET)}/{LINES_TARGET}</Typography>
-          <Typography sx={statStyle}>TIME: {formatTimeMs(elapsedMs)}</Typography>
+        <Box className="tetris-panel-width tetris-stats-row">
+          <Typography className="tetris-stat">
+            LINES: {Math.min(lines, linesTarget)}/{linesTarget}
+          </Typography>
+          <Typography className="tetris-stat">TIME: {formatTimeMs(elapsedMs)}</Typography>
         </Box>
 
         {gameCompleted && (
-          <Typography sx={{ ...statusStyle, color: '#00ffcc', textShadow: '0 0 8px #00ffcc' }}>
+          <Typography className="tetris-status tetris-status--complete">
             ★ COMPLETE: {formatTimeMs(elapsedMs)} ★
           </Typography>
         )}
-        {gameOver && (
-          <Typography sx={{ ...statusStyle, color: '#ff3030', textShadow: '0 0 8px #ff3030' }}>
-            GAME OVER
-          </Typography>
-        )}
+        {gameOver && <Typography className="tetris-status tetris-status--over">GAME OVER</Typography>}
         {isPaused && !gameCompleted && !gameOver && (
-          <Typography sx={{ ...statusStyle, color: '#ffcc00', textShadow: '0 0 8px #ffcc00' }}>
-            PAUSED
-          </Typography>
+          <Typography className="tetris-status tetris-status--paused">PAUSED</Typography>
         )}
       </Box>
 
-      {/* ── Zona central: tablero o leaderboard, ocupa el espacio restante ── */}
-      <Box sx={{
-        flex: '1 1 auto',
-        minHeight: 0,
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-      }}>
+      {/* ── Zona central: tablero o marcador ── */}
+      <Box className="tetris-main">
         {showGame ? (
-          <Box sx={{
-            width: boardWidth,
-            height: boardHeight,
-            display: 'grid',
-            gridTemplateColumns: `repeat(${COLS}, ${cs}px)`,
-            border: '3px solid #00ffcc',
-            boxShadow: '0 0 18px #00ffcc55, inset 0 0 30px #00001a',
-            background: '#000010',
-            userSelect: 'none',
-            borderRadius: "3px"
-          }}>
-            {renderBoard()}
-          </Box>
+          <BoardView board={board} piece={piece} pos={pos} lockVisual={lockVisual} lockBoard={lockBoard} />
         ) : (
-          <Box sx={{
-            width: '100%',
-            maxWidth: panelWidth,
-            maxHeight: '100%',
-            overflowY: 'auto', // si hay muchas entradas, el scroll queda contenido aquí, no en la página
-            background: '#060610',
-            border: '2px solid #00ffcc44',
-            p: 2,
-          }}>
-            <Typography sx={{ ...statStyle, textAlign: 'center', mb: 1, color: '#00ffcc' }}>
-              ─ BEST TIMES ─
-            </Typography>
-            {topScores.length === 0 ? (
-              <Typography sx={{ ...statStyle, textAlign: 'center', color: '#444' }}>NO SCORES YET</Typography>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'monospace', fontSize: 11, color: '#ccc' }}>
-                <thead>
-                  <tr>
-                    {['#', 'USER', 'TIME', 'LINES'].map(h => (
-                      <th key={h} style={{ color: '#00ffcc', textAlign: 'left', paddingBottom: 6, borderBottom: '1px solid #00ffcc44' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...topScores]
-                    .sort((a, b) => a.timeMs - b.timeMs)
-                    .slice(0, 10)
-                    .map((entry, i) => (
-                      <tr key={`${entry.name}-${entry.timeMs}-${i}`} style={{ color: i === 0 ? '#ffcc00' : '#aaa' }}>
-                        <td style={{ padding: '3px 6px 3px 0' }}>{i + 1}</td>
-                        <td style={{ padding: '3px 6px' }}>{entry.name}</td>
-                        <td style={{ padding: '3px 6px' }}>{formatTimeMs(entry.timeMs)}</td>
-                        <td style={{ padding: '3px 6px' }}>{entry.linesTarget}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            )}
-          </Box>
+          <Scoreboard topScores={score.topScores} />
         )}
       </Box>
 
-      {/* ── Pie: controles móviles (medidos por controlsWrapRef) o ayuda de teclado en desktop ── */}
-      {showGame && isMobile && (
-        <Box ref={controlsWrapRef} sx={{ width: '100%', flexShrink: 0, pb: 1 }}>
-          {renderMobileControls()}
-        </Box>
-      )}
-      {showGame && !isMobile && (
-        <Box sx={{ flexShrink: 0, pb: 1, textAlign: 'center' }}>
-          <Typography sx={{ fontFamily: 'monospace', fontSize: 10, color: '#555', letterSpacing: 1 }}>
-            A/◀ MOVE LEFT &nbsp;|&nbsp; D/▶ MOVE RIGHT &nbsp;|&nbsp; S/▼ SOFT DROP &nbsp;|&nbsp; ↑/SPACE HARD DROP &nbsp;|&nbsp; O ROTATE ↺ &nbsp;|&nbsp; P ROTATE ↻
-          </Typography>
+      {/* ── Pie: controles móviles o ayuda de teclado ── */}
+      {showGame && (
+        <Box className="tetris-footer">
+          <Box className="mobile-only">
+            <MobileControls
+              startRepeat={startRepeat}
+              stopRepeat={stopRepeat}
+              moveLeft={moveLeft}
+              moveRight={moveRight}
+              softDrop={softDrop}
+              rotateLeft={rotateLeft}
+              rotateRight={rotateRight}
+            />
+          </Box>
+          <Box className="desktop-only">
+            <Typography className="tetris-keyboard-hint">
+              A/◀ MOVE LEFT &nbsp;|&nbsp; D/▶ MOVE RIGHT &nbsp;|&nbsp; S/▼ SOFT DROP &nbsp;|&nbsp; ↑/SPACE HARD
+              DROP &nbsp;|&nbsp; O ROTATE ↺ &nbsp;|&nbsp; P ROTATE ↻
+            </Typography>
+          </Box>
         </Box>
       )}
     </Box>
   );
 };
-
-// ── Estilos de botones y panel menú arcade ──
-const statStyle = {
-  fontFamily: '"Press Start 2P", "Courier New", monospace',
-  fontSize: 10,
-  color: '#aaffcc',
-  letterSpacing: 1,
-};
-
-const statusStyle = {
-  fontFamily: '"Press Start 2P", "Courier New", monospace',
-  fontSize: 13,
-  mb: 0.3,
-  letterSpacing: 2,
-};
-
-const menuBtnStyleArcade = (mobile: boolean) => ({
-  fontFamily: '"Press Start 2P", "Courier New", monospace',
-  fontSize: mobile ? 9 : 13,
-  letterSpacing: mobile ? 1 : 1.8,
-  py: mobile ? 0.6 : 1.3,
-  px: mobile ? 1.2 : 2.8,
-  borderWidth: 2.5,
-  borderRadius: 4,
-  minWidth: 0,
-  boxShadow: "0 1px 10px #00ffcc22",
-  transition: "all 0.13s",
-  whiteSpace: "nowrap" as const,
-  textShadow: "0 0 6px #0ff8",
-});
 
 export default Tetris;
