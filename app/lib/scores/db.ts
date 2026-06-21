@@ -60,6 +60,19 @@ type ScoreRow = {
   createdAt: string;
 };
 
+type RankedScoreRow = ScoreRow & { rank: number };
+
+// Dirección "ganadora" por juego: 'desc' = mayor score es mejor (Chess, Numbers),
+// 'asc' = menor score es mejor (Tetris y Wording guardan tiempo en ms).
+const GAME_DIRECTIONS: Record<GameId, "asc" | "desc"> = {
+  1: "desc",
+  2: "desc",
+  3: "asc",
+  4: "asc",
+};
+
+const ALL_GAME_IDS: GameId[] = [1, 2, 3, 4];
+
 // Statements preparados de forma perezosa también, reusando getDb()
 function getStmts(db: Database.Database) {
   return {
@@ -92,6 +105,40 @@ function getPreparedStmts() {
     _stmts = getStmts(getDb());
   }
   return _stmts;
+}
+
+// Statements de ranking: uno por dirección (ASC/DESC no se puede parametrizar
+// en SQLite, así que preparamos las dos variantes una sola vez).
+function getRankStmts(db: Database.Database) {
+  const buildQuery = (direction: "ASC" | "DESC") => `
+    SELECT username, score, gameConfig, createdAt, rank FROM (
+      SELECT
+        COALESCE(u.name, s.username) AS username,
+        s.score,
+        s.gameConfig,
+        s.createdAt,
+        ROW_NUMBER() OVER (ORDER BY s.score ${direction}) AS rank
+      FROM scores s
+      LEFT JOIN users u ON s.userId = u.id
+      WHERE s.gameId = ?
+    ) ranked
+    WHERE username = ?
+    ORDER BY rank ASC
+    LIMIT 1
+  `;
+
+  return {
+    asc: db.prepare(buildQuery("ASC")),
+    desc: db.prepare(buildQuery("DESC")),
+  };
+}
+
+let _rankStmts: ReturnType<typeof getRankStmts> | null = null;
+function getPreparedRankStmts() {
+  if (!_rankStmts) {
+    _rankStmts = getRankStmts(getDb());
+  }
+  return _rankStmts;
 }
 
 export function ensureUser(user: AuthUser): AuthUser {
@@ -127,4 +174,44 @@ export function getScoresForGame(gameId: GameId): ScoreEntry[] {
     gameConfig: parseStoredGameConfig(row.gameConfig),
     createdAt: row.createdAt,
   }));
+}
+
+export type PlayerBestScore = {
+  gameId: GameId;
+  username: string;
+  score: number;
+  gameConfig: ReturnType<typeof parseStoredGameConfig>;
+  createdAt: string;
+  rank: number;
+};
+
+export function getPlayerBestScoreForGame(
+  username: string,
+  gameId: GameId
+): PlayerBestScore | null {
+  const direction = GAME_DIRECTIONS[gameId];
+  const stmt =
+    direction === "asc"
+      ? getPreparedRankStmts().asc
+      : getPreparedRankStmts().desc;
+
+  const row = stmt.get(gameId, username) as RankedScoreRow | undefined;
+  if (!row) return null;
+
+  return {
+    gameId,
+    username: row.username,
+    score: row.score,
+    gameConfig: parseStoredGameConfig(row.gameConfig),
+    createdAt: row.createdAt,
+    rank: row.rank,
+  };
+}
+
+export function getPlayerBestScores(
+  username: string
+): (PlayerBestScore | null)[] {
+  return ALL_GAME_IDS.map((gameId) =>
+    getPlayerBestScoreForGame(username, gameId)
+  );
 }

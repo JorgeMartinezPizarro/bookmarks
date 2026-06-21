@@ -132,3 +132,27 @@ export function getErrorResponseMessage(error: unknown): string {
 
   return errorMessage(error);
 }
+
+// scores/types.ts — AÑADIR
+
+export const GAME_NAMES: Record<GameId, string> = {
+  1: "Chess",
+  2: "Numbers",
+  3: "Tetris",
+  4: "Wording",
+};
+
+export type PlayerGameBest = {
+  gameId: GameId;
+  gameName: string;
+  found: boolean;
+  score: number | null;
+  rank: number | null;
+  gameConfig: ReturnType<typeof parseStoredGameConfig> | null;
+  createdAt: string | null;
+};
+
+export type GetPlayerScoresResponse = {
+  username: string;
+  games: PlayerGameBest[];
+};
