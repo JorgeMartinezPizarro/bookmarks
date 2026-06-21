@@ -54,6 +54,8 @@ const ChessGame: React.FC = () => {
   useLayoutEffect(() => {
     if (showScores) return; // no hay tablero que medir en la vista de scores
 
+    let rafId: number | null = null;
+
     const updateBoardWidth = () => {
       const sidePadding = isMobile ? 4 : 16; // debe coincidir con el px del Box contenedor
       const widthBased = Math.min(600, window.innerWidth - sidePadding * 2);
@@ -64,11 +66,8 @@ const ChessGame: React.FC = () => {
         const boardRect = boardBoxRef.current.getBoundingClientRect();
         const lastRect = belowBoardRef.current.getBoundingClientRect();
 
-        // Espacio que ocupa todo lo que va DESPUÉS del tablero (slider,
-        // resultado, márgenes entre secciones). No depende de minHeight
-        // del contenedor padre, solo de los elementos reales.
         const nonBoardHeight = lastRect.bottom - boardRect.bottom;
-        const buffer = 12; // margen de seguridad para evitar redondeos
+        const buffer = 12;
 
         heightBased = window.innerHeight - boardRect.top - nonBoardHeight - buffer;
       }
@@ -76,9 +75,41 @@ const ChessGame: React.FC = () => {
       setBoardWidth(Math.max(200, Math.min(widthBased, heightBased)));
     };
 
-    updateBoardWidth();
-    window.addEventListener("resize", updateBoardWidth);
-    return () => window.removeEventListener("resize", updateBoardWidth);
+    // Recalcula en el siguiente frame (y uno más después) para asegurarnos
+    // de medir tras el layout/paint definitivo, no el provisional del montaje.
+    const scheduleUpdate = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        updateBoardWidth();
+        rafId = requestAnimationFrame(updateBoardWidth);
+      });
+    };
+
+    scheduleUpdate();
+
+    // Si las fuentes tardan en cargar, su llegada puede cambiar las alturas
+    // medidas (Slider, Typography, etc.) -> recalculamos cuando estén listas.
+    if (typeof document !== "undefined" && (document as any).fonts?.ready) {
+      (document as any).fonts.ready.then(scheduleUpdate).catch(() => {});
+    }
+
+    // ResizeObserver capta cualquier cambio real de tamaño de los contenedores
+    // medidos (no solo resize de ventana), que es justo lo que el zoom in/out
+    // estaba "arreglando" por accidente.
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => scheduleUpdate());
+      if (boardBoxRef.current) resizeObserver.observe(boardBoxRef.current);
+      if (belowBoardRef.current) resizeObserver.observe(belowBoardRef.current);
+    }
+
+    window.addEventListener("resize", scheduleUpdate);
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", scheduleUpdate);
+      resizeObserver?.disconnect();
+    };
   }, [isMobile, showScores]);
 
   const handleEloChange = (_event: Event, newValue: number | number[]) => {
