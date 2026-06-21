@@ -309,28 +309,30 @@ const Wording = () => {
             </div>
           )}
 
-          {sortedScores.length === 0 ? (
-            <p className="no-scores">No hay puntuaciones aún</p>
-          ) : (
-            <table className="scoreboard-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Usuario</th>
-                  <th>Tiempo (ms)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedScores.map((s, i) => (
-                  <tr key={i}>
-                    <td>{i + 1}</td>
-                    <td>{s.name}</td>
-                    <td>{s.score}</td>
+          <div className="scoreboard-table-wrapper">
+            {sortedScores.length === 0 ? (
+              <p className="no-scores">No hay puntuaciones aún</p>
+            ) : (
+              <table className="scoreboard-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Usuario</th>
+                    <th>Tiempo (ms)</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {sortedScores.map((s, i) => (
+                    <tr key={i}>
+                      <td>{i + 1}</td>
+                      <td>{s.name}</td>
+                      <td>{s.score}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       )}
     </div>

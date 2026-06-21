@@ -20,7 +20,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100dvh;        /* antes: min-height: 100dvh */
+  height: 100dvh;
   width: 100%;
   padding: 16px;
   color: var(--text-primary);
@@ -74,20 +74,22 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   background-color: var(--bg-panel);
-  padding: 40px 32px;
+  padding: clamp(16px, 4dvh, 40px) 24px;
   border-radius: 18px;
   width: 100%;
   max-width: 480px;
-  max-height: min(640px, calc(100dvh - 32px - 80px)); /* resta padding de .wording-page + toggle btn */
-  overflow-y: auto;      /* scroll interno si el contenido no cabe */
+  height: min(640px, calc(100dvh - 120px));
   border: 1px solid rgba(255, 46, 154, 0.4);
   box-shadow:
     0 0 0 1px rgba(0, 246, 255, 0.15),
     0 0 30px rgba(255, 46, 154, 0.25),
     0 0 60px rgba(0, 246, 255, 0.12),
     0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.panel {
+  justify-content: center;
 }
 
 .panel-title {
@@ -100,10 +102,11 @@
 }
 
 .scoreboard-title {
+  flex-shrink: 0;
   color: var(--neon-magenta);
   font-family: 'Press Start 2P', cursive;
-  font-size: clamp(1rem, 3.5vw, 1.3rem);
-  margin: 0 0 28px 0;
+  font-size: clamp(0.85rem, 3vw, 1.3rem);
+  margin: 0 0 16px 0;
   text-shadow: 0 0 10px rgba(255, 46, 154, 0.6);
 }
 
@@ -199,32 +202,42 @@
 
 /* Finished-game summary */
 .finished-summary {
+  flex-shrink: 0;
   background-color: #0f3460;
   border: 1px solid var(--neon-magenta);
   border-radius: 10px;
-  padding: 18px;
-  margin-bottom: 24px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
   box-shadow: 0 0 16px rgba(255, 46, 154, 0.25);
 }
 
 .finished-summary__time {
   font-family: 'Share Tech Mono', monospace;
-  font-size: 26px;
+  font-size: clamp(16px, 4vw, 22px);
   font-weight: bold;
   color: var(--neon-gold);
-  margin: 4px 0;
+  margin: 2px 0;
 }
 
 .finished-summary__rank {
-  font-size: 17px;
+  font-size: clamp(12px, 3vw, 15px);
   color: var(--neon-gold);
   font-weight: bold;
-  margin: 6px 0 0 0;
+  margin: 4px 0 0 0;
 }
 
 .finished-summary__rank--outside {
   color: var(--text-muted);
   font-weight: normal;
+}
+
+/* Solo este wrapper scrollea, nunca el panel completo */
+.scoreboard-table-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--neon-cyan) transparent;
 }
 
 .scoreboard-table {
@@ -236,12 +249,15 @@
 
 .scoreboard-table thead tr {
   background-color: #0f3460;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .scoreboard-table th,
 .scoreboard-table td {
-  padding: 10px 8px;
-  font-size: 1rem;
+  padding: clamp(4px, 1.2dvh, 10px) 8px;
+  font-size: clamp(0.75rem, 2.5vw, 1rem);
 }
 
 .scoreboard-table tbody tr:nth-child(odd) {
@@ -261,7 +277,6 @@
 @media (max-width: 480px) {
   .panel,
   .scoreboard-panel {
-    padding: 28px 20px;
-    min-height: min(600px, 85dvh);
+    padding: clamp(12px, 3dvh, 24px) 20px;
   }
 }
