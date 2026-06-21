@@ -11,10 +11,6 @@ img.favorite {
 	filter: brightness(0) invert(1);
 }
 
-h4, table tr td, table tr th, span, p, div {
-	color: white!important;
-}
-
 a:hover {
 	color: darkgrey;
 }
