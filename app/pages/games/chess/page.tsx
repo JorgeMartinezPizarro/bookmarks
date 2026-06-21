@@ -119,12 +119,7 @@ const ChessGame: React.FC = () => {
   };
 
   // Cálculo de puntuación basado en el resultado
-  const calculateScore = useCallback(() => {
-    if (gameResult?.includes("Jugador gana")) return elo + 500;
-    if (gameResult?.includes("Empate")) return elo + 200;
-    return elo;
-  }, [gameResult, elo]);
-
+  
   // Cargar las mejores puntuaciones
   const loadScores = useCallback(async () => {
     setScoreError(null);
@@ -156,8 +151,8 @@ const ChessGame: React.FC = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           gameId: 1,
-          score: calculateScore(),
-          gameConfig: { elo }, // La API serializa este objeto a JSON
+          score: elo,
+          gameConfig: { elo },
         }),
       });
       if (!response.ok) {
@@ -170,7 +165,7 @@ const ChessGame: React.FC = () => {
       console.error("Error saving score:", error);
       setScoreError("No se pudo guardar la puntuación. Inténtalo de nuevo.");
     }
-  }, [scoreSaved, calculateScore, elo, loadScores]);
+  }, [scoreSaved, elo, loadScores]);
 
   // Manejar fin de partida (guarda automáticamente)
   const handleGameOver = useCallback((game: Chess) => {
