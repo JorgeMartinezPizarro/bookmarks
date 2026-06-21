@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Button } from "@mui/material";
-import { signIn, useSession } from "next-auth/react";
 import "./styles.css";
 import LoginIcon from '@mui/icons-material/Login';
 import {useStats} from '@/app/hooks/useStats';
@@ -10,16 +9,11 @@ import { Chart } from '@/app/components/Chart';
 
 const Monitor = () => {
 
-	useSession();
-
 	const messages = useStats();
 
 	const [showDocker, setShowDocker] = useState(false);
 	const [showProjects, setShowProjects] = useState(false);
-	const loginButton = <Button variant="outlined" onClick={() => {
-		signIn("nextcloud")
-	}}><LoginIcon /></Button>
-
+	
 	const dockerProjects = (messages["docker.json"]?.content ?? []).reduce((acc: any, item: any) => {
 		const projectName = item.name?.split("-")[0];
 		if (acc[projectName]) acc[projectName].push(item);
@@ -34,10 +28,6 @@ const Monitor = () => {
 		
 	return (
     <div className="my-frame">
-		<div style={{ textAlign: "center" }} >
-			{loginButton}
-		</div>
-
 		{messages["system.json"]?.content && messages["docker.json"]?.content && (
 			<div className="my-grid">
 					<p className="my-chart">{messages["system.json"].content.model}</p>
