@@ -17,7 +17,7 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { Chessboard } from "react-chessboard";
-import { Chess } from "chess.js";
+import { Chess, Square } from "chess.js";
 import MainMenu from "@/app/components/MainMenu";
 
 const ChessGame: React.FC = () => {
@@ -34,14 +34,18 @@ const ChessGame: React.FC = () => {
   const [boardWidth, setBoardWidth] = useState(600);
   const [scoreError, setScoreError] = useState<string | null>(null);
 
+  // --- Sistema de dos clics ---
+  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [optionSquares, setOptionSquares] = useState<Record<string, any>>({});
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   // Ajuste del ancho del tablero al cliente y al redimensionar
   useEffect(() => {
     const updateBoardWidth = () => {
-      const padding = isMobile ? 16 : 32;
-      const maxWidth = Math.min(600, window.innerWidth - padding);
+      const sidePadding = isMobile ? 4 : 16; // debe coincidir con el px del Box contenedor
+      const maxWidth = Math.min(600, window.innerWidth - sidePadding * 2);
       setBoardWidth(Math.max(200, maxWidth));
     };
 
@@ -70,12 +74,10 @@ const ChessGame: React.FC = () => {
       const response = await fetch("/bookmarks/api/scores?gameId=1");
       const data = await response.json();
       if (data.scores) {
-
-		console.log(data.scores);
         setTopScores(
           data.scores.map((score: any) => ({
-            elo: score.score,           // La API devuelve `score`
-            time: score.createdAt,      // La API devuelve `createdAt`
+            elo: score.score, // La API devuelve `score`
+            time: score.createdAt, // La API devuelve `createdAt`
             name: score.username,
           }))
         );
@@ -97,7 +99,7 @@ const ChessGame: React.FC = () => {
         body: JSON.stringify({
           gameId: 1,
           score: calculateScore(),
-          gameConfig: { elo },   // La API serializa este objeto a JSON
+          gameConfig: { elo }, // La API serializa este objeto a JSON
         }),
       });
       if (!response.ok) {
@@ -113,27 +115,24 @@ const ChessGame: React.FC = () => {
   }, [scoreSaved, calculateScore, elo, loadScores]);
 
   // Manejar fin de partida (guarda automáticamente)
-  const handleGameOver = useCallback(
-    (game: Chess) => {
-      let result = "";
-      if (game.isCheckmate()) {
-        result = game.turn() === "w" ? "IA gana (mate)" : "Jugador gana (mate)";
-      } else if (game.isDraw()) {
-        result = "Empate (tablas)";
-      } else if (game.isStalemate()) {
-        result = "Empate (ahogado)";
-      } else if (game.isThreefoldRepetition()) {
-        result = "Empate (repetición)";
-      } else if (game.isInsufficientMaterial()) {
-        result = "Empate (material insuficiente)";
-      }
-      if (result) {
-        setGameResult(result);
-        setIsGameOver(true);
-      }
-    },
-    []
-  );
+  const handleGameOver = useCallback((game: Chess) => {
+    let result = "";
+    if (game.isCheckmate()) {
+      result = game.turn() === "w" ? "IA gana (mate)" : "Jugador gana (mate)";
+    } else if (game.isDraw()) {
+      result = "Empate (tablas)";
+    } else if (game.isStalemate()) {
+      result = "Empate (ahogado)";
+    } else if (game.isThreefoldRepetition()) {
+      result = "Empate (repetición)";
+    } else if (game.isInsufficientMaterial()) {
+      result = "Empate (material insuficiente)";
+    }
+    if (result) {
+      setGameResult(result);
+      setIsGameOver(true);
+    }
+  }, []);
 
   // Efecto para guardar puntuación cuando termine la partida
   useEffect(() => {
@@ -163,19 +162,24 @@ const ChessGame: React.FC = () => {
         const from = data.bestmove.slice(0, 2);
         const to = data.bestmove.slice(2, 4);
 
-        const move = game.move({
-          from,
-          to,
-          promotion: "q",
-        });
+        try {
+          const move = game.move({
+            from,
+            to,
+            promotion: "q",
+          });
 
-        if (move) {
-          const newFen = game.fen();
-          setFen(newFen);
+          if (move) {
+            const newFen = game.fen();
+            setFen(newFen);
 
-          if (game.isGameOver()) {
-            handleGameOver(game);
+            if (game.isGameOver()) {
+              handleGameOver(game);
+            }
           }
+        } catch (moveError) {
+          // La IA no debería proponer jugadas ilegales, pero por si acaso lo capturamos
+          console.error("Movimiento de IA inválido, ignorado:", moveError);
         }
       }
     } catch (error) {
@@ -185,42 +189,139 @@ const ChessGame: React.FC = () => {
     }
   }, [elo, isAIThinking, isGameOver, handleGameOver]);
 
-  // Movimiento del jugador (drag & drop)
-  const onDrop = useCallback(
-    (sourceSquare: string, targetSquare: string): boolean => {
+  // Limpia selección y resaltado de casillas (común a drag y a clic)
+  const clearSelection = useCallback(() => {
+    setSelectedSquare(null);
+    setOptionSquares({});
+  }, []);
+
+  // Intenta realizar un movimiento; ignora silenciosamente si es inválido (misclick)
+  const tryMove = useCallback(
+    (from: string, to: string): boolean => {
       const game = gameRef.current;
       if (!game) return false;
-      if (isGameOver) return false;
-      if (isAIThinking) return false;
 
       try {
         const move = game.move({
-          from: sourceSquare,
-          to: targetSquare,
+          from,
+          to,
           promotion: "q",
         });
 
-        if (move) {
-          const newFen = game.fen();
-          setFen(newFen);
-          if (!gameStarted) setGameStarted(true);
-
-          if (game.isGameOver()) {
-            handleGameOver(game);
-          } else {
-            // Turno de la IA después de un breve retraso
-            setTimeout(() => makeAIMove(), 300);
-          }
-          return true;
-        } else {
+        if (!move) {
+          // chess.js devolvió null/false: movimiento ilegal, lo ignoramos como misclick
           return false;
         }
+
+        const newFen = game.fen();
+        setFen(newFen);
+        if (!gameStarted) setGameStarted(true);
+
+        if (game.isGameOver()) {
+          handleGameOver(game);
+        } else {
+          setTimeout(() => makeAIMove(), 300);
+        }
+        return true;
       } catch (e) {
-        console.error("Error in onDrop", e);
+        // chess.js (v1+) lanza excepción en movimientos ilegales: la capturamos
+        // y la tratamos igual que un misclick, sin romper la UI.
+        console.warn("Movimiento inválido ignorado:", e);
         return false;
       }
     },
-    [isGameOver, isAIThinking, gameStarted, handleGameOver, makeAIMove]
+    [gameStarted, handleGameOver, makeAIMove]
+  );
+
+  // Muestra las casillas de destino legales para la pieza seleccionada
+  const showOptionsForSquare = useCallback((square: Square) => {
+    const game = gameRef.current;
+    if (!game) return;
+
+    try {
+      const moves = game.moves({ square, verbose: true }) as any[];
+      if (!moves.length) {
+        setOptionSquares({});
+        return;
+      }
+
+      const newSquares: Record<string, any> = {
+        [square]: {
+          background: "rgba(255, 255, 0, 0.4)",
+        },
+      };
+
+      moves.forEach((m) => {
+        newSquares[m.to] = {
+          background:
+            "radial-gradient(circle, rgba(0,0,0,0.25) 25%, transparent 26%)",
+          borderRadius: "50%",
+        };
+      });
+
+      setOptionSquares(newSquares);
+    } catch (e) {
+      // Si algo falla al calcular las jugadas legales, simplemente no resaltamos nada
+      console.warn("No se pudieron calcular movimientos legales:", e);
+      setOptionSquares({});
+    }
+  }, []);
+
+  // --- Clic en una casilla (sistema de dos clics) ---
+  const onSquareClick = useCallback(
+    (square: Square) => {
+      const game = gameRef.current;
+      if (!game || isGameOver || isAIThinking) return;
+
+      // Caso 1: no había nada seleccionado todavía
+      if (!selectedSquare) {
+        const piece = game.get(square);
+        if (piece && piece.color === game.turn()) {
+          setSelectedSquare(square);
+          showOptionsForSquare(square);
+        }
+        return;
+      }
+
+      // Caso 2: se hace clic en la misma casilla ya seleccionada -> deseleccionar
+      if (selectedSquare === square) {
+        clearSelection();
+        return;
+      }
+
+      // Caso 3: ya había una pieza seleccionada, intentamos mover
+      const moved = tryMove(selectedSquare, square);
+
+      if (moved) {
+        clearSelection();
+        return;
+      }
+
+      // El movimiento no era válido (misclick). Si el clic fue sobre otra
+      // pieza propia, la seleccionamos en su lugar; si no, deseleccionamos.
+      const piece = game.get(square);
+      if (piece && piece.color === game.turn()) {
+        setSelectedSquare(square);
+        showOptionsForSquare(square);
+      } else {
+        clearSelection();
+      }
+    },
+    [selectedSquare, isGameOver, isAIThinking, tryMove, showOptionsForSquare, clearSelection]
+  );
+
+  // --- Drag & drop (sigue disponible junto al sistema de clics) ---
+  const onDrop = useCallback(
+    (sourceSquare: string, targetSquare: string): boolean => {
+      if (isGameOver || isAIThinking) return false;
+
+      const moved = tryMove(sourceSquare, targetSquare);
+      if (moved) {
+        clearSelection();
+      }
+      return moved;
+    },
+    [isGameOver, isAIThinking, tryMove, clearSelection]
   );
 
   // Reiniciar partida
@@ -234,7 +335,8 @@ const ChessGame: React.FC = () => {
     setIsAIThinking(false);
     setIsGameOver(false);
     setScoreError(null);
-  }, []);
+    clearSelection();
+  }, [clearSelection]);
 
   // Inicializar partida y cargar puntuaciones
   useEffect(() => {
@@ -248,66 +350,67 @@ const ChessGame: React.FC = () => {
     width: boardWidth,
     maxWidth: "100%",
     touchAction: "none",
+    marginInline: "auto",
   };
 
   return (
     <>
       <MainMenu />
       <Box
-		sx={{
-			display: "flex",
-			justifyContent: "center",
-			gap: 2,
-			mt: 2,
-			mx: 2,
-		}}
-		>
-		<Button
-			variant="contained"
-			onClick={() => setShowScores(!showScores)}
-			sx={{
-			borderRadius: 50,
-			px: 4,
-			py: 1,
-			boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-			fontWeight: "bold",
-			textTransform: "none",
-			fontSize: "1rem",
-			transition: "all 0.2s",
-			"&:hover": {
-				transform: "translateY(-2px)",
-				boxShadow: "0 6px 16px rgba(0,0,0,0.2)",
-			},
-			}}
-		>
-			{showScores ? "🎯 Game" : "🏆 Scores"}
-		</Button>
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          gap: 2,
+          mt: 2,
+          mx: 2,
+        }}
+      >
+        <Button
+          variant="contained"
+          onClick={() => setShowScores(!showScores)}
+          sx={{
+            borderRadius: 50,
+            px: 4,
+            py: 1,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            fontWeight: "bold",
+            textTransform: "none",
+            fontSize: "1rem",
+            transition: "all 0.2s",
+            "&:hover": {
+              transform: "translateY(-2px)",
+              boxShadow: "0 6px 16px rgba(0,0,0,0.2)",
+            },
+          }}
+        >
+          {showScores ? "🎯 Game" : "🏆 Scores"}
+        </Button>
 
-		{!showScores && (
-			<Button
-			onClick={resetGame}
-			variant="contained"
-			color="secondary"
-			sx={{
-				borderRadius: 50,
-				px: 4,
-				py: 1,
-				fontWeight: "bold",
-				textTransform: "none",
-				fontSize: "1rem",
-				color: "grey",
-				boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-				transition: "all 0.2s",
-				"&:hover": {
-				transform: "translateY(-2px)",
-				boxShadow: "0 6px 16px rgba(0,0,0,0.2)",
-				},
-			}}
-			>
-			🔄 Restart
-			</Button>
-		)}
-	</Box>
+        {!showScores && (
+          <Button
+            onClick={resetGame}
+            variant="contained"
+            color="secondary"
+            sx={{
+              borderRadius: 50,
+              px: 4,
+              py: 1,
+              fontWeight: "bold",
+              textTransform: "none",
+              fontSize: "1rem",
+              color: "grey",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+              transition: "all 0.2s",
+              "&:hover": {
+                transform: "translateY(-2px)",
+                boxShadow: "0 6px 16px rgba(0,0,0,0.2)",
+              },
+            }}
+          >
+            🔄 Restart
+          </Button>
+        )}
+      </Box>
 
       <Box
         sx={{
@@ -317,9 +420,9 @@ const ChessGame: React.FC = () => {
           justifyContent: "center",
           minHeight: "calc(100vh - 180px)",
           textAlign: "center",
-          px: isMobile ? "4px" : 2,   // 4px en móvil, 16px (2*8) en desktop
-		  py: 2,
-		  boxSizing: "border-box",
+          px: isMobile ? "4px" : 2,
+          py: 2,
+          boxSizing: "border-box",
         }}
       >
         {!showScores ? (
@@ -329,6 +432,8 @@ const ChessGame: React.FC = () => {
                 id="chessboard"
                 position={fen}
                 onPieceDrop={onDrop}
+                onSquareClick={onSquareClick}
+                customSquareStyles={optionSquares}
                 boardWidth={boardWidth}
                 arePiecesDraggable={!isGameOver && !isAIThinking}
                 customBoardStyle={{
@@ -338,9 +443,7 @@ const ChessGame: React.FC = () => {
               />
             </Box>
 
-            
-
-            <Box sx={{ width: "100%", maxWidth: 400, mt: 3 }}>
+            <Box sx={{ width: "100%", maxWidth: 400, mt: 3, px: 2 }}>
               <Slider
                 value={elo}
                 onChange={handleEloChange}
@@ -357,6 +460,12 @@ const ChessGame: React.FC = () => {
                   color: theme.palette.primary.main,
                   "& .MuiSlider-markLabel": {
                     fontSize: "0.8rem",
+                    '&[data-index="0"]': {
+                      transform: "translateX(0%)",
+                    },
+                    '&[data-index="1"]': {
+                      transform: "translateX(-100%)",
+                    },
                   },
                 }}
               />
@@ -366,58 +475,58 @@ const ChessGame: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Contenedor de altura fija: reserva el hueco siempre */}
-			<Box
-			sx={{
-				mt: 2,
-				minHeight: 88, // ajusta a la altura máxima real que necesites
-				width: "100%",
-				maxWidth: 400,
-				display: "flex",
-				flexDirection: "column",
-				alignItems: "center",
-				justifyContent: "flex-start",
-				gap: 1,
-			}}
-			>
-			<Paper
-				elevation={3}
-				sx={{
-				px: 4,
-				py: 1.5,
-				borderRadius: 8,
-				backgroundColor: theme.palette.secondary.light,
-				color: theme.palette.secondary.contrastText,
-				visibility: gameResult ? "visible" : "hidden",
-				}}
-			>
-				<Typography variant="h5" sx={{ fontWeight: "bold" }} gutterBottom>
-				{gameResult || "placeholder"}
-				</Typography>
-			</Paper>
+            {/* Contenedor de altura fija: reserva el hueco siempre, evita saltos de layout */}
+            <Box
+              sx={{
+                mt: 2,
+                minHeight: 88,
+                width: "100%",
+                maxWidth: 400,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "flex-start",
+                gap: 1,
+              }}
+            >
+              <Paper
+                elevation={3}
+                sx={{
+                  px: 4,
+                  py: 1.5,
+                  borderRadius: 8,
+                  backgroundColor: theme.palette.secondary.light,
+                  color: theme.palette.secondary.contrastText,
+                  visibility: gameResult ? "visible" : "hidden",
+                }}
+              >
+                <Typography variant="h5" sx={{ fontWeight: "bold" }} gutterBottom>
+                  {gameResult || "placeholder"}
+                </Typography>
+              </Paper>
 
-			<Typography
-				variant="body2"
-				color="textSecondary"
-				sx={{ visibility: isAIThinking ? "visible" : "hidden" }}
-			>
-				🤔 AI is thinking...
-			</Typography>
+              <Typography
+                variant="body2"
+                color="textSecondary"
+                sx={{ visibility: isAIThinking ? "visible" : "hidden" }}
+              >
+                🤔 AI is thinking...
+              </Typography>
 
-			<Typography
-				variant="body2"
-				color="error"
-				sx={{ visibility: scoreError ? "visible" : "hidden" }}
-			>
-				{scoreError || "placeholder"}
-			</Typography>
-			</Box>
+              <Typography
+                variant="body2"
+                color="error"
+                sx={{ visibility: scoreError ? "visible" : "hidden" }}
+              >
+                {scoreError || "placeholder"}
+              </Typography>
+            </Box>
           </>
         ) : (
           <Box sx={{ width: "100%", maxWidth: 600, px: 2 }}>
             {topScores.length > 0 ? (
               <>
-                <Typography variant="h5" sx={{ fontWeight: 'bold' }} gutterBottom>
+                <Typography variant="h5" sx={{ fontWeight: "bold" }} gutterBottom>
                   🏆 Top Scores
                 </Typography>
                 <TableContainer component={Paper} elevation={3} sx={{ borderRadius: 3 }}>
