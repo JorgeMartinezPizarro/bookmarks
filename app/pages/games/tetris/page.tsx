@@ -325,36 +325,35 @@ const Tetris: React.FC = () => {
           isLocked={gameCompleted || gameOver}
         />
 
-        <Box className="tetris-panel-width tetris-title-bar">
-          <Typography className="tetris-title">TETRIS</Typography>
-        </Box>
-
         <Box className="tetris-panel-width tetris-stats-row">
-          <Typography className="tetris-stat">
-            LINES: {Math.min(lines, linesTarget)}/{linesTarget}
-          </Typography>
-          <Typography className="tetris-stat">TIME: {formatTimeMs(elapsedMs)}</Typography>
-        </Box>
+			<Typography className="tetris-stat tetris-stat--lines">
+				LINES: {Math.min(lines, linesTarget)}/{linesTarget}
+			</Typography>
+			<Typography
+				className="tetris-stat tetris-stat--paused"
+				style={{ visibility: isPaused && !gameCompleted && !gameOver ? "visible" : "hidden" }}
+			>
+				PAUSED
+			</Typography>
+			<Typography className="tetris-stat tetris-stat--time">TIME: {formatTimeMs(elapsedMs)}</Typography>
+			</Box>
 
-        {gameCompleted && (
-          <Typography className="tetris-status tetris-status--complete">
-            ★ COMPLETE: {formatTimeMs(elapsedMs)} ★
-          </Typography>
-        )}
-        {gameOver && <Typography className="tetris-status tetris-status--over">GAME OVER</Typography>}
-        {isPaused && !gameCompleted && !gameOver && (
-          <Typography className="tetris-status tetris-status--paused">PAUSED</Typography>
-        )}
-      </Box>
+			{gameCompleted && (
+			<Typography className="tetris-status tetris-status--complete">
+				★ COMPLETE: {formatTimeMs(elapsedMs)} ★
+			</Typography>
+			)}
+			{gameOver && <Typography className="tetris-status tetris-status--over">GAME OVER</Typography>}
+	    </Box>
 
       {/* ── Zona central: tablero o marcador ── */}
-      <Box className="tetris-main">
-        {showGame ? (
-          <BoardView board={board} piece={piece} pos={pos} lockVisual={lockVisual} lockBoard={lockBoard} />
-        ) : (
-          <Scoreboard topScores={score.topScores} />
-        )}
-      </Box>
+      <Box className={`tetris-main ${!showGame ? "tetris-main--scores" : ""}`}>
+		{showGame ? (
+			<BoardView board={board} piece={piece} pos={pos} lockVisual={lockVisual} lockBoard={lockBoard} />
+		) : (
+			<Scoreboard topScores={score.topScores} />
+		)}
+	  </Box>
 
       {/* ── Pie: controles móviles o ayuda de teclado ── */}
       {showGame && (
@@ -372,9 +371,9 @@ const Tetris: React.FC = () => {
           </Box>
           <Box className="desktop-only">
             <Typography className="tetris-keyboard-hint">
-              A/◀ MOVE LEFT &nbsp;|&nbsp; D/▶ MOVE RIGHT &nbsp;|&nbsp; S/▼ SOFT DROP &nbsp;|&nbsp; ↑/SPACE HARD
-              DROP &nbsp;|&nbsp; O ROTATE ↺ &nbsp;|&nbsp; P ROTATE ↻
-            </Typography>
+				A/◀ MOVE LEFT &nbsp;|&nbsp; D/▶ MOVE RIGHT &nbsp;|&nbsp; S/▼ SOFT DROP &nbsp;|&nbsp; SPACE PAUSE
+				&nbsp;|&nbsp; O ROTATE ↺ &nbsp;|&nbsp; P ROTATE ↻
+			</Typography>
           </Box>
         </Box>
       )}

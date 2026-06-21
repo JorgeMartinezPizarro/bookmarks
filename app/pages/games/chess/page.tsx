@@ -317,7 +317,9 @@ const ChessGame: React.FC = () => {
           justifyContent: "center",
           minHeight: "calc(100vh - 180px)",
           textAlign: "center",
-          p: 2,
+          px: isMobile ? "4px" : 2,   // 4px en móvil, 16px (2*8) en desktop
+		  py: 2,
+		  boxSizing: "border-box",
         }}
       >
         {!showScores ? (
@@ -364,35 +366,52 @@ const ChessGame: React.FC = () => {
               </Typography>
             </Box>
 
-            {gameResult && (
-              <Paper
-                elevation={3}
-                sx={{
-                  mt: 2,
-                  px: 4,
-                  py: 1.5,
-                  borderRadius: 8,
-                  backgroundColor: theme.palette.secondary.light,
-                  color: theme.palette.secondary.contrastText,
-                }}
-              >
-                <Typography variant="h5" sx={{ fontWeight: 'bold' }} gutterBottom>
-                  {gameResult}
-                </Typography>
-              </Paper>
-            )}
+            {/* Contenedor de altura fija: reserva el hueco siempre */}
+			<Box
+			sx={{
+				mt: 2,
+				minHeight: 88, // ajusta a la altura máxima real que necesites
+				width: "100%",
+				maxWidth: 400,
+				display: "flex",
+				flexDirection: "column",
+				alignItems: "center",
+				justifyContent: "flex-start",
+				gap: 1,
+			}}
+			>
+			<Paper
+				elevation={3}
+				sx={{
+				px: 4,
+				py: 1.5,
+				borderRadius: 8,
+				backgroundColor: theme.palette.secondary.light,
+				color: theme.palette.secondary.contrastText,
+				visibility: gameResult ? "visible" : "hidden",
+				}}
+			>
+				<Typography variant="h5" sx={{ fontWeight: "bold" }} gutterBottom>
+				{gameResult || "placeholder"}
+				</Typography>
+			</Paper>
 
-            {isAIThinking && (
-              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                🤔 AI is thinking...
-              </Typography>
-            )}
+			<Typography
+				variant="body2"
+				color="textSecondary"
+				sx={{ visibility: isAIThinking ? "visible" : "hidden" }}
+			>
+				🤔 AI is thinking...
+			</Typography>
 
-            {scoreError && (
-              <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-                {scoreError}
-              </Typography>
-            )}
+			<Typography
+				variant="body2"
+				color="error"
+				sx={{ visibility: scoreError ? "visible" : "hidden" }}
+			>
+				{scoreError || "placeholder"}
+			</Typography>
+			</Box>
           </>
         ) : (
           <Box sx={{ width: "100%", maxWidth: 600, px: 2 }}>

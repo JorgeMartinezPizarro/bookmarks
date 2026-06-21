@@ -154,6 +154,11 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
   gsRef.current = gameState;
   const startTimeRef = useRef<number | null>(null);
   const gameCompletedRef = useRef(false);
+  // Mutex: evita que dos locks (gravedad + softDrop, o dos softDrop seguidos
+  // durante el flash de 80ms del lock anterior) se ejecuten en paralelo y se
+  // pisen el estado entre sí. Sin esto, en condiciones de carrera podían
+  // desaparecer o duplicarse líneas al mantener pulsado "abajo".
+  const lockingRef = useRef(false);
   const activeKeysRef = useRef<Set<string>>(new Set());
   const holdTimersRef = useRef<
     Map<string, ReturnType<typeof setTimeout | typeof setInterval>>
@@ -189,6 +194,9 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
       currentElapsed: number,
       forceLockVisual = false
     ) => {
+      if (lockingRef.current) return; // ya hay un lock en curso: ignorar para evitar duplicar la pieza
+      lockingRef.current = true;
+
       const newBoard = placePieceOnBoardPure(board, piece, pos);
       const { newBoard: clearedBoard, cleared } = clearLinesPure(newBoard);
       const totalLines = currentLines + cleared;
@@ -231,6 +239,7 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
             lockBoard: undefined,
           }));
           if (isCompleted) onComplete?.(finalMs);
+          lockingRef.current = false; // liberar el mutex al terminar el flash
         }, 80); // flash lock visual breve
         return;
       }
@@ -244,6 +253,7 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
           lockVisual: false,
           lockBoard: undefined,
         }));
+        lockingRef.current = false;
         return;
       }
       setGameState((prev) => ({
@@ -255,6 +265,7 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
         lockVisual: false,
         lockBoard: undefined,
       }));
+      lockingRef.current = false;
     },
     [onComplete]
   );
@@ -282,7 +293,7 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     if (isPaused || gameCompleted || gameOver) return;
     const id = setInterval(() => {
       const gs = gsRef.current;
-      if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+      if (gs.isPaused || gs.gameCompleted || gs.gameOver || lockingRef.current) return;
       if (!checkCollision(gs.board, gs.piece, gs.pos.x, gs.pos.y + 1)) {
         setGameState((prev) => ({
           ...prev,
@@ -315,7 +326,7 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
   // Si lines+1 supera LINES_TARGET, fuerza lockVisual sí o sí
   const softDrop = useCallback(() => {
     const gs = gsRef.current;
-    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
+    if (gs.isPaused || gs.gameCompleted || gs.gameOver || lockingRef.current) return;
     const nextY = gs.pos.y + 1;
     if (!checkCollision(gs.board, gs.piece, gs.pos.x, nextY)) {
       setGameState((prev) => ({ ...prev, pos: { ...prev.pos, y: nextY } }));
@@ -333,14 +344,6 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
         isCompleted ? true : false
       );
     }
-  }, [lockAndAdvance]);
-
-  const hardDrop = useCallback(() => {
-    const gs = gsRef.current;
-    if (gs.isPaused || gs.gameCompleted || gs.gameOver) return;
-    const dist = hardDropDistance(gs.board, gs.piece, gs.pos);
-    const droppedPos = { ...gs.pos, y: gs.pos.y + dist };
-    lockAndAdvance(gs.board, gs.piece, droppedPos, gs.lines, gs.elapsedMs, true);
   }, [lockAndAdvance]);
 
   const rotatePiece = useCallback((direction: 1 | -1) => {
@@ -391,6 +394,17 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     }
   }, []);
 
+  const togglePause = useCallback(() => {
+    setGameState((prev) => {
+      if (prev.gameCompleted || prev.gameOver) return prev;
+      if (prev.isPaused) {
+        startTimeRef.current = Date.now() - prev.elapsedMs;
+        return { ...prev, isPaused: false };
+      }
+      return { ...prev, isPaused: true };
+    });
+  }, []);
+
   // Keyboard handler
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -414,10 +428,9 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
           e.preventDefault();
           startRepeat("down", softDrop);
           break;
-        case "ArrowUp":
         case " ":
           e.preventDefault();
-          hardDrop();
+          togglePause();
           break;
         case "o":
         case "O":
@@ -460,10 +473,11 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [moveLeft, moveRight, softDrop, hardDrop, rotateLeft, rotateRight, startRepeat, stopRepeat]);
+  }, [moveLeft, moveRight, softDrop, rotateLeft, rotateRight, togglePause, startRepeat, stopRepeat]);
 
   const restartGame = useCallback(() => {
     gameCompletedRef.current = false;
+    lockingRef.current = false; // reset del mutex al reiniciar
     holdTimersRef.current.forEach((t, k) => {
       if (k.includes("interval")) clearInterval(t as ReturnType<typeof setInterval>);
       else clearTimeout(t as ReturnType<typeof setTimeout>);
@@ -473,17 +487,6 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     startTimeRef.current = Date.now();
     const state = randomizedInitialState();
     setGameState({ ...state, isPaused: false });
-  }, []);
-
-  const togglePause = useCallback(() => {
-    setGameState((prev) => {
-      if (prev.gameCompleted || prev.gameOver) return prev;
-      if (prev.isPaused) {
-        startTimeRef.current = Date.now() - prev.elapsedMs;
-        return { ...prev, isPaused: false };
-      }
-      return { ...prev, isPaused: true };
-    });
   }, []);
 
   return {
@@ -503,7 +506,6 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
     moveLeft,
     moveRight,
     softDrop,
-    hardDrop,
     rotateLeft,
     rotateRight,
     restartGame,

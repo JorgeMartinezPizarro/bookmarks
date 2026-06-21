@@ -32,6 +32,10 @@
   padding: 4px 12px;
 }
 
+.tetris-main--scores {
+  justify-content: flex-start;
+}
+
 .tetris-footer {
   width: 100%;
   flex-shrink: 0;
@@ -56,10 +60,11 @@
 
 .tetris-menu-bar {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
+  gap: 8px;
   margin-bottom: 8px;
-  padding: 5px 8px;
+  padding: 6px 8px;
   background: linear-gradient(90deg, #181830 0%, #27274e 70%, #191530 100%);
   border: 2.5px solid #00ffcc66;
   border-radius: 16px;
@@ -67,18 +72,19 @@
 }
 
 .tetris-menu-btn {
+  flex: 1 1 0;
   font-family: "Press Start 2P", "Courier New", monospace !important;
-  font-size: 9px !important;
+  font-size: 11px !important;
   letter-spacing: 1px !important;
-  padding: 6px 12px !important;
+  padding: 12px 6px !important;
   border-width: 2.5px !important;
-  border-radius: 4px !important;
+  border-radius: 8px !important;
   min-width: 0 !important;
   box-shadow: 0 1px 10px #00ffcc22;
   transition: all 0.13s;
   white-space: nowrap !important;
   text-shadow: 0 0 6px #0ff8;
-  margin: 0 6px;
+  margin: 0 !important;
 }
 
 .tetris-menu-btn--scores {
@@ -105,14 +111,11 @@
 
 @media (min-width: 769px) {
   .tetris-menu-btn {
-    font-size: 13px !important;
+    font-size: 15px !important;
     letter-spacing: 1.8px !important;
-    padding: 11px 22px !important;
-    margin: 0 12px;
+    padding: 16px 10px !important;
   }
-}
-
-/* ───────────────────────── Título y stats ───────────────────────── */
+}/* ───────────────────────── Título y stats ───────────────────────── */
 
 .tetris-title-bar {
   width: 100%;
