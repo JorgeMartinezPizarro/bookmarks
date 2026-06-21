@@ -37,6 +37,7 @@ const Wording = () => {
 
   const startTimeRef = useRef<number>(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const loadScores = useCallback(async (): Promise<ScoreEntry[]> => {
     try {
@@ -112,7 +113,10 @@ const Wording = () => {
     saveScoreRef.current = saveScore;
   }, [saveScore]);
 
-  // RESET PARTIDA
+  // RESET PARTIDA + arranque/parada del cronómetro
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
     if (playing) {
       setScore(0);
@@ -120,8 +124,26 @@ const Wording = () => {
       setFinished(false);
       setFinishedTime(null);
       setFinishedRank(null);
+
       startTimeRef.current = Date.now();
+      setElapsedMs(0);
+
+      timerRef.current = setInterval(() => {
+        setElapsedMs(Date.now() - startTimeRef.current);
+      }, 100);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
   }, [playing]);
 
   // Foco automático
@@ -142,9 +164,18 @@ const Wording = () => {
 
   // autoplay audio cuando cambia
   useEffect(() => {
-    const audio = document.getElementsByTagName("audio")[0] as HTMLAudioElement;
-    if (playing) audio?.play();
+    if (playing) {
+      audioRef.current?.play().catch((e) => console.warn("No se pudo autoreproducir:", e));
+    }
   }, [audioUrl, playing]);
+
+  // Volver a escuchar el audio actual
+  const handleReplayAudio = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = 0;
+    audio.play().catch((e) => console.warn("No se pudo reproducir el audio:", e));
+  }, []);
 
   const handleSubmitWord = () => {
     if (text === word && playing) {
@@ -163,8 +194,6 @@ const Wording = () => {
       requestAudioWord();
     }
   };
-
-  const elapsedMs = playing ? Date.now() - startTimeRef.current : 0;
 
   const sortedScores = [...topScores]
     .sort((a, b) => a.score - b.score)
@@ -237,13 +266,24 @@ const Wording = () => {
             </Button>
           </div>
 
+          <div className="button-row">
+            <Button
+              className="action-btn action-btn--replay"
+              variant="outlined"
+              onClick={handleReplayAudio}
+              disabled={!playing || !audioUrl}
+            >
+              🔁 Escuchar de nuevo
+            </Button>
+          </div>
+
           <p className="stats-line">
             Palabras: <strong>{score}</strong> / {WORDS_TOTAL} | Tiempo:{" "}
             <strong>{elapsedMs} ms</strong>
           </p>
 
           {audioUrl !== "" && (
-            <audio key={audioUrl} className="hidden-audio" controls>
+            <audio ref={audioRef} key={audioUrl} className="hidden-audio">
               <source src={audioUrl} type="audio/mpeg" />
             </audio>
           )}
