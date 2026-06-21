@@ -62,7 +62,7 @@ const AgePage = () => {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          height: "100vh",
+          height: "60vh",
           gap: 4,
 		  m: 4,
         }}

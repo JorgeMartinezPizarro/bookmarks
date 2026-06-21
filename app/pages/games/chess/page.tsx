@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import {
   Button,
   Typography,
@@ -41,18 +41,45 @@ const ChessGame: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  // Ajuste del ancho del tablero al cliente y al redimensionar
-  useEffect(() => {
+  // Refs para medir el espacio real ocupado por debajo del tablero
+  // (slider + bloque de resultado) y poder calcular cuánto puede crecer
+  // el tablero sin provocar scroll vertical.
+  const boardBoxRef = useRef<HTMLDivElement | null>(null);
+  const belowBoardRef = useRef<HTMLDivElement | null>(null);
+
+  // Ajuste del ancho/alto del tablero al cliente y al redimensionar.
+  // El tablero es cuadrado, así que su tamaño debe respetar TANTO el
+  // ancho disponible COMO la altura disponible (ancho de ventana - chrome
+  // de cabecera, y altura de ventana - todo lo que va debajo del tablero).
+  useLayoutEffect(() => {
+    if (showScores) return; // no hay tablero que medir en la vista de scores
+
     const updateBoardWidth = () => {
       const sidePadding = isMobile ? 4 : 16; // debe coincidir con el px del Box contenedor
-      const maxWidth = Math.min(600, window.innerWidth - sidePadding * 2);
-      setBoardWidth(Math.max(200, maxWidth));
+      const widthBased = Math.min(600, window.innerWidth - sidePadding * 2);
+
+      let heightBased = widthBased;
+
+      if (boardBoxRef.current && belowBoardRef.current) {
+        const boardRect = boardBoxRef.current.getBoundingClientRect();
+        const lastRect = belowBoardRef.current.getBoundingClientRect();
+
+        // Espacio que ocupa todo lo que va DESPUÉS del tablero (slider,
+        // resultado, márgenes entre secciones). No depende de minHeight
+        // del contenedor padre, solo de los elementos reales.
+        const nonBoardHeight = lastRect.bottom - boardRect.bottom;
+        const buffer = 12; // margen de seguridad para evitar redondeos
+
+        heightBased = window.innerHeight - boardRect.top - nonBoardHeight - buffer;
+      }
+
+      setBoardWidth(Math.max(200, Math.min(widthBased, heightBased)));
     };
 
     updateBoardWidth();
     window.addEventListener("resize", updateBoardWidth);
     return () => window.removeEventListener("resize", updateBoardWidth);
-  }, [isMobile]);
+  }, [isMobile, showScores]);
 
   const handleEloChange = (_event: Event, newValue: number | number[]) => {
     if (!gameStarted) {
@@ -361,7 +388,7 @@ const ChessGame: React.FC = () => {
           display: "flex",
           justifyContent: "center",
           gap: 2,
-          mt: 2,
+          mt: 1,
           mx: 2,
         }}
       >
@@ -418,16 +445,16 @@ const ChessGame: React.FC = () => {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          minHeight: "calc(100vh - 180px)",
+          minHeight: "calc(100vh - 140px)",
           textAlign: "center",
           px: isMobile ? "4px" : 2,
-          py: 2,
+          py: 1,
           boxSizing: "border-box",
         }}
       >
         {!showScores ? (
           <>
-            <Box style={boardContainerStyle}>
+            <Box ref={boardBoxRef} style={boardContainerStyle}>
               <Chessboard
                 id="chessboard"
                 position={fen}
@@ -443,7 +470,7 @@ const ChessGame: React.FC = () => {
               />
             </Box>
 
-            <Box sx={{ width: "100%", maxWidth: 400, mt: 3, px: 2 }}>
+            <Box sx={{ width: "100%", maxWidth: 400, mt: 2, px: 2 }}>
               <Slider
                 value={elo}
                 onChange={handleEloChange}
@@ -477,8 +504,9 @@ const ChessGame: React.FC = () => {
 
             {/* Contenedor de altura fija: reserva el hueco siempre, evita saltos de layout */}
             <Box
+              ref={belowBoardRef}
               sx={{
-                mt: 2,
+                mt: 1.5,
                 minHeight: 88,
                 width: "100%",
                 maxWidth: 400,
