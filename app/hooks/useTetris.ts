@@ -325,26 +325,16 @@ export function useTetris({ onComplete }: UseTetrisOptions = {}) {
 
   // Si lines+1 supera LINES_TARGET, fuerza lockVisual sí o sí
   const softDrop = useCallback(() => {
-    const gs = gsRef.current;
-    if (gs.isPaused || gs.gameCompleted || gs.gameOver || lockingRef.current) return;
-    const nextY = gs.pos.y + 1;
-    if (!checkCollision(gs.board, gs.piece, gs.pos.x, nextY)) {
-      setGameState((prev) => ({ ...prev, pos: { ...prev.pos, y: nextY } }));
-    } else {
-      const newBoard = placePieceOnBoardPure(gs.board, gs.piece, gs.pos);
-      const { newBoard: clearedBoard, cleared } = clearLinesPure(newBoard);
-      const totalLines = gs.lines + cleared;
-      const isCompleted = totalLines >= LINES_TARGET && !gameCompletedRef.current;
-      lockAndAdvance(
-        gs.board,
-        gs.piece,
-        gs.pos,
-        gs.lines,
-        gs.elapsedMs,
-        isCompleted ? true : false
-      );
-    }
-  }, [lockAndAdvance]);
+  const gs = gsRef.current;
+  if (gs.isPaused || gs.gameCompleted || gs.gameOver || lockingRef.current) return;
+  const nextY = gs.pos.y + 1;
+  if (!checkCollision(gs.board, gs.piece, gs.pos.x, nextY)) {
+    setGameState((prev) => ({ ...prev, pos: { ...prev.pos, y: nextY } }));
+  } else {
+    lockAndAdvance(gs.board, gs.piece, gs.pos, gs.lines, gs.elapsedMs);
+    // sin pasar forceLockVisual=true: lockAndAdvance ya evalúa isCompleted internamente
+  }
+}, [lockAndAdvance]);
 
   const rotatePiece = useCallback((direction: 1 | -1) => {
     const gs = gsRef.current;
