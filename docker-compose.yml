@@ -8,18 +8,6 @@ services:
   #  environment:
   #    - NEXTCLOUD_URL=${NEXTCLOUD_URL}
   #    - PORT=${PORT}
-  wordlist:
-    image: jorgemartinezpizarro/wordlist:latest
-    # Exposed to comunicate node, remove later to use docker network communication
-    ports:
-      - 1009:5000
-    volumes:
-      - ./cache/audio/:/app/audio
-  stockfish:
-    image: jorgemartinezpizarro/stockfish:latest
-    # Exposed to comunicate node, remove later to use docker network communication
-    ports:
-      - 1007:8080
   gpt:
     build:
       context: ./tools/gpt
