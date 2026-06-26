@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<info>
+    <id>custom_monitor</id>
+    <name>Monitor</name>
+    <description>A nextcloud app to play and learn</description>
+    <version>1.0.0</version>
+    <author>George</author>
+    <namespace>Bookmarks</namespace>
+    <category>productivity</category>
+    <dependencies>
+        <nextcloud min-version="33" max-version="34.0.0"/>
+    </dependencies>
+    <navigations>
+        <navigation>
+            <route>custom_monitor.page.index</route>
+            <name>Monitor</name>
+            <icon>img/chat.png</icon>
+        </navigation>
+    </navigations>
+</info>
