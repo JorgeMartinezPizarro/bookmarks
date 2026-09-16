@@ -2,13 +2,13 @@
 <info>
     <id>custom_monitor</id>
     <name>Monitor</name>
-    <description>A nextcloud app to play and learn</description>
+    <description>A custom app with a system monitor</description>
     <version>1.0.0</version>
     <author>George</author>
     <namespace>Bookmarks</namespace>
     <category>productivity</category>
     <dependencies>
-        <nextcloud min-version="33" max-version="34.0.0"/>
+        <nextcloud min-version="33" max-version="34"/>
     </dependencies>
     <navigations>
         <navigation>
