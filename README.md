@@ -1,24 +1,20 @@
-## TODO
-
-- Add Makefile with build start stop commands.
-- Adapt paths to docker volumes. Build last working version.
-- Use docker network to connect to the dockerized services for security.
-- Move docker spaces to private env variables.
-- Add docker volumne with the helloworld app for nextcloud.
-- Integrate with brain.
-- Integrate with /var/www/html custom linux logs.
-
 ## ABOUT
 
-A private extension for Nextcloud.
+A proof of concept for a private Nextcloud extension: a system monitor that reads
+a set of JSON log files and renders CPU/RAM/disk usage, running Docker containers,
+and SSH login/attack activity.
 
 It provides:
 
-- customizable views combining nextjs and nextcloud
-- view to Train using your own GPT (Work in progress)
-- view to manage Lightning Network (Work in progress)
-- custom games using CSS HTML and Javascript (compatible with android mac linux windows ...) (Work in progress)
-- custom report overview (Work in progress)
+- a Nextcloud custom app (`nextcloud/custom_apps/custom_monitor`) that embeds the monitor
+- a Next.js UI at `/pages/monitor` reading JSON files from `/var/www/html`
+
+The log files themselves (`system.json`, `docker.json`, `access.json`) are produced by a
+separate, private tool that is **not included** in this repo. This project only
+demonstrates how to consume and render them.
+
+`/pages/example`, `/api/get` and `/api/post` are kept as minimal scaffolding for new
+API routes/pages, not part of the monitor itself.
 
 This is a [next.js](https://nextjs.org/) project created with [create-next-app](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
@@ -46,8 +42,6 @@ npm run start
 
 #### DOCKER
 
-Run both the UI and stockfish dockerized:
-
 ```bash
 git clone git@github.com:JorgeMartinezPizarro/bookmarks.git
 copy .env bookmarks/.env
@@ -59,37 +53,13 @@ Navigate to [http://localhost:3000](http://localhost:3000) to start using the ap
 
 ## BUILD
 
-To build the dockerized UI:
-
 ```bash
-docker build -t jorgemartinezpizarro/bookmarks:latest . 
+docker build -t jorgemartinezpizarro/bookmarks:latest .
 docker push jorgemartinezpizarro/bookmarks:latest
 ```
 
-To build the Stockfish container:
-```bash
-cd tools/chess
-docker build -t jorgemartinezpizarro/stockfish:latest . 
-docker push jorgemartinezpizarro/stockfish:latest
-```
-
-To build the Wordlist container:
-```bash
-cd tools/words
-docker build -t jorgemartinezpizarro/wordlist:latest . 
-docker push jorgemartinezpizarro/wordlist:latest
-```
-
-To build the GPT2 container:
-```bash
-cd tools/gpt
-docker build -t jorgemartinezpizarro/gpt:latest . 
-docker push jorgemartinezpizarro/gpt:latest
-```
-
-Change the strings `jorgemartinezpizarro/NAME` to you own hub docker namespace.
+Change `jorgemartinezpizarro/bookmarks` to your own Docker Hub namespace.
 
 ## NOTE
 
-It is required to link the app with a nextcloud valid URL, otherwise the app will not work. 
-
+It is required to link the app with a valid Nextcloud URL, otherwise the app will not work.
