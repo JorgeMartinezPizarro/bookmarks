@@ -1,31 +1,24 @@
-'use client' 
-
-import { Inter } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import theme from './theme'; 
 
-const inter = Inter({ subsets: ["latin"] });
+export const metadata: Metadata = {
+  title: "System monitor",
+  description: "CPU, memory, disk, Docker containers and SSH activity at a glance.",
+};
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#161616" },
+    { media: "(prefers-color-scheme: light)", color: "#f3f3f0" },
+  ],
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <head>
-        <title>
-          Gaming
-        </title>
-      </head>
-      <body className={inter.className}>
-      <ThemeProvider theme={theme}>
-          <CssBaseline />
-            {children}
-        </ThemeProvider>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

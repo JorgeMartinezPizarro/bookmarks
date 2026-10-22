@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gaming</title>
+    <title>System monitor</title>
 </head>
 <body>
 
-<button id="installApp" style="display: none;">📲 Install Web App</button>
-
 <iframe
 	src="your-nextjs-app-url"
+	allow="clipboard-write"
     style="
         position: fixed;
         left: 0;

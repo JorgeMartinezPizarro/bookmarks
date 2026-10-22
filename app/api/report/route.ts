@@ -20,18 +20,18 @@ export async function GET(req: Request) {
 
     const since = Number(new URL(req.url).searchParams.get("since") ?? 0) || 0;
 
-    const files = (await fs.readdir(WATCH_DIR)).filter((f) => f.endsWith(".json"));
+    const files = (await fs.readdir(/*turbopackIgnore: true*/ WATCH_DIR)).filter((f) => f.endsWith(".json"));
 
     let newest = since;
     const data: Record<string, { timestamp: number; content: unknown }> = {};
 
     for (const file of files) {
-      const fullPath = path.join(WATCH_DIR, file);
-      const stats = await fs.stat(fullPath);
+      const fullPath = path.join(/*turbopackIgnore: true*/ WATCH_DIR, file);
+      const stats = await fs.stat(/*turbopackIgnore: true*/ fullPath);
       if (stats.mtimeMs <= since) continue;
 
       try {
-        const content = JSON.parse(await fs.readFile(fullPath, "utf8"));
+        const content = JSON.parse(await fs.readFile(/*turbopackIgnore: true*/ fullPath, "utf8"));
         data[file] = { timestamp: stats.mtimeMs, content };
         newest = Math.max(newest, stats.mtimeMs);
       } catch {

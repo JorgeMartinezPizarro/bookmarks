@@ -7,14 +7,14 @@ and SSH login/attack activity.
 It provides:
 
 - a Nextcloud custom app (`nextcloud/custom_apps/custom_monitor`) that embeds the monitor
-- a Next.js UI at `/pages/monitor` reading JSON files from `/var/www/html`
+- a Next.js UI at `/bookmarks/pages/monitor` reading JSON files from `WATCH_DIR` (default `/var/www/html`)
 
 The log files themselves (`system.json`, `docker.json`, `access.json`) are produced by a
 separate, private tool that is **not included** in this repo. This project only
 demonstrates how to consume and render them.
 
-`/pages/example`, `/api/get` and `/api/post` are kept as minimal scaffolding for new
-API routes/pages, not part of the monitor itself.
+The monitor is the only view: `/bookmarks` and any unknown path redirect to it. The
+only API route is `/bookmarks/api/report`, which the dashboard polls.
 
 This is a [next.js](https://nextjs.org/) project created with [create-next-app](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
@@ -22,7 +22,23 @@ Created and tested using `node@22.12`, `npm@11.2.0` and `docker@26.0.1`.
 
 ## SETUP
 
-Copy `.env.local` to `.env` and write your actual values.
+Copy `.env.local` to `.env` and write your actual values. Optional `WATCH_DIR`
+points at the folder containing the JSON reports (default `/var/www/html`).
+
+## DEVELOP
+
+`npm run dev` loads `.env.development`, which points `WATCH_DIR` at the sample
+reports in `./mock`. Run the simulator in a second terminal to see live values:
+
+```bash
+npm run mock
+```
+
+Then open [http://localhost:3000/bookmarks/pages/monitor](http://localhost:3000/bookmarks/pages/monitor).
+To develop against real data instead: `WATCH_DIR=/var/www/html npm run dev`.
+
+The UI polls `/api/report?since=<ms>`; the server only returns files modified
+after `since`, so a new tab receives the full snapshot and then only deltas.
 
 ## RUN
 
@@ -49,7 +65,7 @@ cd bookmarks
 docker compose up -d
 ```
 
-Navigate to [http://localhost:3000](http://localhost:3000) to start using the app.
+Navigate to [http://localhost:3000/bookmarks](http://localhost:3000/bookmarks) to start using the app.
 
 ## BUILD
 
