@@ -168,6 +168,8 @@
 .tile--good     { --sev: var(--good); }
 .tile--warning  { --sev: var(--warning); }
 .tile--critical { --sev: var(--critical); }
+.tile--nodata   { --sev: var(--muted); }
+.tile__value--nodata { color: var(--muted); }
 
 .status {
   display: inline-flex;
@@ -180,6 +182,7 @@
 .status--good     { color: var(--good); }
 .status--warning  { color: var(--warning); }
 .status--critical { color: var(--critical); }
+.status--nodata   { color: var(--muted); }
 
 /* ghost / empty state */
 .tile--ghost {

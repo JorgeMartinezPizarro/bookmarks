@@ -18,9 +18,22 @@ export const SEVERITY_LABEL: Record<Severity, string> = {
 
 export const clampPct = (v: number) => Math.min(100, Math.max(0, Number.isFinite(v) ? v : 0));
 
-/** "4.21%" -> 4.21 */
-export const pct = (s?: string | number) =>
-  typeof s === "number" ? s : parseFloat((s ?? "0").replace("%", "")) || 0;
+/**
+ * Parses a percentage that the producer may write as a number (45.2) or as a
+ * string ("45.2", "45.2%", "45,2 %"). Returns null when there is no usable value,
+ * so the UI can show "no data" instead of a misleading 0.
+ */
+export function toPct(v: unknown): number | null {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v === "string") {
+    const n = parseFloat(v.replace("%", "").replace(",", ".").trim());
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/** "4.21%" -> 4.21, anything unparseable -> 0 (for per-container sums). */
+export const pct = (s?: string | number) => toPct(s) ?? 0;
 
 /* ---------- docker ---------- */
 

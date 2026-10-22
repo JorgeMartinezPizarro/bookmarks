@@ -7,7 +7,8 @@
 export type SystemReport = {
   model?: string;
   resources?: { cpu?: { cores?: number } };
-  summary?: { cpu_usage?: number; ram_usage?: number; disk_usage?: number };
+  /** Percentages; the producer may write them as numbers or strings ("45.2%"). */
+  summary?: { cpu_usage?: number | string; ram_usage?: number | string; disk_usage?: number | string };
 };
 
 export type DockerContainer = {

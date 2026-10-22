@@ -10,6 +10,7 @@ import { StatTile } from "@/app/components/monitor/StatTile";
 import { LiveBadge } from "@/app/components/monitor/LiveBadge";
 import { DockerPanel } from "@/app/components/monitor/DockerPanel";
 import { SecurityPanel } from "@/app/components/monitor/SecurityPanel";
+import { toPct } from "./lib";
 import type { AccessReport, DockerContainer, SystemReport } from "./types";
 
 export default function Monitor() {
@@ -49,12 +50,12 @@ export default function Monitor() {
         <section className="kpis" aria-label="Resources">
           <StatTile
             label="CPU"
-            value={system.summary?.cpu_usage ?? 0}
+            value={toPct(system.summary?.cpu_usage)}
             icon={<SpeedOutlinedIcon fontSize="inherit" />}
             hint={`${cores} ${cores === 1 ? "core" : "cores"}`}
           />
-          <StatTile label="Memory" value={system.summary?.ram_usage ?? 0} icon={<MemoryOutlinedIcon fontSize="inherit" />} />
-          <StatTile label="Disk" value={system.summary?.disk_usage ?? 0} icon={<StorageOutlinedIcon fontSize="inherit" />} />
+          <StatTile label="Memory" value={toPct(system.summary?.ram_usage)} icon={<MemoryOutlinedIcon fontSize="inherit" />} />
+          <StatTile label="Disk" value={toPct(system.summary?.disk_usage)} icon={<StorageOutlinedIcon fontSize="inherit" />} />
         </section>
       )}
 
