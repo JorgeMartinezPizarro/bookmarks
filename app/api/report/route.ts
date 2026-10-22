@@ -1,58 +1,51 @@
-// app/api/stats/route.ts
 import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 import { requireAuth } from "@/app/lib/auth";
 
-const WATCH_DIR = "/var/www/html";
-let lastModified = 0; // memoria simple en backend
+// Directory where the private tool writes system.json, docker.json, access.json.
+const WATCH_DIR = process.env.WATCH_DIR || "/var/www/html";
 
+/**
+ * GET /api/report?since=<ms>
+ *
+ * Returns every *.json file in WATCH_DIR modified after `since` (a Unix
+ * timestamp in milliseconds supplied by the client). The client keeps the
+ * newest timestamp it has seen and sends it back, so each browser tab gets
+ * the full snapshot on its first request and only deltas afterwards.
+ */
 export async function GET(req: Request) {
-  
-	try {
+  try {
+    if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "true") await requireAuth(req);
 
-	if (process.env.NEXT_PUBLIC_ENABLE_LOGIN === "true")
-		await requireAuth(req);
+    const since = Number(new URL(req.url).searchParams.get("since") ?? 0) || 0;
 
-    	
-    const files = await fs.readdir(WATCH_DIR);
-    const jsonFiles = files.filter((f) => f.endsWith(".json"));
+    const files = (await fs.readdir(WATCH_DIR)).filter((f) => f.endsWith(".json"));
 
-    let newestTimestamp = lastModified;
-    const data: Record<string, any> = {}; // objeto con claves = nombres de fichero
+    let newest = since;
+    const data: Record<string, { timestamp: number; content: unknown }> = {};
 
-    for (const file of jsonFiles) {
+    for (const file of files) {
       const fullPath = path.join(WATCH_DIR, file);
       const stats = await fs.stat(fullPath);
+      if (stats.mtimeMs <= since) continue;
 
-      if (stats.mtimeMs > lastModified) {
-        newestTimestamp = Math.max(newestTimestamp, stats.mtimeMs);
-
-        const content = await fs.readFile(fullPath, "utf8");
-        data[file] = {
-          timestamp: stats.mtimeMs,
-          content: JSON.parse(content),
-        };
+      try {
+        const content = JSON.parse(await fs.readFile(fullPath, "utf8"));
+        data[file] = { timestamp: stats.mtimeMs, content };
+        newest = Math.max(newest, stats.mtimeMs);
+      } catch {
+        // The producer may be mid-write; skip this file and pick it up next poll.
       }
     }
 
     if (Object.keys(data).length === 0) {
-      // Nada nuevo → devolvemos solo timestamp
-      return NextResponse.json({ changed: false, timestamp: lastModified });
+      return NextResponse.json({ changed: false, timestamp: since });
     }
 
-    lastModified = newestTimestamp;
-
-    return NextResponse.json({
-      changed: true,
-      timestamp: lastModified,
-      data, // ahora es un objeto { "fichero.json": {timestamp, content}, ... }
-    });
+    return NextResponse.json({ changed: true, timestamp: newest, data });
   } catch (err) {
     console.error(err);
-    return NextResponse.json(
-      { error: "Error reading files" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Error reading files" }, { status: 500 });
   }
 }

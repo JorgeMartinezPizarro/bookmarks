@@ -1,0 +1,5 @@
+{
+  "model": "Raspberry Pi 5 Model B Rev 1.0",
+  "resources": { "cpu": { "cores": 4 } },
+  "summary": { "cpu_usage": 23.4, "ram_usage": 61.8, "disk_usage": 78.2 }
+}

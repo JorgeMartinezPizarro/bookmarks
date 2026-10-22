@@ -6,7 +6,8 @@
     "dev": "node run.js dev",
     "build": "next build",
     "start": "node run.js start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "mock": "node mock/simulate.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
