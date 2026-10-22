@@ -1,6 +1,6 @@
 services:
-  bookmarks:
-    image: jorgemartinezpizarro/bookmarks:latest
+  system-monitor:
+    image: jorgemartinezpizarro/system-monitor:latest
     restart: always
     ports:
       - ${PORT}:3000

@@ -2,7 +2,7 @@
   { "name": "nextcloud-app-1", "status": "Up 3 days (healthy)", "cpu": "4.21%", "memory": "6.80%" },
   { "name": "nextcloud-db-1", "status": "Up 3 days (healthy)", "cpu": "1.05%", "memory": "9.12%" },
   { "name": "nextcloud-redis-1", "status": "Up 3 days", "cpu": "0.12%", "memory": "0.40%" },
-  { "name": "bookmarks-bookmarks-1", "status": "Up 2 hours", "cpu": "0.35%", "memory": "3.10%" },
+  { "name": "system-monitor-system-monitor-1", "status": "Up 2 hours", "cpu": "0.35%", "memory": "3.10%" },
   { "name": "monitor-agent-1", "status": "Up 5 minutes (unhealthy)", "cpu": "12.80%", "memory": "1.20%" },
   { "name": "pihole-pihole-1", "status": "Up 3 days (healthy)", "cpu": "0.60%", "memory": "2.30%" },
   { "name": "pihole-unbound-1", "status": "Up 3 days (Paused)", "cpu": "0.00%", "memory": "0.90%" },

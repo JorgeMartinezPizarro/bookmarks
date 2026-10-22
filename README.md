@@ -49,9 +49,9 @@ Select your preferred method:
 Run the UI using node:
 
 ```bash
-git clone git@github.com:JorgeMartinezPizarro/bookmarks.git
-copy .env bookmarks/.env
-cd bookmarks
+git clone git@github.com:JorgeMartinezPizarro/system-monitor.git
+copy .env system-monitor/.env
+cd system-monitor
 npm install
 npm run start
 ```
@@ -59,9 +59,9 @@ npm run start
 #### DOCKER
 
 ```bash
-git clone git@github.com:JorgeMartinezPizarro/bookmarks.git
-copy .env bookmarks/.env
-cd bookmarks
+git clone git@github.com:JorgeMartinezPizarro/system-monitor.git
+copy .env system-monitor/.env
+cd system-monitor
 docker compose up -d
 ```
 
@@ -70,11 +70,11 @@ Navigate to [http://localhost:3000/bookmarks](http://localhost:3000/bookmarks) t
 ## BUILD
 
 ```bash
-docker build -t jorgemartinezpizarro/bookmarks:latest .
-docker push jorgemartinezpizarro/bookmarks:latest
+docker build -t jorgemartinezpizarro/system-monitor:latest .
+docker push jorgemartinezpizarro/system-monitor:latest
 ```
 
-Change `jorgemartinezpizarro/bookmarks` to your own Docker Hub namespace.
+Change `jorgemartinezpizarro/system-monitor` to your own Docker Hub namespace.
 
 ## NOTE
 
